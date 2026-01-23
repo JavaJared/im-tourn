@@ -459,6 +459,29 @@ body {
   margin-top: 0.25rem;
 }
 
+.download-blank-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  background: transparent;
+  border: 2px solid var(--accent-orange);
+  color: var(--accent-orange);
+  padding: 0.7rem 1.5rem;
+  border-radius: 8px;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.download-blank-btn:hover {
+  background: var(--accent-orange);
+  color: white;
+  box-shadow: 0 4px 20px var(--accent-orange-glow);
+}
+
 .bracket-actions {
   display: flex;
   gap: 0.5rem;
@@ -597,6 +620,12 @@ body {
   cursor: pointer;
 }
 
+.form-select option {
+  background: var(--bg-dark);
+  color: var(--text-primary);
+  padding: 0.5rem;
+}
+
 .size-options { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
 
 .size-option {
@@ -687,12 +716,31 @@ body {
 .fill-header h1 { font-family: 'Bebas Neue', sans-serif; font-size: 2.5rem; letter-spacing: 2px; }
 .fill-header p { color: var(--text-secondary); font-weight: 300; margin-top: 0.5rem; }
 
-.bracket-wrapper { display: flex; justify-content: center; gap: 1rem; padding: 2rem; min-width: fit-content; }
+.bracket-wrapper { 
+  display: flex; 
+  justify-content: center; 
+  align-items: flex-start;
+  gap: 0; 
+  padding: 2rem; 
+  min-width: fit-content; 
+}
 
-.round { display: flex; flex-direction: column; justify-content: space-around; gap: 1rem; min-width: 220px; }
+.round { 
+  display: flex; 
+  flex-direction: column; 
+  justify-content: space-around;
+  min-width: 220px;
+  padding: 0 0.5rem;
+}
 .round-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.2rem; letter-spacing: 1px; color: var(--text-muted); text-align: center; margin-bottom: 1rem; }
 
-.matchup { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; overflow: hidden; }
+.matchup { 
+  background: var(--bg-card); 
+  border: 1px solid var(--border-subtle); 
+  border-radius: 12px; 
+  overflow: hidden;
+  margin: 0.5rem 0;
+}
 
 .matchup-entry {
   padding: 1rem;
