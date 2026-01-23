@@ -519,7 +519,6 @@ const CreatePage = ({ onPublish, onNavigate }) => {
 const FillPage = ({ bracket, onSubmit, onBack }) => {
   const [matchups, setMatchups] = useState(bracket.matchups);
   const { currentUser } = useAuth();
-  const blankBracketRef = useRef(null);
   
   const getRoundName = (roundIndex, totalRounds) => {
     const remaining = totalRounds - roundIndex;
@@ -592,38 +591,161 @@ const FillPage = ({ bracket, onSubmit, onBack }) => {
   };
 
   const downloadBlankBracket = async () => {
-    const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/+esm')).default;
     const { jsPDF } = await import('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/+esm');
     
-    const element = blankBracketRef.current;
-    const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-    const imgData = canvas.toDataURL('image/png');
+    // Create landscape letter PDF
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'letter' });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
     
-    // Use standard letter size in landscape
-    const pdf = new jsPDF({ orientation: 'landscape', unit: 'in', format: 'letter' });
-    const pageWidth = 11;
-    const pageHeight = 8.5;
-    const margin = 0.5;
+    // Colors
+    const orange = [255, 107, 53];
+    const darkGray = [51, 51, 51];
+    const mediumGray = [102, 102, 102];
+    const borderGray = [180, 180, 180];
+    const lightBg = [250, 250, 250];
+    const white = [255, 255, 255];
     
-    const imgWidth = pageWidth - (margin * 2);
-    const imgHeight = (canvas.height / canvas.width) * imgWidth;
+    // Title
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(24);
+    pdf.setTextColor(...darkGray);
+    pdf.text(bracket.title, pageWidth / 2, 40, { align: 'center' });
     
-    // Center vertically if image is shorter than page
-    const yOffset = imgHeight < (pageHeight - margin * 2) 
-      ? (pageHeight - imgHeight) / 2 
-      : margin;
+    // Subtitle
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(11);
+    pdf.setTextColor(...mediumGray);
+    pdf.text(`${bracket.category} • ${bracket.size} Entries`, pageWidth / 2, 58, { align: 'center' });
     
-    pdf.addImage(imgData, 'PNG', margin, yOffset, imgWidth, imgHeight);
+    // Bracket dimensions
+    const blankMatchups = bracket.matchups;
+    const numRounds = blankMatchups.length;
+    const margin = 40;
+    const bracketTop = 90;
+    const bracketWidth = pageWidth - (margin * 2);
+    const bracketHeight = pageHeight - bracketTop - 80;
+    const roundWidth = bracketWidth / numRounds;
+    const matchupWidth = roundWidth - 20;
+    const matchupHeight = 36;
+    const entryHeight = matchupHeight / 2;
+    
+    // Draw each round
+    blankMatchups.forEach((round, roundIndex) => {
+      const numMatchups = round.length;
+      const roundX = margin + (roundIndex * roundWidth) + 10;
+      
+      // Round title
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(9);
+      pdf.setTextColor(...mediumGray);
+      pdf.text(getRoundName(roundIndex, numRounds), roundX + matchupWidth / 2, bracketTop, { align: 'center' });
+      
+      // Calculate vertical spacing
+      const totalMatchupSpace = bracketHeight - 20;
+      const spacing = totalMatchupSpace / numMatchups;
+      
+      round.forEach((match, matchIndex) => {
+        const matchY = bracketTop + 15 + (matchIndex * spacing) + (spacing - matchupHeight) / 2;
+        
+        // Draw matchup box with clear borders
+        pdf.setDrawColor(...borderGray);
+        pdf.setLineWidth(1.5);
+        
+        // Entry 1 background
+        pdf.setFillColor(...lightBg);
+        pdf.roundedRect(roundX, matchY, matchupWidth, entryHeight, 2, 2, 'FD');
+        
+        // Entry 2 background
+        pdf.setFillColor(...white);
+        pdf.roundedRect(roundX, matchY + entryHeight, matchupWidth, entryHeight, 2, 2, 'FD');
+        
+        // Draw stronger divider line
+        pdf.setDrawColor(...borderGray);
+        pdf.setLineWidth(1);
+        pdf.line(roundX, matchY + entryHeight, roundX + matchupWidth, matchY + entryHeight);
+        
+        // Entry 1 content
+        if (match.entry1) {
+          // Seed box
+          pdf.setFillColor(...orange);
+          pdf.roundedRect(roundX + 3, matchY + 2, 14, 14, 2, 2, 'F');
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(8);
+          pdf.setTextColor(...white);
+          pdf.text(String(match.entry1.seed), roundX + 10, matchY + 12, { align: 'center' });
+          
+          // Name
+          pdf.setFont('helvetica', 'normal');
+          pdf.setFontSize(9);
+          pdf.setTextColor(...darkGray);
+          pdf.text(match.entry1.name.substring(0, 18), roundX + 22, matchY + 12);
+        } else {
+          // Blank line for writing
+          pdf.setDrawColor(...borderGray);
+          pdf.setLineWidth(0.5);
+          pdf.line(roundX + 8, matchY + 13, roundX + matchupWidth - 8, matchY + 13);
+        }
+        
+        // Entry 2 content
+        if (match.entry2) {
+          // Seed box
+          pdf.setFillColor(...orange);
+          pdf.roundedRect(roundX + 3, matchY + entryHeight + 2, 14, 14, 2, 2, 'F');
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(8);
+          pdf.setTextColor(...white);
+          pdf.text(String(match.entry2.seed), roundX + 10, matchY + entryHeight + 12, { align: 'center' });
+          
+          // Name
+          pdf.setFont('helvetica', 'normal');
+          pdf.setFontSize(9);
+          pdf.setTextColor(...darkGray);
+          pdf.text(match.entry2.name.substring(0, 18), roundX + 22, matchY + entryHeight + 12);
+        } else {
+          // Blank line for writing
+          pdf.setDrawColor(...borderGray);
+          pdf.setLineWidth(0.5);
+          pdf.line(roundX + 8, matchY + entryHeight + 13, roundX + matchupWidth - 8, matchY + entryHeight + 13);
+        }
+        
+        // Draw connector lines to next round
+        if (roundIndex < numRounds - 1) {
+          const nextRoundX = roundX + roundWidth;
+          const matchCenterY = matchY + matchupHeight / 2;
+          
+          pdf.setDrawColor(...borderGray);
+          pdf.setLineWidth(1);
+          
+          // Horizontal line from matchup
+          pdf.line(roundX + matchupWidth, matchCenterY, roundX + matchupWidth + 10, matchCenterY);
+        }
+      });
+    });
+    
+    // Champion box at bottom
+    const champY = pageHeight - 60;
+    const champWidth = 200;
+    const champX = (pageWidth - champWidth) / 2;
+    
+    pdf.setFillColor(...lightBg);
+    pdf.roundedRect(champX, champY, champWidth, 40, 4, 4, 'F');
+    pdf.setDrawColor(...orange);
+    pdf.setLineWidth(2);
+    pdf.roundedRect(champX, champY, champWidth, 40, 4, 4, 'S');
+    
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(10);
+    pdf.setTextColor(...mediumGray);
+    pdf.text('CHAMPION', pageWidth / 2, champY + 14, { align: 'center' });
+    
+    // Blank line for champion name
+    pdf.setDrawColor(...borderGray);
+    pdf.setLineWidth(0.5);
+    pdf.line(champX + 30, champY + 32, champX + champWidth - 30, champY + 32);
+    
     pdf.save(`${bracket.title.replace(/\s+/g, '-')}-blank-bracket.pdf`);
   };
-  
-  // Get the original matchups (first round only has real entries)
-  const blankMatchups = bracket.matchups;
-
-  // Calculate the base height for proper alignment
-  const firstRoundMatchups = matchups[0].length;
-  const baseMatchupHeight = 5.5; // rem - height of one matchup
-  const baseGap = 1; // rem - gap between matchups in first round
   
   return (
     <div className="fill-container">
@@ -635,44 +757,6 @@ const FillPage = ({ bracket, onSubmit, onBack }) => {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
           Download Blank Bracket
         </button>
-      </div>
-      
-      {/* Hidden blank bracket for PDF generation */}
-      <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
-        <div className="pdf-preview" ref={blankBracketRef} style={{ width: '1000px', padding: '1.5rem' }}>
-          <h1 className="pdf-title" style={{ fontSize: '1.8rem', marginBottom: '0.3rem' }}>{bracket.title}</h1>
-          <p className="pdf-subtitle" style={{ fontSize: '0.9rem', marginBottom: '1rem' }}>{bracket.category} • {bracket.size} Entries</p>
-          
-          <div className="pdf-bracket" style={{ gap: '0.25rem' }}>
-            {blankMatchups.map((round, roundIndex) => (
-              <div key={roundIndex} className="pdf-round" style={{ 
-                minWidth: '140px',
-                justifyContent: 'space-around',
-                display: 'flex',
-                flexDirection: 'column'
-              }}>
-                <div className="pdf-round-title" style={{ fontSize: '0.75rem', marginBottom: '0.3rem' }}>{getRoundName(roundIndex, blankMatchups.length)}</div>
-                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-around', flex: 1 }}>
-                  {round.map((match, matchIndex) => (
-                    <div key={match.id} className="pdf-matchup" style={{ borderWidth: '1px' }}>
-                      <div className="pdf-entry" style={{ padding: '0.4rem 0.5rem', fontSize: '0.7rem' }}>
-                        {match.entry1 ? (<><span className="pdf-seed" style={{ width: '16px', height: '16px', fontSize: '0.65rem' }}>{match.entry1.seed}</span><span className="pdf-name">{match.entry1.name}</span></>) : <span className="pdf-name" style={{ color: '#ccc' }}>___________</span>}
-                      </div>
-                      <div className="pdf-entry" style={{ padding: '0.4rem 0.5rem', fontSize: '0.7rem' }}>
-                        {match.entry2 ? (<><span className="pdf-seed" style={{ width: '16px', height: '16px', fontSize: '0.65rem' }}>{match.entry2.seed}</span><span className="pdf-name">{match.entry2.name}</span></>) : <span className="pdf-name" style={{ color: '#ccc' }}>___________</span>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-          
-          <div className="pdf-champion" style={{ background: '#f5f5f5', padding: '0.75rem', marginTop: '1rem' }}>
-            <div className="pdf-champion-label" style={{ fontSize: '0.75rem' }}>🏆 CHAMPION 🏆</div>
-            <div className="pdf-champion-name" style={{ color: '#ccc', fontSize: '1.2rem' }}>_______________</div>
-          </div>
-        </div>
       </div>
       
       <div className="bracket-wrapper">
@@ -714,7 +798,6 @@ const FillPage = ({ bracket, onSubmit, onBack }) => {
 
 // PDF Page Component
 const PDFPage = ({ bracket, onBack }) => {
-  const pdfRef = useRef(null);
   const { currentUser } = useAuth();
   
   const getRoundName = (roundIndex, totalRounds) => {
@@ -726,14 +809,168 @@ const PDFPage = ({ bracket, onBack }) => {
   };
   
   const downloadPDF = async () => {
-    const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/+esm')).default;
     const { jsPDF } = await import('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/+esm');
     
-    const element = pdfRef.current;
-    const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF({ orientation: canvas.width > canvas.height ? 'landscape' : 'portrait', unit: 'px', format: [canvas.width, canvas.height] });
-    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+    // Create landscape letter PDF
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'letter' });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    
+    // Colors
+    const orange = [255, 107, 53];
+    const darkGray = [51, 51, 51];
+    const mediumGray = [102, 102, 102];
+    const lightGray = [200, 200, 200];
+    const winnerGreen = [212, 237, 218];
+    const white = [255, 255, 255];
+    
+    // Title
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(24);
+    pdf.setTextColor(...darkGray);
+    pdf.text(bracket.title, pageWidth / 2, 40, { align: 'center' });
+    
+    // Subtitle
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(11);
+    pdf.setTextColor(...mediumGray);
+    pdf.text(`${bracket.category} • ${bracket.size} Entries • Filled by ${currentUser?.displayName || 'Guest'}`, pageWidth / 2, 58, { align: 'center' });
+    
+    // Bracket dimensions
+    const numRounds = bracket.matchups.length;
+    const margin = 40;
+    const bracketTop = 90;
+    const bracketWidth = pageWidth - (margin * 2);
+    const bracketHeight = pageHeight - bracketTop - 80;
+    const roundWidth = bracketWidth / numRounds;
+    const matchupWidth = roundWidth - 20;
+    const matchupHeight = 36;
+    const entryHeight = matchupHeight / 2;
+    
+    // Draw each round
+    bracket.matchups.forEach((round, roundIndex) => {
+      const numMatchups = round.length;
+      const roundX = margin + (roundIndex * roundWidth) + 10;
+      
+      // Round title
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(9);
+      pdf.setTextColor(...mediumGray);
+      pdf.text(getRoundName(roundIndex, numRounds), roundX + matchupWidth / 2, bracketTop, { align: 'center' });
+      
+      // Calculate vertical spacing
+      const totalMatchupSpace = bracketHeight - 20;
+      const spacing = totalMatchupSpace / numMatchups;
+      
+      round.forEach((match, matchIndex) => {
+        const matchY = bracketTop + 15 + (matchIndex * spacing) + (spacing - matchupHeight) / 2;
+        
+        // Draw matchup box
+        pdf.setDrawColor(...lightGray);
+        pdf.setLineWidth(1);
+        
+        // Entry 1
+        const isWinner1 = match.winner === 1;
+        if (isWinner1) {
+          pdf.setFillColor(...winnerGreen);
+        } else {
+          pdf.setFillColor(...white);
+        }
+        pdf.roundedRect(roundX, matchY, matchupWidth, entryHeight, 2, 2, 'FD');
+        
+        // Entry 2
+        const isWinner2 = match.winner === 2;
+        if (isWinner2) {
+          pdf.setFillColor(...winnerGreen);
+        } else {
+          pdf.setFillColor(...white);
+        }
+        pdf.roundedRect(roundX, matchY + entryHeight, matchupWidth, entryHeight, 2, 2, 'FD');
+        
+        // Draw divider line
+        pdf.setDrawColor(...lightGray);
+        pdf.line(roundX, matchY + entryHeight, roundX + matchupWidth, matchY + entryHeight);
+        
+        // Entry 1 content
+        if (match.entry1) {
+          // Seed box
+          pdf.setFillColor(...orange);
+          pdf.roundedRect(roundX + 3, matchY + 2, 14, 14, 2, 2, 'F');
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(8);
+          pdf.setTextColor(...white);
+          pdf.text(String(match.entry1.seed), roundX + 10, matchY + 12, { align: 'center' });
+          
+          // Name
+          pdf.setFont('helvetica', isWinner1 ? 'bold' : 'normal');
+          pdf.setFontSize(9);
+          pdf.setTextColor(...darkGray);
+          pdf.text(match.entry1.name.substring(0, 18), roundX + 22, matchY + 12);
+        } else {
+          pdf.setFont('helvetica', 'italic');
+          pdf.setFontSize(9);
+          pdf.setTextColor(...lightGray);
+          pdf.text('TBD', roundX + 10, matchY + 12);
+        }
+        
+        // Entry 2 content
+        if (match.entry2) {
+          // Seed box
+          pdf.setFillColor(...orange);
+          pdf.roundedRect(roundX + 3, matchY + entryHeight + 2, 14, 14, 2, 2, 'F');
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(8);
+          pdf.setTextColor(...white);
+          pdf.text(String(match.entry2.seed), roundX + 10, matchY + entryHeight + 12, { align: 'center' });
+          
+          // Name
+          pdf.setFont('helvetica', isWinner2 ? 'bold' : 'normal');
+          pdf.setFontSize(9);
+          pdf.setTextColor(...darkGray);
+          pdf.text(match.entry2.name.substring(0, 18), roundX + 22, matchY + entryHeight + 12);
+        } else {
+          pdf.setFont('helvetica', 'italic');
+          pdf.setFontSize(9);
+          pdf.setTextColor(...lightGray);
+          pdf.text('TBD', roundX + 10, matchY + entryHeight + 12);
+        }
+        
+        // Draw connector lines to next round
+        if (roundIndex < numRounds - 1) {
+          const nextRoundX = roundX + roundWidth;
+          const matchCenterY = matchY + matchupHeight / 2;
+          
+          pdf.setDrawColor(...lightGray);
+          pdf.setLineWidth(1);
+          
+          // Horizontal line from matchup
+          pdf.line(roundX + matchupWidth, matchCenterY, roundX + matchupWidth + 10, matchCenterY);
+        }
+      });
+    });
+    
+    // Champion box at bottom
+    if (bracket.champion) {
+      const champY = pageHeight - 60;
+      const champWidth = 200;
+      const champX = (pageWidth - champWidth) / 2;
+      
+      pdf.setFillColor(255, 243, 205);
+      pdf.roundedRect(champX, champY, champWidth, 40, 4, 4, 'F');
+      pdf.setDrawColor(...orange);
+      pdf.setLineWidth(2);
+      pdf.roundedRect(champX, champY, champWidth, 40, 4, 4, 'S');
+      
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(10);
+      pdf.setTextColor(...mediumGray);
+      pdf.text('🏆 CHAMPION 🏆', pageWidth / 2, champY + 14, { align: 'center' });
+      
+      pdf.setFontSize(14);
+      pdf.setTextColor(...darkGray);
+      pdf.text(bracket.champion.name, pageWidth / 2, champY + 32, { align: 'center' });
+    }
+    
     pdf.save(`${bracket.title.replace(/\s+/g, '-')}-bracket.pdf`);
   };
   
@@ -744,32 +981,34 @@ const PDFPage = ({ bracket, onBack }) => {
         <p>Download your completed bracket as a PDF</p>
       </div>
       
-      <div className="pdf-preview" ref={pdfRef}>
-        <h1 className="pdf-title">{bracket.title}</h1>
-        <p className="pdf-subtitle">{bracket.category} • {bracket.size} Entries • Filled by {currentUser?.displayName || 'Guest'}</p>
+      <div className="pdf-preview-display">
+        <h2 className="preview-title">{bracket.title}</h2>
+        <p className="preview-subtitle">{bracket.category} • {bracket.size} Entries</p>
         
-        <div className="pdf-bracket">
+        <div className="preview-bracket">
           {bracket.matchups.map((round, roundIndex) => (
-            <div key={roundIndex} className="pdf-round">
-              <div className="pdf-round-title">{getRoundName(roundIndex, bracket.matchups.length)}</div>
-              {round.map((match) => (
-                <div key={match.id} className="pdf-matchup">
-                  <div className={`pdf-entry ${match.winner === 1 ? 'winner' : ''}`}>
-                    {match.entry1 ? (<><span className="pdf-seed">{match.entry1.seed}</span><span className="pdf-name">{match.entry1.name}</span></>) : <span className="pdf-name">TBD</span>}
+            <div key={roundIndex} className="preview-round">
+              <div className="preview-round-title">{getRoundName(roundIndex, bracket.matchups.length)}</div>
+              <div className="preview-matchups">
+                {round.map((match) => (
+                  <div key={match.id} className="preview-matchup">
+                    <div className={`preview-entry ${match.winner === 1 ? 'winner' : ''}`}>
+                      {match.entry1 ? (<><span className="preview-seed">{match.entry1.seed}</span><span>{match.entry1.name}</span></>) : <span className="tbd">TBD</span>}
+                    </div>
+                    <div className={`preview-entry ${match.winner === 2 ? 'winner' : ''}`}>
+                      {match.entry2 ? (<><span className="preview-seed">{match.entry2.seed}</span><span>{match.entry2.name}</span></>) : <span className="tbd">TBD</span>}
+                    </div>
                   </div>
-                  <div className={`pdf-entry ${match.winner === 2 ? 'winner' : ''}`}>
-                    {match.entry2 ? (<><span className="pdf-seed">{match.entry2.seed}</span><span className="pdf-name">{match.entry2.name}</span></>) : <span className="pdf-name">TBD</span>}
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           ))}
         </div>
         
         {bracket.champion && (
-          <div className="pdf-champion">
-            <div className="pdf-champion-label">🏆 CHAMPION 🏆</div>
-            <div className="pdf-champion-name">{bracket.champion.name}</div>
+          <div className="preview-champion">
+            <span>🏆 CHAMPION: </span>
+            <strong>{bracket.champion.name}</strong>
           </div>
         )}
       </div>
