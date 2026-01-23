@@ -7,12 +7,13 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyCEm7GtXZiO1lcKeFfWOg3Y8No4ZrEUoTM",
+  authDomain: "i-m-tourn.firebaseapp.com",
+  projectId: "i-m-tourn",
+  storageBucket: "i-m-tourn.firebasestorage.app",
+  messagingSenderId: "491434000819",
+  appId: "1:491434000819:web:fc9648914a7e3ff00c8bc6",
+  measurementId: "G-XLDJ2FB9QQ"
 };
 
 const app = initializeApp(firebaseConfig);
