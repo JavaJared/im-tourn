@@ -427,11 +427,17 @@ const CreatePage = ({ onPublish, onNavigate }) => {
         matchups: generateMatchups(entries)
       };
       
+      console.log('Publishing bracket with data:', bracketData);
+      console.log('User ID:', currentUser.uid);
+      console.log('Display Name:', currentUser.displayName);
+      
       await createBracket(bracketData, currentUser.uid, currentUser.displayName);
       onNavigate('home');
     } catch (error) {
       console.error('Error publishing bracket:', error);
-      alert('Failed to publish bracket. Please try again.');
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      alert(`Failed to publish bracket.\n\nError: ${error.code || 'Unknown'}\n${error.message || 'Please try again.'}`);
     }
     setPublishing(false);
   };
