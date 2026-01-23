@@ -865,6 +865,107 @@ body {
 
 .pdf-actions { display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; }
 
+/* PDF Preview Display (on-screen preview) */
+.pdf-preview-display {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.preview-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2rem;
+  letter-spacing: 2px;
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.preview-subtitle {
+  text-align: center;
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+}
+
+.preview-bracket {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 1rem 0;
+}
+
+.preview-round {
+  min-width: 160px;
+}
+
+.preview-round-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: 0.75rem;
+}
+
+.preview-matchups {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  height: 100%;
+  gap: 0.5rem;
+}
+
+.preview-matchup {
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.preview-entry {
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.preview-entry:last-child {
+  border-bottom: none;
+}
+
+.preview-entry.winner {
+  background: rgba(0, 212, 170, 0.15);
+}
+
+.preview-seed {
+  width: 20px;
+  height: 20px;
+  background: var(--accent-orange);
+  color: white;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.preview-champion {
+  text-align: center;
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: rgba(0, 212, 170, 0.1);
+  border-radius: 8px;
+  color: var(--accent-teal);
+}
+
+.preview-champion strong {
+  color: var(--text-primary);
+}
+
 .download-btn {
   background: linear-gradient(135deg, var(--accent-orange), #ff8c5a);
   color: white;
