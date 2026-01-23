@@ -719,7 +719,7 @@ body {
 .bracket-wrapper { 
   display: flex; 
   justify-content: center; 
-  align-items: flex-start;
+  align-items: stretch;
   gap: 0; 
   padding: 2rem; 
   min-width: fit-content; 
@@ -732,14 +732,37 @@ body {
   min-width: 220px;
   padding: 0 0.5rem;
 }
-.round-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.2rem; letter-spacing: 1px; color: var(--text-muted); text-align: center; margin-bottom: 1rem; }
+
+.round-title { 
+  font-family: 'Bebas Neue', sans-serif; 
+  font-size: 1.2rem; 
+  letter-spacing: 1px; 
+  color: var(--text-muted); 
+  text-align: center; 
+  margin-bottom: 1rem;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
+.round {
+  position: relative;
+  padding-top: 2.5rem;
+}
+
+.matchups-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  flex: 1;
+}
 
 .matchup { 
   background: var(--bg-card); 
   border: 1px solid var(--border-subtle); 
   border-radius: 12px; 
   overflow: hidden;
-  margin: 0.5rem 0;
 }
 
 .matchup-entry {
