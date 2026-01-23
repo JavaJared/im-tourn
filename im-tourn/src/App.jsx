@@ -519,6 +519,7 @@ const CreatePage = ({ onPublish, onNavigate }) => {
 const FillPage = ({ bracket, onSubmit, onBack }) => {
   const [matchups, setMatchups] = useState(bracket.matchups);
   const { currentUser } = useAuth();
+  const blankBracketRef = useRef(null);
   
   const getRoundName = (roundIndex, totalRounds) => {
     const remaining = totalRounds - roundIndex;
@@ -589,6 +590,21 @@ const FillPage = ({ bracket, onSubmit, onBack }) => {
     
     onSubmit(filledBracket);
   };
+
+  const downloadBlankBracket = async () => {
+    const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/+esm')).default;
+    const { jsPDF } = await import('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/+esm');
+    
+    const element = blankBracketRef.current;
+    const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [canvas.width, canvas.height] });
+    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+    pdf.save(`${bracket.title.replace(/\s+/g, '-')}-blank-bracket.pdf`);
+  };
+  
+  // Get the original matchups (first round only has real entries)
+  const blankMatchups = bracket.matchups;
   
   return (
     <div className="fill-container">
@@ -596,11 +612,49 @@ const FillPage = ({ bracket, onSubmit, onBack }) => {
         <h1>{bracket.title}</h1>
         <p>Click on entries to select winners for each matchup</p>
         <p className="bracket-author-fill">Created by {bracket.userDisplayName}</p>
+        <button className="download-blank-btn" onClick={downloadBlankBracket}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          Download Blank Bracket
+        </button>
+      </div>
+      
+      {/* Hidden blank bracket for PDF generation */}
+      <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+        <div className="pdf-preview" ref={blankBracketRef} style={{ width: 'max-content' }}>
+          <h1 className="pdf-title">{bracket.title}</h1>
+          <p className="pdf-subtitle">{bracket.category} • {bracket.size} Entries</p>
+          
+          <div className="pdf-bracket">
+            {blankMatchups.map((round, roundIndex) => (
+              <div key={roundIndex} className="pdf-round">
+                <div className="pdf-round-title">{getRoundName(roundIndex, blankMatchups.length)}</div>
+                {round.map((match, matchIndex) => (
+                  <div key={match.id} className="pdf-matchup">
+                    <div className="pdf-entry">
+                      {match.entry1 ? (<><span className="pdf-seed">{match.entry1.seed}</span><span className="pdf-name">{match.entry1.name}</span></>) : <span className="pdf-name" style={{ color: '#ccc' }}>_______________</span>}
+                    </div>
+                    <div className="pdf-entry">
+                      {match.entry2 ? (<><span className="pdf-seed">{match.entry2.seed}</span><span className="pdf-name">{match.entry2.name}</span></>) : <span className="pdf-name" style={{ color: '#ccc' }}>_______________</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+          
+          <div className="pdf-champion" style={{ background: '#f5f5f5' }}>
+            <div className="pdf-champion-label">🏆 CHAMPION 🏆</div>
+            <div className="pdf-champion-name" style={{ color: '#ccc' }}>_______________</div>
+          </div>
+        </div>
       </div>
       
       <div className="bracket-wrapper">
         {matchups.map((round, roundIndex) => (
-          <div key={roundIndex} className="round">
+          <div key={roundIndex} className="round" style={{ 
+            paddingTop: roundIndex === 0 ? '0' : `${Math.pow(2, roundIndex) * 1.5 - 1.5}rem`,
+            gap: `${Math.pow(2, roundIndex) * 3 - 2}rem`
+          }}>
             <div className="round-title">{getRoundName(roundIndex, matchups.length)}</div>
             {round.map((match, matchIndex) => (
               <div key={match.id} className="matchup">
