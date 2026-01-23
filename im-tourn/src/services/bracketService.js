@@ -19,13 +19,17 @@ const SUBMISSIONS_COLLECTION = 'submissions';
 
 // Create a new bracket
 export async function createBracket(bracketData, userId, userDisplayName) {
-  const docRef = await addDoc(collection(db, BRACKETS_COLLECTION), {
+  // Convert matchups to JSON string since Firestore doesn't support nested arrays
+  const dataToSave = {
     ...bracketData,
+    matchups: JSON.stringify(bracketData.matchups),
     userId,
     userDisplayName: userDisplayName || 'Anonymous',
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
-  });
+  };
+  
+  const docRef = await addDoc(collection(db, BRACKETS_COLLECTION), dataToSave);
   return docRef.id;
 }
 
@@ -36,11 +40,15 @@ export async function getAllBrackets() {
     orderBy('createdAt', 'desc')
   );
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data(),
-    createdAt: doc.data().createdAt?.toDate?.()?.toLocaleDateString() || 'Recently'
-  }));
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      matchups: typeof data.matchups === 'string' ? JSON.parse(data.matchups) : data.matchups,
+      createdAt: data.createdAt?.toDate?.()?.toLocaleDateString() || 'Recently'
+    };
+  });
 }
 
 // Get brackets by user
@@ -51,11 +59,15 @@ export async function getUserBrackets(userId) {
     orderBy('createdAt', 'desc')
   );
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data(),
-    createdAt: doc.data().createdAt?.toDate?.()?.toLocaleDateString() || 'Recently'
-  }));
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      matchups: typeof data.matchups === 'string' ? JSON.parse(data.matchups) : data.matchups,
+      createdAt: data.createdAt?.toDate?.()?.toLocaleDateString() || 'Recently'
+    };
+  });
 }
 
 // Get a single bracket by ID
@@ -64,10 +76,12 @@ export async function getBracketById(bracketId) {
   const docSnap = await getDoc(docRef);
   
   if (docSnap.exists()) {
+    const data = docSnap.data();
     return {
       id: docSnap.id,
-      ...docSnap.data(),
-      createdAt: docSnap.data().createdAt?.toDate?.()?.toLocaleDateString() || 'Recently'
+      ...data,
+      matchups: typeof data.matchups === 'string' ? JSON.parse(data.matchups) : data.matchups,
+      createdAt: data.createdAt?.toDate?.()?.toLocaleDateString() || 'Recently'
     };
   }
   return null;
@@ -80,13 +94,17 @@ export async function deleteBracket(bracketId) {
 
 // Submit a filled bracket
 export async function submitFilledBracket(submissionData, bracketId, userId, userDisplayName) {
-  const docRef = await addDoc(collection(db, SUBMISSIONS_COLLECTION), {
+  // Convert matchups to JSON string since Firestore doesn't support nested arrays
+  const dataToSave = {
     ...submissionData,
+    matchups: JSON.stringify(submissionData.matchups),
     bracketId,
     userId,
     userDisplayName: userDisplayName || 'Anonymous',
     submittedAt: serverTimestamp()
-  });
+  };
+  
+  const docRef = await addDoc(collection(db, SUBMISSIONS_COLLECTION), dataToSave);
   return docRef.id;
 }
 
