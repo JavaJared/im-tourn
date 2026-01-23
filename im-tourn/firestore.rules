@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Brackets collection
+    match /brackets/{bracketId} {
+      // Anyone can read brackets
+      allow read: if true;
+      
+      // Only authenticated users can create brackets
+      allow create: if request.auth != null 
+        && request.resource.data.userId == request.auth.uid;
+      
+      // Only the owner can update or delete their brackets
+      allow update, delete: if request.auth != null 
+        && resource.data.userId == request.auth.uid;
+    }
+    
+    // Submissions collection
+    match /submissions/{submissionId} {
+      // Anyone can read submissions
+      allow read: if true;
+      
+      // Only authenticated users can create submissions
+      allow create: if request.auth != null 
+        && request.resource.data.userId == request.auth.uid;
+      
+      // Only the owner can update or delete their submissions
+      allow update, delete: if request.auth != null 
+        && resource.data.userId == request.auth.uid;
+    }
+  }
+}
