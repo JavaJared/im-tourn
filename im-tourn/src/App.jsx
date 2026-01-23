@@ -598,13 +598,32 @@ const FillPage = ({ bracket, onSubmit, onBack }) => {
     const element = blankBracketRef.current;
     const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
     const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [canvas.width, canvas.height] });
-    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+    
+    // Use standard letter size in landscape
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'in', format: 'letter' });
+    const pageWidth = 11;
+    const pageHeight = 8.5;
+    const margin = 0.5;
+    
+    const imgWidth = pageWidth - (margin * 2);
+    const imgHeight = (canvas.height / canvas.width) * imgWidth;
+    
+    // Center vertically if image is shorter than page
+    const yOffset = imgHeight < (pageHeight - margin * 2) 
+      ? (pageHeight - imgHeight) / 2 
+      : margin;
+    
+    pdf.addImage(imgData, 'PNG', margin, yOffset, imgWidth, imgHeight);
     pdf.save(`${bracket.title.replace(/\s+/g, '-')}-blank-bracket.pdf`);
   };
   
   // Get the original matchups (first round only has real entries)
   const blankMatchups = bracket.matchups;
+
+  // Calculate the base height for proper alignment
+  const firstRoundMatchups = matchups[0].length;
+  const baseMatchupHeight = 5.5; // rem - height of one matchup
+  const baseGap = 1; // rem - gap between matchups in first round
   
   return (
     <div className="fill-container">
@@ -620,52 +639,58 @@ const FillPage = ({ bracket, onSubmit, onBack }) => {
       
       {/* Hidden blank bracket for PDF generation */}
       <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
-        <div className="pdf-preview" ref={blankBracketRef} style={{ width: 'max-content' }}>
-          <h1 className="pdf-title">{bracket.title}</h1>
-          <p className="pdf-subtitle">{bracket.category} • {bracket.size} Entries</p>
+        <div className="pdf-preview" ref={blankBracketRef} style={{ width: '1000px', padding: '1.5rem' }}>
+          <h1 className="pdf-title" style={{ fontSize: '1.8rem', marginBottom: '0.3rem' }}>{bracket.title}</h1>
+          <p className="pdf-subtitle" style={{ fontSize: '0.9rem', marginBottom: '1rem' }}>{bracket.category} • {bracket.size} Entries</p>
           
-          <div className="pdf-bracket">
+          <div className="pdf-bracket" style={{ gap: '0.25rem' }}>
             {blankMatchups.map((round, roundIndex) => (
-              <div key={roundIndex} className="pdf-round">
-                <div className="pdf-round-title">{getRoundName(roundIndex, blankMatchups.length)}</div>
-                {round.map((match, matchIndex) => (
-                  <div key={match.id} className="pdf-matchup">
-                    <div className="pdf-entry">
-                      {match.entry1 ? (<><span className="pdf-seed">{match.entry1.seed}</span><span className="pdf-name">{match.entry1.name}</span></>) : <span className="pdf-name" style={{ color: '#ccc' }}>_______________</span>}
+              <div key={roundIndex} className="pdf-round" style={{ 
+                minWidth: '140px',
+                justifyContent: 'space-around',
+                display: 'flex',
+                flexDirection: 'column'
+              }}>
+                <div className="pdf-round-title" style={{ fontSize: '0.75rem', marginBottom: '0.3rem' }}>{getRoundName(roundIndex, blankMatchups.length)}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-around', flex: 1 }}>
+                  {round.map((match, matchIndex) => (
+                    <div key={match.id} className="pdf-matchup" style={{ borderWidth: '1px' }}>
+                      <div className="pdf-entry" style={{ padding: '0.4rem 0.5rem', fontSize: '0.7rem' }}>
+                        {match.entry1 ? (<><span className="pdf-seed" style={{ width: '16px', height: '16px', fontSize: '0.65rem' }}>{match.entry1.seed}</span><span className="pdf-name">{match.entry1.name}</span></>) : <span className="pdf-name" style={{ color: '#ccc' }}>___________</span>}
+                      </div>
+                      <div className="pdf-entry" style={{ padding: '0.4rem 0.5rem', fontSize: '0.7rem' }}>
+                        {match.entry2 ? (<><span className="pdf-seed" style={{ width: '16px', height: '16px', fontSize: '0.65rem' }}>{match.entry2.seed}</span><span className="pdf-name">{match.entry2.name}</span></>) : <span className="pdf-name" style={{ color: '#ccc' }}>___________</span>}
+                      </div>
                     </div>
-                    <div className="pdf-entry">
-                      {match.entry2 ? (<><span className="pdf-seed">{match.entry2.seed}</span><span className="pdf-name">{match.entry2.name}</span></>) : <span className="pdf-name" style={{ color: '#ccc' }}>_______________</span>}
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             ))}
           </div>
           
-          <div className="pdf-champion" style={{ background: '#f5f5f5' }}>
-            <div className="pdf-champion-label">🏆 CHAMPION 🏆</div>
-            <div className="pdf-champion-name" style={{ color: '#ccc' }}>_______________</div>
+          <div className="pdf-champion" style={{ background: '#f5f5f5', padding: '0.75rem', marginTop: '1rem' }}>
+            <div className="pdf-champion-label" style={{ fontSize: '0.75rem' }}>🏆 CHAMPION 🏆</div>
+            <div className="pdf-champion-name" style={{ color: '#ccc', fontSize: '1.2rem' }}>_______________</div>
           </div>
         </div>
       </div>
       
       <div className="bracket-wrapper">
         {matchups.map((round, roundIndex) => (
-          <div key={roundIndex} className="round" style={{ 
-            paddingTop: roundIndex === 0 ? '0' : `${Math.pow(2, roundIndex) * 1.5 - 1.5}rem`,
-            gap: `${Math.pow(2, roundIndex) * 3 - 2}rem`
-          }}>
+          <div key={roundIndex} className="round">
             <div className="round-title">{getRoundName(roundIndex, matchups.length)}</div>
-            {round.map((match, matchIndex) => (
-              <div key={match.id} className="matchup">
-                <div className={`matchup-entry ${!match.entry1 ? 'empty' : ''} ${match.winner === 1 ? 'selected' : ''}`} onClick={() => match.entry1 && handleSelectWinner(roundIndex, matchIndex, 1)}>
-                  {match.entry1 ? (<><span className="entry-seed-small">{match.entry1.seed}</span><span className="entry-name">{match.entry1.name}</span></>) : (<span className="entry-name tbd">TBD</span>)}
+            <div className="matchups-container">
+              {round.map((match, matchIndex) => (
+                <div key={match.id} className="matchup">
+                  <div className={`matchup-entry ${!match.entry1 ? 'empty' : ''} ${match.winner === 1 ? 'selected' : ''}`} onClick={() => match.entry1 && handleSelectWinner(roundIndex, matchIndex, 1)}>
+                    {match.entry1 ? (<><span className="entry-seed-small">{match.entry1.seed}</span><span className="entry-name">{match.entry1.name}</span></>) : (<span className="entry-name tbd">TBD</span>)}
+                  </div>
+                  <div className={`matchup-entry ${!match.entry2 ? 'empty' : ''} ${match.winner === 2 ? 'selected' : ''}`} onClick={() => match.entry2 && handleSelectWinner(roundIndex, matchIndex, 2)}>
+                    {match.entry2 ? (<><span className="entry-seed-small">{match.entry2.seed}</span><span className="entry-name">{match.entry2.name}</span></>) : (<span className="entry-name tbd">TBD</span>)}
+                  </div>
                 </div>
-                <div className={`matchup-entry ${!match.entry2 ? 'empty' : ''} ${match.winner === 2 ? 'selected' : ''}`} onClick={() => match.entry2 && handleSelectWinner(roundIndex, matchIndex, 2)}>
-                  {match.entry2 ? (<><span className="entry-seed-small">{match.entry2.seed}</span><span className="entry-name">{match.entry2.name}</span></>) : (<span className="entry-name tbd">TBD</span>)}
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         ))}
       </div>
