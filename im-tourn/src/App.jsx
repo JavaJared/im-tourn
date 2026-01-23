@@ -657,67 +657,54 @@ const FillPage = ({ bracket, onSubmit, onBack }) => {
         const slotBottom = bracketTop + ((matchIndex + 1) * thisRoundSpacing);
         const matchY = slotTop + (thisRoundSpacing - matchupHeight) / 2;
         
-        // Draw matchup box with clear borders
+        // Draw single outer matchup box
         pdf.setDrawColor(...borderGray);
         pdf.setLineWidth(1);
-        
-        // Entry 1 background
-        pdf.setFillColor(...lightBg);
-        pdf.rect(roundX, matchY, matchupWidth, entryHeight, 'FD');
-        
-        // Entry 2 background
         pdf.setFillColor(...white);
-        pdf.rect(roundX, matchY + entryHeight, matchupWidth, entryHeight, 'FD');
+        pdf.rect(roundX, matchY, matchupWidth, matchupHeight, 'FD');
         
-        // Draw divider line
+        // Draw divider line between entries (shortened to stay inside box)
         pdf.setDrawColor(...borderGray);
-        pdf.line(roundX, matchY + entryHeight, roundX + matchupWidth, matchY + entryHeight);
+        pdf.setLineWidth(0.5);
+        pdf.line(roundX + 1, matchY + entryHeight, roundX + matchupWidth - 1, matchY + entryHeight);
         
-        // Entry 1 content
+        // Entry 1 content - only draw if has data
         if (match.entry1) {
           // Seed box
           pdf.setFillColor(...orange);
           const seedSize = Math.min(12, entryHeight - 4);
-          pdf.rect(roundX + 2, matchY + (entryHeight - seedSize) / 2, seedSize, seedSize, 'F');
+          pdf.rect(roundX + 3, matchY + (entryHeight - seedSize) / 2, seedSize, seedSize, 'F');
           pdf.setFont('helvetica', 'bold');
           pdf.setFontSize(Math.min(7, seedSize - 2));
           pdf.setTextColor(...white);
-          pdf.text(String(match.entry1.seed), roundX + 2 + seedSize / 2, matchY + entryHeight / 2 + 2, { align: 'center' });
+          pdf.text(String(match.entry1.seed), roundX + 3 + seedSize / 2, matchY + entryHeight / 2 + 2, { align: 'center' });
           
           // Name
           pdf.setFont('helvetica', 'normal');
           pdf.setFontSize(Math.min(8, entryHeight - 4));
           pdf.setTextColor(...darkGray);
-          pdf.text(match.entry1.name.substring(0, 15), roundX + seedSize + 6, matchY + entryHeight / 2 + 2);
-        } else {
-          // Blank line for writing
-          pdf.setDrawColor(...borderGray);
-          pdf.setLineWidth(0.5);
-          pdf.line(roundX + 6, matchY + entryHeight / 2 + 2, roundX + matchupWidth - 6, matchY + entryHeight / 2 + 2);
+          pdf.text(match.entry1.name.substring(0, 15), roundX + seedSize + 8, matchY + entryHeight / 2 + 2);
         }
+        // Empty boxes for later rounds - no lines inside
         
-        // Entry 2 content
+        // Entry 2 content - only draw if has data
         if (match.entry2) {
           // Seed box
           pdf.setFillColor(...orange);
           const seedSize = Math.min(12, entryHeight - 4);
-          pdf.rect(roundX + 2, matchY + entryHeight + (entryHeight - seedSize) / 2, seedSize, seedSize, 'F');
+          pdf.rect(roundX + 3, matchY + entryHeight + (entryHeight - seedSize) / 2, seedSize, seedSize, 'F');
           pdf.setFont('helvetica', 'bold');
           pdf.setFontSize(Math.min(7, seedSize - 2));
           pdf.setTextColor(...white);
-          pdf.text(String(match.entry2.seed), roundX + 2 + seedSize / 2, matchY + entryHeight + entryHeight / 2 + 2, { align: 'center' });
+          pdf.text(String(match.entry2.seed), roundX + 3 + seedSize / 2, matchY + entryHeight + entryHeight / 2 + 2, { align: 'center' });
           
           // Name
           pdf.setFont('helvetica', 'normal');
           pdf.setFontSize(Math.min(8, entryHeight - 4));
           pdf.setTextColor(...darkGray);
-          pdf.text(match.entry2.name.substring(0, 15), roundX + seedSize + 6, matchY + entryHeight + entryHeight / 2 + 2);
-        } else {
-          // Blank line for writing
-          pdf.setDrawColor(...borderGray);
-          pdf.setLineWidth(0.5);
-          pdf.line(roundX + 6, matchY + entryHeight + entryHeight / 2 + 2, roundX + matchupWidth - 6, matchY + entryHeight + entryHeight / 2 + 2);
+          pdf.text(match.entry2.name.substring(0, 15), roundX + seedSize + 8, matchY + entryHeight + entryHeight / 2 + 2);
         }
+        // Empty boxes for later rounds - no lines inside
         
         // Draw connector lines to next round
         if (roundIndex < numRounds - 1) {
@@ -878,59 +865,66 @@ const PDFPage = ({ bracket, onBack }) => {
         const slotTop = bracketTop + (matchIndex * thisRoundSpacing);
         const matchY = slotTop + (thisRoundSpacing - matchupHeight) / 2;
         
-        // Draw matchup box
+        // Draw single outer matchup box first
         pdf.setDrawColor(...borderGray);
         pdf.setLineWidth(1);
+        pdf.setFillColor(...white);
+        pdf.rect(roundX, matchY, matchupWidth, matchupHeight, 'FD');
         
-        // Entry 1
+        // Fill entry backgrounds
         const isWinner1 = match.winner === 1;
-        pdf.setFillColor(...(isWinner1 ? winnerGreen : lightBg));
-        pdf.rect(roundX, matchY, matchupWidth, entryHeight, 'FD');
-        
-        // Entry 2
         const isWinner2 = match.winner === 2;
-        pdf.setFillColor(...(isWinner2 ? winnerGreen : white));
-        pdf.rect(roundX, matchY + entryHeight, matchupWidth, entryHeight, 'FD');
         
-        // Draw divider line
+        if (isWinner1) {
+          pdf.setFillColor(...winnerGreen);
+          pdf.rect(roundX + 1, matchY + 1, matchupWidth - 2, entryHeight - 1, 'F');
+        }
+        
+        if (isWinner2) {
+          pdf.setFillColor(...winnerGreen);
+          pdf.rect(roundX + 1, matchY + entryHeight + 1, matchupWidth - 2, entryHeight - 2, 'F');
+        }
+        
+        // Draw divider line between entries (shortened to stay inside box)
         pdf.setDrawColor(...borderGray);
-        pdf.line(roundX, matchY + entryHeight, roundX + matchupWidth, matchY + entryHeight);
+        pdf.setLineWidth(0.5);
+        pdf.line(roundX + 1, matchY + entryHeight, roundX + matchupWidth - 1, matchY + entryHeight);
         
         // Entry 1 content
         if (match.entry1) {
           const seedSize = Math.min(12, entryHeight - 4);
           pdf.setFillColor(...orange);
-          pdf.rect(roundX + 2, matchY + (entryHeight - seedSize) / 2, seedSize, seedSize, 'F');
+          pdf.rect(roundX + 3, matchY + (entryHeight - seedSize) / 2, seedSize, seedSize, 'F');
           pdf.setFont('helvetica', 'bold');
           pdf.setFontSize(Math.min(7, seedSize - 2));
           pdf.setTextColor(...white);
-          pdf.text(String(match.entry1.seed), roundX + 2 + seedSize / 2, matchY + entryHeight / 2 + 2, { align: 'center' });
+          pdf.text(String(match.entry1.seed), roundX + 3 + seedSize / 2, matchY + entryHeight / 2 + 2, { align: 'center' });
           
           pdf.setFont('helvetica', isWinner1 ? 'bold' : 'normal');
           pdf.setFontSize(Math.min(8, entryHeight - 4));
           pdf.setTextColor(...darkGray);
-          pdf.text(match.entry1.name.substring(0, 15), roundX + seedSize + 6, matchY + entryHeight / 2 + 2);
+          pdf.text(match.entry1.name.substring(0, 15), roundX + seedSize + 8, matchY + entryHeight / 2 + 2);
         } else {
           pdf.setFont('helvetica', 'italic');
           pdf.setFontSize(Math.min(8, entryHeight - 4));
           pdf.setTextColor(...borderGray);
-          pdf.text('TBD', roundX + 6, matchY + entryHeight / 2 + 2);
+          pdf.text('TBD', roundX + 8, matchY + entryHeight / 2 + 2);
         }
         
         // Entry 2 content
         if (match.entry2) {
           const seedSize = Math.min(12, entryHeight - 4);
           pdf.setFillColor(...orange);
-          pdf.rect(roundX + 2, matchY + entryHeight + (entryHeight - seedSize) / 2, seedSize, seedSize, 'F');
+          pdf.rect(roundX + 3, matchY + entryHeight + (entryHeight - seedSize) / 2, seedSize, seedSize, 'F');
           pdf.setFont('helvetica', 'bold');
           pdf.setFontSize(Math.min(7, seedSize - 2));
           pdf.setTextColor(...white);
-          pdf.text(String(match.entry2.seed), roundX + 2 + seedSize / 2, matchY + entryHeight + entryHeight / 2 + 2, { align: 'center' });
+          pdf.text(String(match.entry2.seed), roundX + 3 + seedSize / 2, matchY + entryHeight + entryHeight / 2 + 2, { align: 'center' });
           
           pdf.setFont('helvetica', isWinner2 ? 'bold' : 'normal');
           pdf.setFontSize(Math.min(8, entryHeight - 4));
           pdf.setTextColor(...darkGray);
-          pdf.text(match.entry2.name.substring(0, 15), roundX + seedSize + 6, matchY + entryHeight + entryHeight / 2 + 2);
+          pdf.text(match.entry2.name.substring(0, 15), roundX + seedSize + 8, matchY + entryHeight + entryHeight / 2 + 2);
         } else {
           pdf.setFont('helvetica', 'italic');
           pdf.setFontSize(Math.min(8, entryHeight - 4));
