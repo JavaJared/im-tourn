@@ -14,12 +14,14 @@ import {
   hasUserVotedForRound,
   getUserVotesForRound,
   advanceWeeklyBracket,
-  clearWeeklyBracket
+  clearWeeklyBracket,
+  setManualWinner,
+  checkAndAutoAdvance
 } from './services/bracketService';
 import './App.css';
 
 // Admin user IDs (add your Firebase user ID here)
-const ADMIN_USER_IDS = ['VBbDwj6gkVgW7gBcs3vTmt0ulLF2'];
+const ADMIN_USER_IDS = ['YOUR_ADMIN_USER_ID_HERE'];
 
 const CATEGORIES = [
   'Movies', 'TV Shows', 'Books', 'Sports Teams', 'Video Games',
@@ -580,6 +582,13 @@ const WeeklyBracketPage = () => {
 
   const loadWeeklyBracket = async () => {
     try {
+      // First check if we need to auto-advance
+      const advanceResult = await checkAndAutoAdvance();
+      if (advanceResult?.autoAdvanced) {
+        console.log('Bracket auto-advanced to round', advanceResult.currentRound);
+      }
+      
+      // Then load the bracket
       const data = await getWeeklyBracket();
       setWeeklyBracketState(data);
     } catch (error) {
@@ -835,9 +844,15 @@ const AdminPage = () => {
   const [previewBracket, setPreviewBracket] = useState(null);
   const [currentWeekly, setCurrentWeekly] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [editingRound, setEditingRound] = useState(null);
   const { currentUser } = useAuth();
 
   const isAdmin = currentUser && ADMIN_USER_IDS.includes(currentUser.uid);
+
+  const getRoundName = (roundIndex) => {
+    const names = ['Round of 32', 'Sweet 16', 'Elite 8', 'Final 4', 'Championship'];
+    return names[roundIndex] || `Round ${roundIndex + 1}`;
+  };
 
   useEffect(() => {
     if (isAdmin) {
@@ -914,6 +929,18 @@ const AdminPage = () => {
     } catch (error) {
       console.error('Error clearing bracket:', error);
       alert('Failed to clear bracket');
+    }
+    setActionLoading(false);
+  };
+
+  const handleSetWinner = async (roundIndex, matchIndex, winner) => {
+    setActionLoading(true);
+    try {
+      const updatedMatchups = await setManualWinner(roundIndex, matchIndex, winner);
+      setCurrentWeekly(prev => ({ ...prev, matchups: updatedMatchups }));
+    } catch (error) {
+      console.error('Error setting winner:', error);
+      alert('Failed to set winner');
     }
     setActionLoading(false);
   };
@@ -1035,6 +1062,71 @@ const AdminPage = () => {
           </div>
         )}
       </div>
+
+      {/* Manual Winner Selection */}
+      {currentWeekly && (
+        <div className="admin-section">
+          <h2 className="admin-section-title">Manual Winner Selection</h2>
+          <p className="admin-hint">Click on an entry to set it as the winner. Use this to fix rounds with no votes.</p>
+          
+          <div className="round-selector">
+            {currentWeekly.matchups.map((round, roundIndex) => (
+              <button
+                key={roundIndex}
+                className={`round-tab ${editingRound === roundIndex ? 'active' : ''}`}
+                onClick={() => setEditingRound(editingRound === roundIndex ? null : roundIndex)}
+              >
+                {getRoundName(roundIndex)}
+                {round.every(m => m.winner) && <span className="round-complete-check">✓</span>}
+              </button>
+            ))}
+          </div>
+
+          {editingRound !== null && (
+            <div className="manual-matchups">
+              <h3 className="editing-round-title">Editing: {getRoundName(editingRound)}</h3>
+              {currentWeekly.matchups[editingRound].map((match, matchIndex) => (
+                <div key={matchIndex} className="manual-matchup">
+                  <div className="manual-matchup-number">Match {matchIndex + 1}</div>
+                  <div className="manual-entries">
+                    <button
+                      className={`manual-entry ${match.winner === 1 ? 'is-winner' : ''}`}
+                      onClick={() => handleSetWinner(editingRound, matchIndex, 1)}
+                      disabled={actionLoading || !match.entry1}
+                    >
+                      {match.entry1 ? (
+                        <>
+                          <span className="manual-seed">{match.entry1.seed}</span>
+                          <span className="manual-name">{match.entry1.name}</span>
+                          {match.winner === 1 && <span className="winner-badge">WINNER</span>}
+                        </>
+                      ) : (
+                        <span className="manual-name tbd">TBD</span>
+                      )}
+                    </button>
+                    <span className="vs-text">vs</span>
+                    <button
+                      className={`manual-entry ${match.winner === 2 ? 'is-winner' : ''}`}
+                      onClick={() => handleSetWinner(editingRound, matchIndex, 2)}
+                      disabled={actionLoading || !match.entry2}
+                    >
+                      {match.entry2 ? (
+                        <>
+                          <span className="manual-seed">{match.entry2.seed}</span>
+                          <span className="manual-name">{match.entry2.name}</span>
+                          {match.winner === 2 && <span className="winner-badge">WINNER</span>}
+                        </>
+                      ) : (
+                        <span className="manual-name tbd">TBD</span>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
