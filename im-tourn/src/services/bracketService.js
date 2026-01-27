@@ -277,22 +277,25 @@ export async function advanceWeeklyBracket() {
   const votes = typeof data.votes === 'string' ? JSON.parse(data.votes) : data.votes;
   const currentRound = data.currentRound || 0;
   
+  // Don't advance past the final round
+  if (currentRound >= matchups.length - 1) return null;
+  
   // Determine winners for current round
   const currentRoundMatchups = matchups[currentRound];
   currentRoundMatchups.forEach((match, matchIndex) => {
     const matchVotes = votes[`r${currentRound}-m${matchIndex}`];
-    if (matchVotes) {
+    if (matchVotes && !match.winner) {
       // Determine winner (entry1 wins ties)
       const winner = matchVotes.entry1 >= matchVotes.entry2 ? 1 : 2;
       match.winner = winner;
-      
-      // Advance winner to next round
-      if (currentRound < matchups.length - 1) {
-        const nextRoundMatchIndex = Math.floor(matchIndex / 2);
-        const entrySlot = matchIndex % 2 === 0 ? 'entry1' : 'entry2';
-        const winningEntry = winner === 1 ? match.entry1 : match.entry2;
-        matchups[currentRound + 1][nextRoundMatchIndex][entrySlot] = winningEntry;
-      }
+    }
+    
+    // Advance winner to next round
+    if (match.winner && currentRound < matchups.length - 1) {
+      const nextRoundMatchIndex = Math.floor(matchIndex / 2);
+      const entrySlot = matchIndex % 2 === 0 ? 'entry1' : 'entry2';
+      const winningEntry = match.winner === 1 ? match.entry1 : match.entry2;
+      matchups[currentRound + 1][nextRoundMatchIndex][entrySlot] = winningEntry;
     }
   });
   
@@ -300,10 +303,109 @@ export async function advanceWeeklyBracket() {
   await updateDoc(bracketRef, {
     matchups: JSON.stringify(matchups),
     currentRound: currentRound + 1,
+    lastAdvanced: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
   
   return { matchups, currentRound: currentRound + 1 };
+}
+
+// Set manual winner for a specific matchup (admin only)
+export async function setManualWinner(roundIndex, matchIndex, winner) {
+  const bracketRef = doc(db, WEEKLY_BRACKET_COLLECTION, 'current');
+  const bracketSnap = await getDoc(bracketRef);
+  
+  if (!bracketSnap.exists()) return null;
+  
+  const data = bracketSnap.data();
+  const matchups = typeof data.matchups === 'string' ? JSON.parse(data.matchups) : data.matchups;
+  
+  // Set the winner
+  matchups[roundIndex][matchIndex].winner = winner;
+  
+  // Propagate to next round if not final
+  if (roundIndex < matchups.length - 1) {
+    const nextRoundMatchIndex = Math.floor(matchIndex / 2);
+    const entrySlot = matchIndex % 2 === 0 ? 'entry1' : 'entry2';
+    const winningEntry = winner === 1 
+      ? matchups[roundIndex][matchIndex].entry1 
+      : matchups[roundIndex][matchIndex].entry2;
+    matchups[roundIndex + 1][nextRoundMatchIndex][entrySlot] = winningEntry;
+  }
+  
+  await updateDoc(bracketRef, {
+    matchups: JSON.stringify(matchups),
+    updatedAt: serverTimestamp()
+  });
+  
+  return matchups;
+}
+
+// Check if bracket should auto-advance based on time
+export async function checkAndAutoAdvance() {
+  const bracketRef = doc(db, WEEKLY_BRACKET_COLLECTION, 'current');
+  const bracketSnap = await getDoc(bracketRef);
+  
+  if (!bracketSnap.exists()) return null;
+  
+  const data = bracketSnap.data();
+  const currentRound = data.currentRound || 0;
+  const matchups = typeof data.matchups === 'string' ? JSON.parse(data.matchups) : data.matchups;
+  
+  // Don't advance past final round
+  if (currentRound >= matchups.length - 1) return null;
+  
+  // Get current time in EST
+  const now = new Date();
+  const estOffset = -5; // EST is UTC-5 (ignoring DST for simplicity)
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const estTime = new Date(utc + (3600000 * estOffset));
+  
+  // Get day of week (0 = Sunday, 1 = Monday, etc.)
+  const dayOfWeek = estTime.getDay();
+  
+  // Map days to expected rounds
+  // Monday = round 0, Tuesday = round 1, etc.
+  const dayToExpectedRound = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 4, 0: 4 };
+  const expectedRound = dayToExpectedRound[dayOfWeek] ?? 0;
+  
+  // If we're behind, advance
+  if (currentRound < expectedRound) {
+    // Advance all missed rounds
+    let advancedMatchups = matchups;
+    for (let r = currentRound; r < expectedRound; r++) {
+      const votes = typeof data.votes === 'string' ? JSON.parse(data.votes) : data.votes;
+      
+      // Set winners for this round
+      advancedMatchups[r].forEach((match, matchIndex) => {
+        if (!match.winner) {
+          const matchVotes = votes[`r${r}-m${matchIndex}`];
+          // Default to entry1 if no votes or tie
+          const winner = (matchVotes && matchVotes.entry2 > matchVotes.entry1) ? 2 : 1;
+          match.winner = winner;
+        }
+        
+        // Propagate to next round
+        if (r < advancedMatchups.length - 1) {
+          const nextRoundMatchIndex = Math.floor(matchIndex / 2);
+          const entrySlot = matchIndex % 2 === 0 ? 'entry1' : 'entry2';
+          const winningEntry = match.winner === 1 ? match.entry1 : match.entry2;
+          advancedMatchups[r + 1][nextRoundMatchIndex][entrySlot] = winningEntry;
+        }
+      });
+    }
+    
+    await updateDoc(bracketRef, {
+      matchups: JSON.stringify(advancedMatchups),
+      currentRound: expectedRound,
+      lastAdvanced: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+    
+    return { matchups: advancedMatchups, currentRound: expectedRound, autoAdvanced: true };
+  }
+  
+  return null;
 }
 
 // Clear weekly bracket (admin)
