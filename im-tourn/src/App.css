@@ -1145,4 +1145,542 @@ body {
     flex: 1;
     min-width: 0;
   }
+  
+  .header-nav {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .weekly-bracket-container {
+    flex-direction: column;
+  }
+  
+  .weekly-round {
+    min-width: 100%;
+  }
+}
+
+/* Header Navigation */
+.header-nav {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.nav-link {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 0.6rem 1.2rem;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.nav-link:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-link.active {
+  color: var(--accent-orange);
+  background: rgba(255, 107, 53, 0.1);
+}
+
+.nav-link.weekly {
+  position: relative;
+}
+
+.nav-link.weekly::after {
+  content: 'LIVE';
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: var(--accent-teal);
+  color: var(--bg-dark);
+  font-size: 0.55rem;
+  font-weight: 700;
+  padding: 2px 4px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+
+/* Weekly Bracket Page */
+.weekly-info-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  align-items: center;
+}
+
+.day-indicator, .round-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.day-label, .round-label {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.day-value, .round-value {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.round-value {
+  color: var(--accent-orange);
+}
+
+.voted-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(0, 212, 170, 0.15);
+  color: var(--accent-teal);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-left: auto;
+}
+
+.voted-badge svg {
+  width: 16px;
+  height: 16px;
+}
+
+.weekly-bracket-container {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 1rem 0;
+}
+
+.weekly-round {
+  flex: 1;
+  min-width: 200px;
+  opacity: 0.5;
+  transition: opacity 0.3s ease;
+}
+
+.weekly-round.active {
+  opacity: 1;
+}
+
+.weekly-round.past {
+  opacity: 0.8;
+}
+
+.weekly-round.future {
+  opacity: 0.4;
+}
+
+.weekly-round-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1rem;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.active-badge {
+  background: var(--accent-orange);
+  color: white;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.complete-badge {
+  background: var(--accent-teal);
+  color: var(--bg-dark);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.weekly-matchups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.weekly-matchup {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+}
+
+.weekly-matchup.voteable {
+  border-color: var(--accent-orange);
+  box-shadow: 0 0 0 1px var(--accent-orange-glow);
+}
+
+.weekly-entry {
+  padding: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  transition: all 0.2s ease;
+  position: relative;
+  cursor: default;
+}
+
+.voteable .weekly-entry {
+  cursor: pointer;
+}
+
+.voteable .weekly-entry:hover {
+  background: rgba(255, 107, 53, 0.1);
+}
+
+.weekly-entry:first-child {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.weekly-entry.selected {
+  background: rgba(255, 107, 53, 0.2);
+  border-left: 3px solid var(--accent-orange);
+}
+
+.weekly-entry.winner {
+  background: rgba(0, 212, 170, 0.15);
+}
+
+.weekly-seed {
+  width: 24px;
+  height: 24px;
+  background: rgba(255, 107, 53, 0.2);
+  color: var(--accent-orange);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.weekly-name {
+  flex: 1;
+  font-size: 0.9rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.weekly-name.tbd {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.vote-bar {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 80px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.vote-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-orange), var(--accent-teal));
+  transition: width 0.5s ease;
+}
+
+.vote-percent {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.total-votes {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  padding: 0.4rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.vote-submit-section {
+  text-align: center;
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.submit-votes-btn {
+  background: linear-gradient(135deg, var(--accent-orange), #ff8c5a);
+  color: white;
+  border: none;
+  padding: 1rem 3rem;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: 1px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 30px var(--accent-orange-glow);
+}
+
+.submit-votes-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 40px var(--accent-orange-glow);
+}
+
+.submit-votes-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.login-prompt {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  border-radius: 12px;
+  margin-top: 2rem;
+}
+
+.weekly-champion {
+  text-align: center;
+  margin: 3rem auto;
+  max-width: 400px;
+  padding: 2rem;
+  background: linear-gradient(135deg, rgba(0, 212, 170, 0.15), rgba(255, 107, 53, 0.15));
+  border-radius: 16px;
+  border: 2px solid var(--accent-teal);
+}
+
+.weekly-champion .champion-label {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.2rem;
+  letter-spacing: 2px;
+  color: var(--accent-teal);
+  margin-bottom: 0.5rem;
+}
+
+.weekly-champion .champion-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2.5rem;
+  letter-spacing: 2px;
+  background: linear-gradient(135deg, var(--accent-teal), var(--accent-orange));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Admin Panel */
+.admin-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.admin-section-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.3rem;
+  letter-spacing: 1px;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.admin-hint {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.current-weekly-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.weekly-detail {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.weekly-detail .label {
+  color: var(--text-muted);
+  min-width: 120px;
+}
+
+.weekly-detail .value {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.no-weekly {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.admin-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.admin-btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+}
+
+.admin-btn.primary {
+  background: linear-gradient(135deg, var(--accent-orange), #ff8c5a);
+  color: white;
+  box-shadow: 0 4px 15px var(--accent-orange-glow);
+}
+
+.admin-btn.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px var(--accent-orange-glow);
+}
+
+.admin-btn.secondary {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.admin-btn.secondary:hover {
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+.admin-btn.success {
+  background: linear-gradient(135deg, var(--accent-teal), #00b894);
+  color: var(--bg-dark);
+}
+
+.admin-btn.success:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px var(--accent-teal-glow);
+}
+
+.admin-btn.advance {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+}
+
+.admin-btn.danger {
+  background: transparent;
+  border: 1px solid #ff4757;
+  color: #ff4757;
+}
+
+.admin-btn.danger:hover {
+  background: #ff4757;
+  color: white;
+}
+
+.admin-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.preview-bracket-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.preview-bracket-card h3 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.5rem;
+  letter-spacing: 1px;
+  margin-bottom: 0.5rem;
+}
+
+.preview-meta {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.preview-entries {
+  margin-bottom: 1.5rem;
+}
+
+.preview-entries strong {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.entries-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.entry-chip {
+  background: rgba(255, 107, 53, 0.15);
+  color: var(--accent-orange);
+  padding: 0.3rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+}
+
+.preview-actions {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
