@@ -6,9 +6,20 @@ import {
   getAllBrackets, 
   getUserBrackets,
   deleteBracket,
-  submitFilledBracket 
+  submitFilledBracket,
+  get32EntryBrackets,
+  getWeeklyBracket,
+  setWeeklyBracket,
+  submitWeeklyVote,
+  hasUserVotedForRound,
+  getUserVotesForRound,
+  advanceWeeklyBracket,
+  clearWeeklyBracket
 } from './services/bracketService';
 import './App.css';
+
+// Admin user IDs (add your Firebase user ID here)
+const ADMIN_USER_IDS = ['YOUR_ADMIN_USER_ID_HERE'];
 
 const CATEGORIES = [
   'Movies', 'TV Shows', 'Books', 'Sports Teams', 'Video Games',
@@ -184,6 +195,8 @@ const Header = ({ onNavigate, currentView }) => {
   const [authMode, setAuthMode] = useState('login');
   const [showUserMenu, setShowUserMenu] = useState(false);
 
+  const isAdmin = currentUser && ADMIN_USER_IDS.includes(currentUser.uid);
+
   const openAuth = (mode) => {
     setAuthMode(mode);
     setShowAuthModal(true);
@@ -194,14 +207,29 @@ const Header = ({ onNavigate, currentView }) => {
       <header className="header">
         <div className="logo" onClick={() => onNavigate('home')}>I'M TOURN</div>
         
+        <nav className="header-nav">
+          <button 
+            className={`nav-link ${currentView === 'home' ? 'active' : ''}`}
+            onClick={() => onNavigate('home')}
+          >
+            Browse
+          </button>
+          <button 
+            className={`nav-link weekly ${currentView === 'weekly' ? 'active' : ''}`}
+            onClick={() => onNavigate('weekly')}
+          >
+            Weekly Bracket
+          </button>
+        </nav>
+        
         <div className="header-actions">
-          {currentView === 'home' && currentUser && (
+          {currentUser && currentView === 'home' && (
             <button className="nav-btn" onClick={() => onNavigate('create')}>
               + Create Bracket
             </button>
           )}
           
-          {currentView !== 'home' && (
+          {currentView !== 'home' && currentView !== 'weekly' && (
             <button className="back-btn" onClick={() => onNavigate('home')}>
               ← Back
             </button>
@@ -221,6 +249,11 @@ const Header = ({ onNavigate, currentView }) => {
                   <button onClick={() => { onNavigate('my-brackets'); setShowUserMenu(false); }}>
                     My Brackets
                   </button>
+                  {isAdmin && (
+                    <button onClick={() => { onNavigate('admin'); setShowUserMenu(false); }}>
+                      Admin Panel
+                    </button>
+                  )}
                   <button onClick={() => { logout(); setShowUserMenu(false); }}>
                     Log Out
                   </button>
@@ -498,6 +531,510 @@ const MyBracketsPage = ({ onFillOut, onNavigate }) => {
           ))}
         </div>
       )}
+    </div>
+  );
+};
+
+// Weekly Bracket Page Component
+const WeeklyBracketPage = () => {
+  const [weeklyBracket, setWeeklyBracketState] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [userVotes, setUserVotes] = useState({});
+  const [hasVoted, setHasVoted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const { currentUser } = useAuth();
+
+  // Day of week determines active round (0 = Sunday)
+  // Monday = Round 1 (index 0), Tuesday = Round 2, etc.
+  const getDayInfo = () => {
+    const now = new Date();
+    const day = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    
+    // Map days to rounds (Monday=0, Tuesday=1, Wednesday=2, Thursday=3, Friday=4)
+    const dayToRound = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 0: 5 };
+    const activeRound = dayToRound[day] ?? 0;
+    
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const roundNames = ['Round of 32', 'Sweet 16', 'Elite 8', 'Final 4', 'Championship', 'Complete'];
+    
+    return {
+      dayName: dayNames[day],
+      activeRound,
+      roundName: roundNames[Math.min(activeRound, 5)],
+      isWeekend: day === 0 || day === 6
+    };
+  };
+
+  const dayInfo = getDayInfo();
+
+  useEffect(() => {
+    loadWeeklyBracket();
+  }, []);
+
+  useEffect(() => {
+    if (currentUser && weeklyBracket) {
+      checkUserVoted();
+    }
+  }, [currentUser, weeklyBracket, dayInfo.activeRound]);
+
+  const loadWeeklyBracket = async () => {
+    try {
+      const data = await getWeeklyBracket();
+      setWeeklyBracketState(data);
+    } catch (error) {
+      console.error('Error loading weekly bracket:', error);
+    }
+    setLoading(false);
+  };
+
+  const checkUserVoted = async () => {
+    if (!currentUser) return;
+    try {
+      const voted = await hasUserVotedForRound(currentUser.uid, dayInfo.activeRound);
+      setHasVoted(voted);
+      if (voted) {
+        const votes = await getUserVotesForRound(currentUser.uid, dayInfo.activeRound);
+        setUserVotes(votes || {});
+        setShowResults(true);
+      }
+    } catch (error) {
+      console.error('Error checking vote status:', error);
+    }
+  };
+
+  const handleVoteSelect = (matchId, selection) => {
+    if (hasVoted) return;
+    setUserVotes(prev => ({ ...prev, [matchId]: selection }));
+  };
+
+  const handleSubmitVotes = async () => {
+    if (!currentUser) {
+      alert('Please log in to vote');
+      return;
+    }
+
+    const activeMatchups = weeklyBracket.matchups[dayInfo.activeRound];
+    const allVoted = activeMatchups.every((_, idx) => 
+      userVotes[`r${dayInfo.activeRound}-m${idx}`]
+    );
+
+    if (!allVoted) {
+      alert('Please vote on all matchups before submitting');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await submitWeeklyVote(currentUser.uid, dayInfo.activeRound, userVotes);
+      setHasVoted(true);
+      setShowResults(true);
+      await loadWeeklyBracket(); // Reload to get updated vote counts
+    } catch (error) {
+      console.error('Error submitting votes:', error);
+      alert('Failed to submit votes. Please try again.');
+    }
+    setSubmitting(false);
+  };
+
+  const getRoundName = (roundIndex) => {
+    const names = ['Round of 32', 'Sweet 16', 'Elite 8', 'Final 4', 'Championship'];
+    return names[roundIndex] || `Round ${roundIndex + 1}`;
+  };
+
+  const getVotePercentage = (matchId, entry) => {
+    if (!weeklyBracket?.votes?.[matchId]) return 0;
+    const { entry1, entry2 } = weeklyBracket.votes[matchId];
+    const total = entry1 + entry2;
+    if (total === 0) return 50;
+    return Math.round((entry === 1 ? entry1 : entry2) / total * 100);
+  };
+
+  const getTotalVotes = (matchId) => {
+    if (!weeklyBracket?.votes?.[matchId]) return 0;
+    const { entry1, entry2 } = weeklyBracket.votes[matchId];
+    return entry1 + entry2;
+  };
+
+  if (loading) {
+    return (
+      <div className="home-container">
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p>Loading weekly bracket...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!weeklyBracket) {
+    return (
+      <div className="home-container">
+        <div className="page-header">
+          <h1>Weekly Bracket</h1>
+          <p>Vote on this week's community bracket!</p>
+        </div>
+        <div className="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <p>No weekly bracket has been set yet. Check back soon!</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="home-container">
+      <div className="page-header">
+        <h1>Weekly Bracket</h1>
+        <p>{weeklyBracket.title} • {weeklyBracket.category}</p>
+      </div>
+
+      <div className="weekly-info-bar">
+        <div className="day-indicator">
+          <span className="day-label">Today:</span>
+          <span className="day-value">{dayInfo.dayName}</span>
+        </div>
+        <div className="round-indicator">
+          <span className="round-label">Active Round:</span>
+          <span className="round-value">{dayInfo.roundName}</span>
+        </div>
+        {hasVoted && (
+          <div className="voted-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M20 6L9 17l-5-5"/>
+            </svg>
+            You've voted!
+          </div>
+        )}
+      </div>
+
+      <div className="weekly-bracket-container">
+        {weeklyBracket.matchups.map((round, roundIndex) => {
+          const isActive = roundIndex === dayInfo.activeRound;
+          const isPast = roundIndex < dayInfo.activeRound;
+          const isFuture = roundIndex > dayInfo.activeRound;
+
+          return (
+            <div 
+              key={roundIndex} 
+              className={`weekly-round ${isActive ? 'active' : ''} ${isPast ? 'past' : ''} ${isFuture ? 'future' : ''}`}
+            >
+              <div className="weekly-round-title">
+                {getRoundName(roundIndex)}
+                {isActive && <span className="active-badge">VOTE NOW</span>}
+                {isPast && <span className="complete-badge">COMPLETE</span>}
+              </div>
+              
+              <div className="weekly-matchups">
+                {round.map((match, matchIndex) => {
+                  const matchId = `r${roundIndex}-m${matchIndex}`;
+                  const userSelection = userVotes[matchId];
+                  const showVoteResults = (showResults && isActive) || isPast;
+
+                  return (
+                    <div key={matchId} className={`weekly-matchup ${isActive ? 'voteable' : ''}`}>
+                      <div 
+                        className={`weekly-entry ${userSelection === 1 ? 'selected' : ''} ${match.winner === 1 ? 'winner' : ''}`}
+                        onClick={() => isActive && !hasVoted && match.entry1 && handleVoteSelect(matchId, 1)}
+                      >
+                        {match.entry1 ? (
+                          <>
+                            <span className="weekly-seed">{match.entry1.seed}</span>
+                            <span className="weekly-name">{match.entry1.name}</span>
+                            {showVoteResults && (
+                              <div className="vote-bar">
+                                <div 
+                                  className="vote-fill" 
+                                  style={{ width: `${getVotePercentage(matchId, 1)}%` }}
+                                />
+                                <span className="vote-percent">{getVotePercentage(matchId, 1)}%</span>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <span className="weekly-name tbd">TBD</span>
+                        )}
+                      </div>
+                      
+                      <div 
+                        className={`weekly-entry ${userSelection === 2 ? 'selected' : ''} ${match.winner === 2 ? 'winner' : ''}`}
+                        onClick={() => isActive && !hasVoted && match.entry2 && handleVoteSelect(matchId, 2)}
+                      >
+                        {match.entry2 ? (
+                          <>
+                            <span className="weekly-seed">{match.entry2.seed}</span>
+                            <span className="weekly-name">{match.entry2.name}</span>
+                            {showVoteResults && (
+                              <div className="vote-bar">
+                                <div 
+                                  className="vote-fill" 
+                                  style={{ width: `${getVotePercentage(matchId, 2)}%` }}
+                                />
+                                <span className="vote-percent">{getVotePercentage(matchId, 2)}%</span>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <span className="weekly-name tbd">TBD</span>
+                        )}
+                      </div>
+                      
+                      {showVoteResults && (
+                        <div className="total-votes">
+                          {getTotalVotes(matchId)} votes
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {!hasVoted && currentUser && dayInfo.activeRound < weeklyBracket.matchups.length && (
+        <div className="vote-submit-section">
+          <button 
+            className="submit-votes-btn" 
+            onClick={handleSubmitVotes}
+            disabled={submitting}
+          >
+            {submitting ? 'Submitting...' : 'Submit Votes'}
+          </button>
+        </div>
+      )}
+
+      {!currentUser && (
+        <div className="login-prompt">
+          <p>Log in to vote on this week's bracket!</p>
+        </div>
+      )}
+
+      {weeklyBracket.matchups[weeklyBracket.matchups.length - 1][0].winner && (
+        <div className="weekly-champion">
+          <div className="champion-label">WEEKLY CHAMPION</div>
+          <div className="champion-name">
+            {weeklyBracket.matchups[weeklyBracket.matchups.length - 1][0].winner === 1
+              ? weeklyBracket.matchups[weeklyBracket.matchups.length - 1][0].entry1?.name
+              : weeklyBracket.matchups[weeklyBracket.matchups.length - 1][0].entry2?.name
+            }
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Admin Page Component
+const AdminPage = () => {
+  const [brackets, setBrackets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [previewBracket, setPreviewBracket] = useState(null);
+  const [currentWeekly, setCurrentWeekly] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const { currentUser } = useAuth();
+
+  const isAdmin = currentUser && ADMIN_USER_IDS.includes(currentUser.uid);
+
+  useEffect(() => {
+    if (isAdmin) {
+      loadData();
+    }
+  }, [isAdmin]);
+
+  const loadData = async () => {
+    try {
+      const [bracketsData, weeklyData] = await Promise.all([
+        get32EntryBrackets(),
+        getWeeklyBracket()
+      ]);
+      setBrackets(bracketsData);
+      setCurrentWeekly(weeklyData);
+    } catch (error) {
+      console.error('Error loading admin data:', error);
+    }
+    setLoading(false);
+  };
+
+  const handleRandomBracket = () => {
+    if (brackets.length === 0) {
+      alert('No 32-entry brackets available');
+      return;
+    }
+    const randomIndex = Math.floor(Math.random() * brackets.length);
+    setPreviewBracket(brackets[randomIndex]);
+  };
+
+  const handleConfirmBracket = async () => {
+    if (!previewBracket) return;
+    
+    setActionLoading(true);
+    try {
+      await setWeeklyBracket(previewBracket);
+      setCurrentWeekly(previewBracket);
+      setPreviewBracket(null);
+      alert('Weekly bracket has been set!');
+    } catch (error) {
+      console.error('Error setting weekly bracket:', error);
+      alert('Failed to set weekly bracket');
+    }
+    setActionLoading(false);
+  };
+
+  const handleAdvanceRound = async () => {
+    if (!confirm('Are you sure you want to advance to the next round? This will determine winners based on current votes.')) {
+      return;
+    }
+    
+    setActionLoading(true);
+    try {
+      await advanceWeeklyBracket();
+      await loadData();
+      alert('Bracket advanced to next round!');
+    } catch (error) {
+      console.error('Error advancing bracket:', error);
+      alert('Failed to advance bracket');
+    }
+    setActionLoading(false);
+  };
+
+  const handleClearBracket = async () => {
+    if (!confirm('Are you sure you want to clear the weekly bracket? This will delete all votes.')) {
+      return;
+    }
+    
+    setActionLoading(true);
+    try {
+      await clearWeeklyBracket();
+      setCurrentWeekly(null);
+      alert('Weekly bracket cleared!');
+    } catch (error) {
+      console.error('Error clearing bracket:', error);
+      alert('Failed to clear bracket');
+    }
+    setActionLoading(false);
+  };
+
+  if (!isAdmin) {
+    return (
+      <div className="home-container">
+        <div className="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M12 15v2m0 0v2m0-2h2m-2 0H10m2-6V4"/>
+            <circle cx="12" cy="12" r="10"/>
+          </svg>
+          <p>Access denied. Admin privileges required.</p>
+          {currentUser && <p style={{fontSize: '0.8rem', marginTop: '1rem', color: 'var(--text-muted)'}}>Your User ID: {currentUser.uid}</p>}
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="home-container">
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p>Loading admin panel...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="home-container">
+      <div className="page-header">
+        <h1>Admin Panel</h1>
+        <p>Manage the weekly bracket</p>
+      </div>
+
+      {/* Current Weekly Bracket Status */}
+      <div className="admin-section">
+        <h2 className="admin-section-title">Current Weekly Bracket</h2>
+        {currentWeekly ? (
+          <div className="current-weekly-info">
+            <div className="weekly-detail">
+              <span className="label">Title:</span>
+              <span className="value">{currentWeekly.title}</span>
+            </div>
+            <div className="weekly-detail">
+              <span className="label">Category:</span>
+              <span className="value">{currentWeekly.category}</span>
+            </div>
+            <div className="weekly-detail">
+              <span className="label">Current Round:</span>
+              <span className="value">{currentWeekly.currentRound + 1} of 5</span>
+            </div>
+            <div className="admin-actions">
+              <button 
+                className="admin-btn advance" 
+                onClick={handleAdvanceRound}
+                disabled={actionLoading}
+              >
+                Advance to Next Round
+              </button>
+              <button 
+                className="admin-btn danger" 
+                onClick={handleClearBracket}
+                disabled={actionLoading}
+              >
+                Clear Weekly Bracket
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="no-weekly">No weekly bracket is currently set.</p>
+        )}
+      </div>
+
+      {/* Select New Bracket */}
+      <div className="admin-section">
+        <h2 className="admin-section-title">Select New Weekly Bracket</h2>
+        <p className="admin-hint">Available 32-entry brackets: {brackets.length}</p>
+        
+        <button 
+          className="admin-btn primary" 
+          onClick={handleRandomBracket}
+          disabled={brackets.length === 0}
+        >
+          🎲 Pull Random Bracket
+        </button>
+
+        {previewBracket && (
+          <div className="preview-bracket-card">
+            <h3>{previewBracket.title}</h3>
+            <p className="preview-meta">
+              {previewBracket.category} • Created by {previewBracket.userDisplayName}
+            </p>
+            <div className="preview-entries">
+              <strong>Entries:</strong>
+              <div className="entries-preview">
+                {previewBracket.entries.map((entry, idx) => (
+                  <span key={idx} className="entry-chip">{entry.name}</span>
+                ))}
+              </div>
+            </div>
+            <div className="preview-actions">
+              <button 
+                className="admin-btn success" 
+                onClick={handleConfirmBracket}
+                disabled={actionLoading}
+              >
+                ✓ Confirm for This Week
+              </button>
+              <button 
+                className="admin-btn secondary" 
+                onClick={handleRandomBracket}
+              >
+                ↻ Try Another
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -1154,6 +1691,8 @@ function AppContent() {
       {view === 'create' && <CreatePage onNavigate={setView} />}
       {view === 'fill' && fillingBracket && <FillPage bracket={fillingBracket} onSubmit={handleSubmitFilled} onBack={() => setView('home')} />}
       {view === 'pdf' && currentBracket && <PDFPage bracket={currentBracket} onBack={() => setView('home')} />}
+      {view === 'weekly' && <WeeklyBracketPage />}
+      {view === 'admin' && <AdminPage />}
     </div>
   );
 }
