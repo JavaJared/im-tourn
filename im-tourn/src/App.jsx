@@ -8,6 +8,7 @@ import {
   deleteBracket,
   submitFilledBracket,
   getBracketSubmissions,
+  toggleSubmissionUpvote,
   get32EntryBrackets,
   getWeeklyBracket,
   setWeeklyBracket,
@@ -196,12 +197,22 @@ const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSubmission, setSelectedSubmission] = useState(null);
+  const [userUpvotes, setUserUpvotes] = useState({});
+  const { currentUser } = useAuth();
 
+  // Reset state when modal closes or bracket changes
   useEffect(() => {
     if (isOpen && bracket) {
+      setSelectedSubmission(null);
+      setSubmissions([]);
       loadSubmissions();
     }
-  }, [isOpen, bracket]);
+    if (!isOpen) {
+      setSelectedSubmission(null);
+      setSubmissions([]);
+      setUserUpvotes({});
+    }
+  }, [isOpen, bracket?.id]);
 
   const loadSubmissions = async () => {
     setLoading(true);
@@ -210,13 +221,69 @@ const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
       // Parse matchups for each submission
       const parsedData = data.map(sub => ({
         ...sub,
-        matchups: typeof sub.matchups === 'string' ? JSON.parse(sub.matchups) : sub.matchups
+        matchups: typeof sub.matchups === 'string' ? JSON.parse(sub.matchups) : sub.matchups,
+        upvotes: sub.upvotes || 0,
+        upvotedBy: sub.upvotedBy || []
       }));
+      // Sort by upvotes (most first), then by date
+      parsedData.sort((a, b) => b.upvotes - a.upvotes || new Date(b.submittedAt) - new Date(a.submittedAt));
       setSubmissions(parsedData);
+      
+      // Track which submissions current user has upvoted
+      if (currentUser) {
+        const upvoted = {};
+        parsedData.forEach(sub => {
+          if (sub.upvotedBy?.includes(currentUser.uid)) {
+            upvoted[sub.id] = true;
+          }
+        });
+        setUserUpvotes(upvoted);
+      }
     } catch (error) {
       console.error('Error loading submissions:', error);
     }
     setLoading(false);
+  };
+
+  const handleUpvote = async (e, submission) => {
+    e.stopPropagation(); // Prevent selecting the submission
+    
+    if (!currentUser) {
+      alert('Please log in to upvote');
+      return;
+    }
+    
+    const hasUpvoted = userUpvotes[submission.id];
+    
+    try {
+      await toggleSubmissionUpvote(submission.id, currentUser.uid, hasUpvoted);
+      
+      // Update local state
+      setSubmissions(prev => {
+        const updated = prev.map(sub => {
+          if (sub.id === submission.id) {
+            const newUpvotedBy = hasUpvoted 
+              ? sub.upvotedBy.filter(id => id !== currentUser.uid)
+              : [...sub.upvotedBy, currentUser.uid];
+            return {
+              ...sub,
+              upvotes: hasUpvoted ? sub.upvotes - 1 : sub.upvotes + 1,
+              upvotedBy: newUpvotedBy
+            };
+          }
+          return sub;
+        });
+        // Re-sort by upvotes
+        return updated.sort((a, b) => b.upvotes - a.upvotes);
+      });
+      
+      setUserUpvotes(prev => ({
+        ...prev,
+        [submission.id]: !hasUpvoted
+      }));
+    } catch (error) {
+      console.error('Error toggling upvote:', error);
+    }
   };
 
   const getRoundName = (roundIndex, totalRounds) => {
@@ -235,7 +302,7 @@ const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
         <button className="modal-close" onClick={onClose}>×</button>
         
         <div className="submissions-header">
-          <h2>Submissions for "{bracket.title}"</h2>
+          <h2>Submissions for "{bracket?.title}"</h2>
           <p>{submissions.length} {submissions.length === 1 ? 'submission' : 'submissions'}</p>
         </div>
 
@@ -256,19 +323,31 @@ const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
             {/* Submissions List */}
             <div className="submissions-list">
               {submissions.map((submission) => (
-                <button
+                <div
                   key={submission.id}
                   className={`submission-item ${selectedSubmission?.id === submission.id ? 'selected' : ''}`}
                   onClick={() => setSelectedSubmission(submission)}
                 >
-                  <div className="submission-user">
-                    <span className="submission-avatar">
-                      {submission.userDisplayName?.[0]?.toUpperCase() || '?'}
-                    </span>
-                    <div className="submission-info">
-                      <span className="submission-name">{submission.userDisplayName || 'Anonymous'}</span>
-                      <span className="submission-date">{submission.submittedAt}</span>
+                  <div className="submission-top-row">
+                    <div className="submission-user">
+                      <span className="submission-avatar">
+                        {submission.userDisplayName?.[0]?.toUpperCase() || '?'}
+                      </span>
+                      <div className="submission-info">
+                        <span className="submission-name">{submission.userDisplayName || 'Anonymous'}</span>
+                        <span className="submission-date">{submission.submittedAt}</span>
+                      </div>
                     </div>
+                    <button 
+                      className={`upvote-btn ${userUpvotes[submission.id] ? 'upvoted' : ''}`}
+                      onClick={(e) => handleUpvote(e, submission)}
+                      title={currentUser ? (userUpvotes[submission.id] ? 'Remove upvote' : 'Upvote this submission') : 'Log in to upvote'}
+                    >
+                      <svg viewBox="0 0 24 24" fill={userUpvotes[submission.id] ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+                        <path d="M12 19V5M5 12l7-7 7 7"/>
+                      </svg>
+                      <span>{submission.upvotes}</span>
+                    </button>
                   </div>
                   {submission.champion && (
                     <div className="submission-champion">
@@ -276,7 +355,7 @@ const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
                       <span className="champion-pick">{submission.champion.name}</span>
                     </div>
                   )}
-                </button>
+                </div>
               ))}
             </div>
 
