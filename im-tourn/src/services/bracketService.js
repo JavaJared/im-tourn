@@ -11,7 +11,10 @@ import {
   query, 
   orderBy, 
   where,
-  serverTimestamp 
+  serverTimestamp,
+  increment,
+  arrayUnion,
+  arrayRemove
 } from 'firebase/firestore';
 import { db } from '../firebase';
 
@@ -124,6 +127,25 @@ export async function getBracketSubmissions(bracketId) {
     ...doc.data(),
     submittedAt: doc.data().submittedAt?.toDate?.()?.toLocaleDateString() || 'Recently'
   }));
+}
+
+// Toggle upvote on a submission
+export async function toggleSubmissionUpvote(submissionId, userId, hasUpvoted) {
+  const submissionRef = doc(db, SUBMISSIONS_COLLECTION, submissionId);
+  
+  if (hasUpvoted) {
+    // Remove upvote
+    await updateDoc(submissionRef, {
+      upvotes: increment(-1),
+      upvotedBy: arrayRemove(userId)
+    });
+  } else {
+    // Add upvote
+    await updateDoc(submissionRef, {
+      upvotes: increment(1),
+      upvotedBy: arrayUnion(userId)
+    });
+  }
 }
 
 // Get user's submissions
