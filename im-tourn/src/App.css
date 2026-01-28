@@ -1152,12 +1152,28 @@ body {
     justify-content: center;
   }
   
-  .weekly-bracket-container {
+  .weekly-bracket-wrapper {
     flex-direction: column;
+    min-height: auto;
   }
   
   .weekly-round {
     min-width: 100%;
+  }
+  
+  .weekly-matchups-container {
+    gap: 0.5rem;
+  }
+  
+  .weekly-info-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+  
+  .submit-votes-btn-inline {
+    margin-left: 0;
+    width: 100%;
   }
 }
 
@@ -1252,7 +1268,6 @@ body {
   border-radius: 20px;
   font-size: 0.85rem;
   font-weight: 600;
-  margin-left: auto;
 }
 
 .voted-badge svg {
@@ -1260,16 +1275,55 @@ body {
   height: 16px;
 }
 
-.weekly-bracket-container {
+.submit-votes-btn-inline {
+  margin-left: auto;
+  background: linear-gradient(135deg, var(--accent-orange), #ff8c5a);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 0.5px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 20px var(--accent-orange-glow);
+}
+
+.submit-votes-btn-inline:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 30px var(--accent-orange-glow);
+}
+
+.submit-votes-btn-inline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.login-prompt {
+  text-align: center;
+  padding: 1rem 2rem;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  border-radius: 12px;
+  margin-bottom: 2rem;
+}
+
+/* Bracket wrapper - proper bracket layout */
+.weekly-bracket-wrapper {
   display: flex;
   gap: 0.5rem;
   overflow-x: auto;
   padding: 1rem 0;
+  min-height: 600px;
 }
 
 .weekly-round {
-  flex: 1;
-  min-width: 200px;
+  flex-shrink: 0;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
   opacity: 0.5;
   transition: opacity 0.3s ease;
 }
@@ -1288,7 +1342,7 @@ body {
 
 .weekly-round-title {
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 1rem;
+  font-size: 0.9rem;
   letter-spacing: 1px;
   color: var(--text-muted);
   text-align: center;
@@ -1298,15 +1352,16 @@ body {
   justify-content: center;
   gap: 0.5rem;
   flex-wrap: wrap;
+  height: 30px;
 }
 
 .active-badge {
   background: var(--accent-orange);
   color: white;
   font-family: 'Outfit', sans-serif;
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   font-weight: 700;
-  padding: 3px 8px;
+  padding: 3px 6px;
   border-radius: 4px;
   animation: pulse 2s infinite;
 }
@@ -1320,24 +1375,27 @@ body {
   background: var(--accent-teal);
   color: var(--bg-dark);
   font-family: 'Outfit', sans-serif;
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   font-weight: 700;
-  padding: 3px 8px;
+  padding: 3px 6px;
   border-radius: 4px;
 }
 
-.weekly-matchups {
+/* Matchups container - uses flexbox to space matchups evenly */
+.weekly-matchups-container {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  justify-content: space-around;
 }
 
 .weekly-matchup {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-radius: 10px;
+  border-radius: 8px;
   overflow: hidden;
   position: relative;
+  margin: 0.25rem 0;
 }
 
 .weekly-matchup.voteable {
@@ -1346,13 +1404,14 @@ body {
 }
 
 .weekly-entry {
-  padding: 0.75rem;
+  padding: 0.6rem 0.5rem;
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.5rem;
   transition: all 0.2s ease;
   position: relative;
   cursor: default;
+  font-size: 0.85rem;
 }
 
 .voteable .weekly-entry {
@@ -1377,22 +1436,22 @@ body {
 }
 
 .weekly-seed {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   background: rgba(255, 107, 53, 0.2);
   color: var(--accent-orange);
-  border-radius: 6px;
+  border-radius: 5px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   flex-shrink: 0;
 }
 
 .weekly-name {
   flex: 1;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -1406,13 +1465,13 @@ body {
 
 .vote-bar {
   position: absolute;
-  right: 0.75rem;
+  right: 0.5rem;
   top: 50%;
   transform: translateY(-50%);
-  width: 80px;
-  height: 20px;
+  width: 60px;
+  height: 16px;
   background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
+  border-radius: 3px;
   overflow: hidden;
 }
 
@@ -1424,10 +1483,10 @@ body {
 
 .vote-percent {
   position: absolute;
-  right: 6px;
+  right: 4px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 0.7rem;
+  font-size: 0.6rem;
   font-weight: 700;
   color: white;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
@@ -1435,9 +1494,9 @@ body {
 
 .total-votes {
   text-align: center;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--text-muted);
-  padding: 0.4rem;
+  padding: 0.3rem;
   background: rgba(255, 255, 255, 0.02);
   border-top: 1px solid var(--border-subtle);
 }
@@ -1472,15 +1531,6 @@ body {
 .submit-votes-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-.login-prompt {
-  text-align: center;
-  padding: 2rem;
-  color: var(--text-secondary);
-  background: var(--bg-card);
-  border-radius: 12px;
-  margin-top: 2rem;
 }
 
 .weekly-champion {
