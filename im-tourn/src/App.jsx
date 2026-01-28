@@ -21,7 +21,7 @@ import {
 import './App.css';
 
 // Admin user IDs (add your Firebase user ID here)
-const ADMIN_USER_IDS = ['VBbDwj6gkVgW7gBcs3vTmt0ulLF2'];
+const ADMIN_USER_IDS = ['YOUR_ADMIN_USER_ID_HERE'];
 
 const CATEGORIES = [
   'Movies', 'TV Shows', 'Books', 'Sports Teams', 'Video Games',
@@ -717,9 +717,26 @@ const WeeklyBracketPage = () => {
             You've voted!
           </div>
         )}
+        
+        {/* Submit button moved to top */}
+        {!hasVoted && currentUser && dayInfo.activeRound < weeklyBracket.matchups.length && (
+          <button 
+            className="submit-votes-btn-inline" 
+            onClick={handleSubmitVotes}
+            disabled={submitting}
+          >
+            {submitting ? 'Submitting...' : 'Submit Votes'}
+          </button>
+        )}
       </div>
 
-      <div className="weekly-bracket-container">
+      {!currentUser && (
+        <div className="login-prompt">
+          <p>Log in to vote on this week's bracket!</p>
+        </div>
+      )}
+
+      <div className="weekly-bracket-wrapper">
         {weeklyBracket.matchups.map((round, roundIndex) => {
           const isActive = roundIndex === dayInfo.activeRound;
           const isPast = roundIndex < dayInfo.activeRound;
@@ -736,7 +753,7 @@ const WeeklyBracketPage = () => {
                 {isPast && <span className="complete-badge">COMPLETE</span>}
               </div>
               
-              <div className="weekly-matchups">
+              <div className="weekly-matchups-container">
                 {round.map((match, matchIndex) => {
                   const matchId = `r${roundIndex}-m${matchIndex}`;
                   const userSelection = userVotes[matchId];
@@ -803,24 +820,6 @@ const WeeklyBracketPage = () => {
           );
         })}
       </div>
-
-      {!hasVoted && currentUser && dayInfo.activeRound < weeklyBracket.matchups.length && (
-        <div className="vote-submit-section">
-          <button 
-            className="submit-votes-btn" 
-            onClick={handleSubmitVotes}
-            disabled={submitting}
-          >
-            {submitting ? 'Submitting...' : 'Submit Votes'}
-          </button>
-        </div>
-      )}
-
-      {!currentUser && (
-        <div className="login-prompt">
-          <p>Log in to vote on this week's bracket!</p>
-        </div>
-      )}
 
       {weeklyBracket.matchups[weeklyBracket.matchups.length - 1][0].winner && (
         <div className="weekly-champion">
