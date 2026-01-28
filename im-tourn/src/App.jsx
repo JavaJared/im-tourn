@@ -7,6 +7,7 @@ import {
   getUserBrackets,
   deleteBracket,
   submitFilledBracket,
+  getBracketSubmissions,
   get32EntryBrackets,
   getWeeklyBracket,
   setWeeklyBracket,
@@ -190,6 +191,157 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
   );
 };
 
+// Submissions Modal Component
+const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
+  const [submissions, setSubmissions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedSubmission, setSelectedSubmission] = useState(null);
+
+  useEffect(() => {
+    if (isOpen && bracket) {
+      loadSubmissions();
+    }
+  }, [isOpen, bracket]);
+
+  const loadSubmissions = async () => {
+    setLoading(true);
+    try {
+      const data = await getBracketSubmissions(bracket.id);
+      // Parse matchups for each submission
+      const parsedData = data.map(sub => ({
+        ...sub,
+        matchups: typeof sub.matchups === 'string' ? JSON.parse(sub.matchups) : sub.matchups
+      }));
+      setSubmissions(parsedData);
+    } catch (error) {
+      console.error('Error loading submissions:', error);
+    }
+    setLoading(false);
+  };
+
+  const getRoundName = (roundIndex, totalRounds) => {
+    const remaining = totalRounds - roundIndex;
+    if (remaining === 1) return 'Finals';
+    if (remaining === 2) return 'Semi-Finals';
+    if (remaining === 3) return 'Quarter-Finals';
+    return `Round ${roundIndex + 1}`;
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="submissions-modal" onClick={e => e.stopPropagation()}>
+        <button className="modal-close" onClick={onClose}>×</button>
+        
+        <div className="submissions-header">
+          <h2>Submissions for "{bracket.title}"</h2>
+          <p>{submissions.length} {submissions.length === 1 ? 'submission' : 'submissions'}</p>
+        </div>
+
+        {loading ? (
+          <div className="loading-state">
+            <div className="spinner"></div>
+            <p>Loading submissions...</p>
+          </div>
+        ) : submissions.length === 0 ? (
+          <div className="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            <p>No one has filled out this bracket yet.</p>
+          </div>
+        ) : (
+          <div className="submissions-content">
+            {/* Submissions List */}
+            <div className="submissions-list">
+              {submissions.map((submission) => (
+                <button
+                  key={submission.id}
+                  className={`submission-item ${selectedSubmission?.id === submission.id ? 'selected' : ''}`}
+                  onClick={() => setSelectedSubmission(submission)}
+                >
+                  <div className="submission-user">
+                    <span className="submission-avatar">
+                      {submission.userDisplayName?.[0]?.toUpperCase() || '?'}
+                    </span>
+                    <div className="submission-info">
+                      <span className="submission-name">{submission.userDisplayName || 'Anonymous'}</span>
+                      <span className="submission-date">{submission.submittedAt}</span>
+                    </div>
+                  </div>
+                  {submission.champion && (
+                    <div className="submission-champion">
+                      <span className="champion-label">Champion:</span>
+                      <span className="champion-pick">{submission.champion.name}</span>
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Selected Submission Bracket View */}
+            {selectedSubmission && (
+              <div className="submission-bracket-view">
+                <div className="submission-bracket-header">
+                  <h3>{selectedSubmission.userDisplayName}'s Picks</h3>
+                  {selectedSubmission.champion && (
+                    <div className="submission-champion-display">
+                      🏆 {selectedSubmission.champion.name}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="submission-bracket">
+                  {selectedSubmission.matchups.map((round, roundIndex) => (
+                    <div key={roundIndex} className="submission-round">
+                      <div className="submission-round-title">
+                        {getRoundName(roundIndex, selectedSubmission.matchups.length)}
+                      </div>
+                      <div className="submission-matchups">
+                        {round.map((match, matchIndex) => (
+                          <div key={`${roundIndex}-${matchIndex}`} className="submission-matchup">
+                            <div className={`submission-entry ${match.winner === 1 ? 'winner' : ''}`}>
+                              {match.entry1 ? (
+                                <>
+                                  <span className="submission-seed">{match.entry1.seed}</span>
+                                  <span className="submission-entry-name">{match.entry1.name}</span>
+                                </>
+                              ) : (
+                                <span className="submission-entry-name tbd">TBD</span>
+                              )}
+                            </div>
+                            <div className={`submission-entry ${match.winner === 2 ? 'winner' : ''}`}>
+                              {match.entry2 ? (
+                                <>
+                                  <span className="submission-seed">{match.entry2.seed}</span>
+                                  <span className="submission-entry-name">{match.entry2.name}</span>
+                                </>
+                              ) : (
+                                <span className="submission-entry-name tbd">TBD</span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!selectedSubmission && submissions.length > 0 && (
+              <div className="select-submission-prompt">
+                <p>← Select a submission to view their picks</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // Header Component
 const Header = ({ onNavigate, currentView }) => {
   const { currentUser, logout } = useAuth();
@@ -287,6 +439,8 @@ const HomePage = ({ onFillOut, onNavigate }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [sortBy, setSortBy] = useState('newest');
+  const [showSubmissionsModal, setShowSubmissionsModal] = useState(false);
+  const [selectedBracketForSubmissions, setSelectedBracketForSubmissions] = useState(null);
   const { currentUser } = useAuth();
 
   useEffect(() => {
@@ -449,12 +603,32 @@ const HomePage = ({ onFillOut, onNavigate }) => {
                   <span className="bracket-size"><span>{bracket.size}</span> entries</span>
                   <span className="bracket-author">by {bracket.userDisplayName}</span>
                 </div>
-                <button className="fill-btn" onClick={() => onFillOut(bracket)}>Fill Out →</button>
+                <div className="bracket-buttons">
+                  <button 
+                    className="view-submissions-btn" 
+                    onClick={() => {
+                      setSelectedBracketForSubmissions(bracket);
+                      setShowSubmissionsModal(true);
+                    }}
+                  >
+                    Submissions
+                  </button>
+                  <button className="fill-btn" onClick={() => onFillOut(bracket)}>Fill Out →</button>
+                </div>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      <SubmissionsModal
+        isOpen={showSubmissionsModal}
+        onClose={() => {
+          setShowSubmissionsModal(false);
+          setSelectedBracketForSubmissions(null);
+        }}
+        bracket={selectedBracketForSubmissions}
+      />
     </div>
   );
 };
