@@ -18,7 +18,8 @@ import {
   advanceWeeklyBracket,
   clearWeeklyBracket,
   setManualWinner,
-  checkAndAutoAdvance
+  checkAndAutoAdvance,
+  getWeeklyArchive
 } from './services/bracketService';
 import './App.css';
 
@@ -453,6 +454,12 @@ const Header = ({ onNavigate, currentView }) => {
           >
             Weekly Bracket
           </button>
+          <button 
+            className={`nav-link ${currentView === 'champions' ? 'active' : ''}`}
+            onClick={() => onNavigate('champions')}
+          >
+            Past Champions
+          </button>
         </nav>
         
         <div className="header-actions">
@@ -462,7 +469,7 @@ const Header = ({ onNavigate, currentView }) => {
             </button>
           )}
           
-          {currentView !== 'home' && currentView !== 'weekly' && (
+          {currentView !== 'home' && currentView !== 'weekly' && currentView !== 'champions' && (
             <button className="back-btn" onClick={() => onNavigate('home')}>
               ← Back
             </button>
@@ -1083,6 +1090,84 @@ const WeeklyBracketPage = () => {
               : weeklyBracket.matchups[weeklyBracket.matchups.length - 1][0].entry2?.name
             }
           </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Champions Page Component
+const ChampionsPage = () => {
+  const [archive, setArchive] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadArchive();
+  }, []);
+
+  const loadArchive = async () => {
+    try {
+      const data = await getWeeklyArchive();
+      setArchive(data);
+    } catch (error) {
+      console.error('Error loading archive:', error);
+    }
+    setLoading(false);
+  };
+
+  const formatDate = (date) => {
+    if (!date) return 'Unknown';
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  if (loading) {
+    return (
+      <div className="home-container">
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p>Loading champions...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="home-container">
+      <div className="page-header">
+        <h1>Past Champions</h1>
+        <p>Previous weekly bracket winners</p>
+      </div>
+
+      {archive.length === 0 ? (
+        <div className="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M12 15l-2 5h4l-2-5zM6 3h12l-1 2H7L6 3zM5 5h14v2a7 7 0 01-14 0V5z"/>
+          </svg>
+          <p>No past champions yet. Check back after the first weekly bracket wraps up!</p>
+        </div>
+      ) : (
+        <div className="champions-list">
+          {archive.map((entry, index) => (
+            <div key={entry.id} className="champion-card">
+              <div className="champion-rank">#{index + 1}</div>
+              <div className="champion-card-content">
+                <div className="champion-card-title">{entry.title}</div>
+                <div className="champion-card-category">{entry.category}</div>
+                <div className="champion-card-date">Week of {formatDate(entry.startDate)}</div>
+              </div>
+              <div className="champion-card-winner">
+                {entry.champion ? (
+                  <>
+                    <div className="champion-card-trophy">🏆</div>
+                    <div className="champion-card-name">{entry.champion.name}</div>
+                    <div className="champion-card-seed">#{entry.champion.seed} seed</div>
+                  </>
+                ) : (
+                  <div className="champion-card-name no-winner">No winner determined</div>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -2036,6 +2121,7 @@ function AppContent() {
       {view === 'fill' && fillingBracket && <FillPage bracket={fillingBracket} onSubmit={handleSubmitFilled} onBack={() => setView('home')} />}
       {view === 'pdf' && currentBracket && <PDFPage bracket={currentBracket} onBack={() => setView('home')} />}
       {view === 'weekly' && <WeeklyBracketPage />}
+      {view === 'champions' && <ChampionsPage />}
       {view === 'admin' && <AdminPage />}
     </div>
   );
