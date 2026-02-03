@@ -842,7 +842,7 @@ const WeeklyBracketPage = () => {
     if (currentUser && weeklyBracket) {
       checkUserVoted();
     }
-  }, [currentUser, weeklyBracket, activeRound]);
+  }, [currentUser, weeklyBracket]);
 
   const loadWeeklyBracket = async () => {
     // Reset vote state before loading
@@ -868,11 +868,18 @@ const WeeklyBracketPage = () => {
 
   const checkUserVoted = async () => {
     if (!currentUser || !weeklyBracket) return;
+    
+    // Use the bracket's currentRound directly, not the derived activeRound
+    const roundToCheck = weeklyBracket.currentRound ?? 0;
+    
     try {
-      const voted = await hasUserVotedForRound(currentUser.uid, activeRound);
+      console.log('Checking vote status for user:', currentUser.uid, 'round:', roundToCheck);
+      const voted = await hasUserVotedForRound(currentUser.uid, roundToCheck);
+      console.log('Vote check result:', voted);
       setHasVoted(voted);
       if (voted) {
-        const votes = await getUserVotesForRound(currentUser.uid, activeRound);
+        const votes = await getUserVotesForRound(currentUser.uid, roundToCheck);
+        console.log('Retrieved votes:', votes);
         setUserVotes(votes || {});
         setShowResults(true);
       }
