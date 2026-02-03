@@ -807,28 +807,32 @@ const WeeklyBracketPage = () => {
   const [showResults, setShowResults] = useState(false);
   const { currentUser } = useAuth();
 
-  // Day of week determines active round (0 = Sunday)
-  // Monday = Round 1 (index 0), Tuesday = Round 2, etc.
+  // Get day info for display purposes
   const getDayInfo = () => {
     const now = new Date();
     const day = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
-    
-    // Map days to rounds (Monday=0, Tuesday=1, Wednesday=2, Thursday=3, Friday=4)
-    const dayToRound = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 0: 5 };
-    const activeRound = dayToRound[day] ?? 0;
-    
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const roundNames = ['Round of 32', 'Sweet 16', 'Elite 8', 'Final 4', 'Championship', 'Complete'];
     
     return {
       dayName: dayNames[day],
-      activeRound,
-      roundName: roundNames[Math.min(activeRound, 5)],
       isWeekend: day === 0 || day === 6
     };
   };
 
+  // Get the active round from the bracket itself (not calculated from day)
+  const getActiveRound = () => {
+    if (!weeklyBracket) return 0;
+    // Use the bracket's currentRound if it exists, otherwise default to 0
+    return weeklyBracket.currentRound ?? 0;
+  };
+
+  const getRoundName = (roundIndex) => {
+    const roundNames = ['Round of 32', 'Sweet 16', 'Elite 8', 'Final 4', 'Championship'];
+    return roundNames[roundIndex] || `Round ${roundIndex + 1}`;
+  };
+
   const dayInfo = getDayInfo();
+  const activeRound = getActiveRound();
 
   useEffect(() => {
     loadWeeklyBracket();
@@ -838,9 +842,14 @@ const WeeklyBracketPage = () => {
     if (currentUser && weeklyBracket) {
       checkUserVoted();
     }
-  }, [currentUser, weeklyBracket, dayInfo.activeRound]);
+  }, [currentUser, weeklyBracket, activeRound]);
 
   const loadWeeklyBracket = async () => {
+    // Reset vote state before loading
+    setHasVoted(false);
+    setUserVotes({});
+    setShowResults(false);
+    
     try {
       // First check if we need to auto-advance
       const advanceResult = await checkAndAutoAdvance();
@@ -858,12 +867,12 @@ const WeeklyBracketPage = () => {
   };
 
   const checkUserVoted = async () => {
-    if (!currentUser) return;
+    if (!currentUser || !weeklyBracket) return;
     try {
-      const voted = await hasUserVotedForRound(currentUser.uid, dayInfo.activeRound);
+      const voted = await hasUserVotedForRound(currentUser.uid, activeRound);
       setHasVoted(voted);
       if (voted) {
-        const votes = await getUserVotesForRound(currentUser.uid, dayInfo.activeRound);
+        const votes = await getUserVotesForRound(currentUser.uid, activeRound);
         setUserVotes(votes || {});
         setShowResults(true);
       }
@@ -883,9 +892,9 @@ const WeeklyBracketPage = () => {
       return;
     }
 
-    const activeMatchups = weeklyBracket.matchups[dayInfo.activeRound];
+    const activeMatchups = weeklyBracket.matchups[activeRound];
     const allVoted = activeMatchups.every((_, idx) => 
-      userVotes[`r${dayInfo.activeRound}-m${idx}`]
+      userVotes[`r${activeRound}-m${idx}`]
     );
 
     if (!allVoted) {
@@ -895,7 +904,7 @@ const WeeklyBracketPage = () => {
 
     setSubmitting(true);
     try {
-      await submitWeeklyVote(currentUser.uid, dayInfo.activeRound, userVotes);
+      await submitWeeklyVote(currentUser.uid, activeRound, userVotes);
       setHasVoted(true);
       setShowResults(true);
       await loadWeeklyBracket(); // Reload to get updated vote counts
@@ -967,7 +976,7 @@ const WeeklyBracketPage = () => {
         </div>
         <div className="round-indicator">
           <span className="round-label">Active Round:</span>
-          <span className="round-value">{dayInfo.roundName}</span>
+          <span className="round-value">{getRoundName(activeRound)}</span>
         </div>
         {hasVoted && (
           <div className="voted-badge">
@@ -979,7 +988,7 @@ const WeeklyBracketPage = () => {
         )}
         
         {/* Submit button moved to top */}
-        {!hasVoted && currentUser && dayInfo.activeRound < weeklyBracket.matchups.length && (
+        {!hasVoted && currentUser && activeRound < weeklyBracket.matchups.length && (
           <button 
             className="submit-votes-btn-inline" 
             onClick={handleSubmitVotes}
@@ -998,9 +1007,9 @@ const WeeklyBracketPage = () => {
 
       <div className="weekly-bracket-wrapper">
         {weeklyBracket.matchups.map((round, roundIndex) => {
-          const isActive = roundIndex === dayInfo.activeRound;
-          const isPast = roundIndex < dayInfo.activeRound;
-          const isFuture = roundIndex > dayInfo.activeRound;
+          const isActive = roundIndex === activeRound;
+          const isPast = roundIndex < activeRound;
+          const isFuture = roundIndex > activeRound;
 
           return (
             <div 
