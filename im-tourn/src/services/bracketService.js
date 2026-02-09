@@ -22,6 +22,7 @@ const BRACKETS_COLLECTION = 'brackets';
 const SUBMISSIONS_COLLECTION = 'submissions';
 const WEEKLY_BRACKET_COLLECTION = 'weeklyBracket';
 const WEEKLY_VOTES_COLLECTION = 'weeklyVotes';
+const WEEKLY_ARCHIVE_COLLECTION = 'weeklyArchive';
 
 // Create a new bracket
 export async function createBracket(bracketData, userId, userDisplayName) {
@@ -203,6 +204,11 @@ export async function getWeeklyBracket() {
 // Set weekly bracket (admin only)
 export async function setWeeklyBracket(bracketData) {
   const docRef = doc(db, WEEKLY_BRACKET_COLLECTION, 'current');
+  
+  // Clear all existing votes from previous bracket
+  const votesSnapshot = await getDocs(collection(db, WEEKLY_VOTES_COLLECTION));
+  const deletePromises = votesSnapshot.docs.map(doc => deleteDoc(doc.ref));
+  await Promise.all(deletePromises);
   
   // Initialize votes structure for all matchups
   const votes = {};
@@ -430,13 +436,54 @@ export async function checkAndAutoAdvance() {
   return null;
 }
 
-// Clear weekly bracket (admin)
+// Clear weekly bracket (admin) - archives before clearing
 export async function clearWeeklyBracket() {
   const bracketRef = doc(db, WEEKLY_BRACKET_COLLECTION, 'current');
+  const bracketSnap = await getDoc(bracketRef);
+  
+  // Archive the bracket if it has a champion
+  if (bracketSnap.exists()) {
+    const data = bracketSnap.data();
+    const matchups = typeof data.matchups === 'string' ? JSON.parse(data.matchups) : data.matchups;
+    const finalRound = matchups[matchups.length - 1];
+    const finalMatch = finalRound?.[0];
+    
+    let champion = null;
+    if (finalMatch?.winner) {
+      champion = finalMatch.winner === 1 ? finalMatch.entry1 : finalMatch.entry2;
+    }
+    
+    await addDoc(collection(db, WEEKLY_ARCHIVE_COLLECTION), {
+      title: data.title,
+      category: data.category,
+      champion: champion ? { name: champion.name, seed: champion.seed } : null,
+      startDate: data.startDate,
+      archivedAt: serverTimestamp()
+    });
+  }
+  
   await deleteDoc(bracketRef);
   
   // Also clear all votes
   const votesSnapshot = await getDocs(collection(db, WEEKLY_VOTES_COLLECTION));
   const deletePromises = votesSnapshot.docs.map(doc => deleteDoc(doc.ref));
   await Promise.all(deletePromises);
+}
+
+// Get archived weekly bracket champions
+export async function getWeeklyArchive() {
+  const q = query(
+    collection(db, WEEKLY_ARCHIVE_COLLECTION),
+    orderBy('archivedAt', 'desc')
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      startDate: data.startDate?.toDate?.() || null,
+      archivedAt: data.archivedAt?.toDate?.() || null
+    };
+  });
 }
