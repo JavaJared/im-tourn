@@ -24,7 +24,7 @@ import {
 import './App.css';
 
 // Admin user IDs (add your Firebase user ID here)
-const ADMIN_USER_IDS = ['YOUR_ADMIN_USER_ID_HERE'];
+const ADMIN_USER_IDS = ['VBbDwj6gkVgW7gBcs3vTmt0ulLF2'];
 
 const CATEGORIES = [
   'Movies', 'TV Shows', 'Books', 'Sports Teams', 'Video Games',
@@ -920,11 +920,6 @@ const WeeklyBracketPage = () => {
       alert('Failed to submit votes. Please try again.');
     }
     setSubmitting(false);
-  };
-
-  const getRoundName = (roundIndex) => {
-    const names = ['Round of 32', 'Sweet 16', 'Elite 8', 'Final 4', 'Championship'];
-    return names[roundIndex] || `Round ${roundIndex + 1}`;
   };
 
   const getVotePercentage = (matchId, entry) => {
