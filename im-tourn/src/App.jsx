@@ -19,7 +19,21 @@ import {
   clearWeeklyBracket,
   setManualWinner,
   checkAndAutoAdvance,
-  getWeeklyArchive
+  getWeeklyArchive,
+  createBracketPool,
+  getPoolById,
+  getPoolByJoinCode,
+  getUserHostedPools,
+  getUserJoinedPools,
+  joinBracketPool,
+  getPoolEntry,
+  submitPoolPredictions,
+  lockPool,
+  startPool,
+  updatePoolResults,
+  getPoolEntries,
+  completePool,
+  deletePool
 } from './services/bracketService';
 import './App.css';
 
@@ -455,6 +469,12 @@ const Header = ({ onNavigate, currentView }) => {
             Weekly Bracket
           </button>
           <button 
+            className={`nav-link ${currentView === 'pools' ? 'active' : ''}`}
+            onClick={() => onNavigate('pools')}
+          >
+            Pools
+          </button>
+          <button 
             className={`nav-link ${currentView === 'champions' ? 'active' : ''}`}
             onClick={() => onNavigate('champions')}
           >
@@ -469,7 +489,7 @@ const Header = ({ onNavigate, currentView }) => {
             </button>
           )}
           
-          {currentView !== 'home' && currentView !== 'weekly' && currentView !== 'champions' && (
+          {currentView !== 'home' && currentView !== 'weekly' && currentView !== 'champions' && currentView !== 'pools' && !currentView.startsWith('pool-') && (
             <button className="back-btn" onClick={() => onNavigate('home')}>
               ← Back
             </button>
@@ -1179,6 +1199,787 @@ const ChampionsPage = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ============ BRACKET POOLS COMPONENTS ============
+
+// Pools Hub Page
+const PoolsPage = ({ onNavigate }) => {
+  const [hostedPools, setHostedPools] = useState([]);
+  const [joinedPools, setJoinedPools] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [joinCode, setJoinCode] = useState('');
+  const [joinError, setJoinError] = useState('');
+  const [joining, setJoining] = useState(false);
+  const { currentUser } = useAuth();
+
+  useEffect(() => {
+    if (currentUser) {
+      loadPools();
+    } else {
+      setLoading(false);
+    }
+  }, [currentUser]);
+
+  const loadPools = async () => {
+    try {
+      const [hosted, joined] = await Promise.all([
+        getUserHostedPools(currentUser.uid),
+        getUserJoinedPools(currentUser.uid)
+      ]);
+      setHostedPools(hosted);
+      // Filter out pools the user hosts from joined pools
+      setJoinedPools(joined.filter(p => p.hostId !== currentUser.uid));
+    } catch (error) {
+      console.error('Error loading pools:', error);
+    }
+    setLoading(false);
+  };
+
+  const handleJoinPool = async () => {
+    if (!joinCode.trim()) {
+      setJoinError('Please enter a join code');
+      return;
+    }
+    
+    setJoining(true);
+    setJoinError('');
+    
+    try {
+      const pool = await getPoolByJoinCode(joinCode.trim());
+      if (!pool) {
+        setJoinError('Invalid join code');
+        setJoining(false);
+        return;
+      }
+      
+      await joinBracketPool(pool.id, currentUser.uid, currentUser.displayName || 'Anonymous');
+      setJoinCode('');
+      onNavigate(`pool-${pool.id}`);
+    } catch (error) {
+      setJoinError(error.message);
+    }
+    setJoining(false);
+  };
+
+  const getStatusBadge = (status) => {
+    const badges = {
+      open: { text: 'Open', class: 'status-open' },
+      locked: { text: 'Locked', class: 'status-locked' },
+      in_progress: { text: 'In Progress', class: 'status-progress' },
+      completed: { text: 'Completed', class: 'status-completed' }
+    };
+    return badges[status] || { text: status, class: '' };
+  };
+
+  if (!currentUser) {
+    return (
+      <div className="home-container">
+        <div className="page-header">
+          <h1>Bracket Pools</h1>
+          <p>Compete with friends to predict bracket outcomes</p>
+        </div>
+        <div className="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+          </svg>
+          <p>Log in to create or join bracket pools</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="home-container">
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p>Loading pools...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="home-container">
+      <div className="page-header">
+        <h1>Bracket Pools</h1>
+        <p>Compete with friends to predict bracket outcomes</p>
+      </div>
+
+      <div className="pools-actions">
+        <button className="nav-btn" onClick={() => onNavigate('create-pool')}>
+          + Create Pool
+        </button>
+        
+        <div className="join-pool-form">
+          <input
+            type="text"
+            placeholder="Enter join code"
+            value={joinCode}
+            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+            maxLength={6}
+            className="join-code-input"
+          />
+          <button 
+            className="join-btn" 
+            onClick={handleJoinPool}
+            disabled={joining}
+          >
+            {joining ? 'Joining...' : 'Join'}
+          </button>
+        </div>
+        {joinError && <p className="error-text">{joinError}</p>}
+      </div>
+
+      {hostedPools.length > 0 && (
+        <div className="pools-section">
+          <h2>Pools You Host</h2>
+          <div className="pools-grid">
+            {hostedPools.map(pool => {
+              const badge = getStatusBadge(pool.status);
+              return (
+                <div 
+                  key={pool.id} 
+                  className="pool-card"
+                  onClick={() => onNavigate(`pool-${pool.id}`)}
+                >
+                  <span className={`pool-status ${badge.class}`}>{badge.text}</span>
+                  <h3 className="pool-title">{pool.name}</h3>
+                  <p className="pool-bracket">{pool.bracketTitle}</p>
+                  <div className="pool-meta">
+                    <span className="pool-code">Code: {pool.joinCode}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {joinedPools.length > 0 && (
+        <div className="pools-section">
+          <h2>Pools You Joined</h2>
+          <div className="pools-grid">
+            {joinedPools.map(pool => {
+              const badge = getStatusBadge(pool.status);
+              return (
+                <div 
+                  key={pool.id} 
+                  className="pool-card"
+                  onClick={() => onNavigate(`pool-${pool.id}`)}
+                >
+                  <span className={`pool-status ${badge.class}`}>{badge.text}</span>
+                  <h3 className="pool-title">{pool.name}</h3>
+                  <p className="pool-bracket">{pool.bracketTitle}</p>
+                  <div className="pool-meta">
+                    <span className="pool-host">Hosted by {pool.hostDisplayName}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {hostedPools.length === 0 && joinedPools.length === 0 && (
+        <div className="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+          </svg>
+          <p>No pools yet. Create one or join with a code!</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Create Pool Page
+const CreatePoolPage = ({ onNavigate }) => {
+  const [brackets, setBrackets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedBracket, setSelectedBracket] = useState(null);
+  const [poolName, setPoolName] = useState('');
+  const [lockDate, setLockDate] = useState('');
+  const [creating, setCreating] = useState(false);
+  const { currentUser } = useAuth();
+
+  useEffect(() => {
+    loadBrackets();
+  }, []);
+
+  const loadBrackets = async () => {
+    try {
+      const data = await getAllBrackets();
+      setBrackets(data);
+    } catch (error) {
+      console.error('Error loading brackets:', error);
+    }
+    setLoading(false);
+  };
+
+  const handleCreate = async () => {
+    if (!selectedBracket || !poolName.trim()) {
+      alert('Please select a bracket and enter a pool name');
+      return;
+    }
+
+    setCreating(true);
+    try {
+      // Parse the bracket's entries to create the matchup structure
+      const entries = typeof selectedBracket.entries === 'string' 
+        ? JSON.parse(selectedBracket.entries) 
+        : selectedBracket.entries;
+      
+      // Build initial matchups (same as fill-out bracket)
+      const numRounds = Math.log2(entries.length);
+      const matchups = [];
+      
+      // First round
+      const firstRound = [];
+      for (let i = 0; i < entries.length / 2; i++) {
+        firstRound.push({
+          entry1: entries[i * 2],
+          entry2: entries[i * 2 + 1],
+          winner: null
+        });
+      }
+      matchups.push(firstRound);
+      
+      // Subsequent rounds
+      let prevRoundMatches = firstRound.length;
+      for (let r = 1; r < numRounds; r++) {
+        const round = [];
+        for (let i = 0; i < prevRoundMatches / 2; i++) {
+          round.push({ entry1: null, entry2: null, winner: null });
+        }
+        matchups.push(round);
+        prevRoundMatches = round.length;
+      }
+
+      const result = await createBracketPool({
+        name: poolName.trim(),
+        hostId: currentUser.uid,
+        hostDisplayName: currentUser.displayName || 'Anonymous',
+        bracketId: selectedBracket.id,
+        bracketTitle: selectedBracket.title,
+        bracketCategory: selectedBracket.category,
+        bracketMatchups: matchups,
+        lockDate: lockDate ? new Date(lockDate) : null
+      });
+
+      onNavigate(`pool-${result.id}`);
+    } catch (error) {
+      console.error('Error creating pool:', error);
+      alert('Failed to create pool. Please try again.');
+    }
+    setCreating(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="home-container">
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p>Loading brackets...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="home-container">
+      <div className="page-header">
+        <h1>Create Bracket Pool</h1>
+        <p>Set up a prediction pool for your friends</p>
+      </div>
+
+      <div className="create-pool-form">
+        <div className="form-group">
+          <label>Pool Name</label>
+          <input
+            type="text"
+            placeholder="e.g., March Madness 2024"
+            value={poolName}
+            onChange={(e) => setPoolName(e.target.value)}
+            className="form-input"
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Lock Date (optional)</label>
+          <input
+            type="datetime-local"
+            value={lockDate}
+            onChange={(e) => setLockDate(e.target.value)}
+            className="form-input"
+          />
+          <p className="form-hint">Predictions will be locked at this time</p>
+        </div>
+
+        <div className="form-group">
+          <label>Select a Bracket</label>
+          <div className="bracket-select-grid">
+            {brackets.map(bracket => (
+              <div
+                key={bracket.id}
+                className={`bracket-select-card ${selectedBracket?.id === bracket.id ? 'selected' : ''}`}
+                onClick={() => setSelectedBracket(bracket)}
+              >
+                <span className="bracket-category">{bracket.category}</span>
+                <h4>{bracket.title}</h4>
+                <p>{bracket.size} entries</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="form-actions">
+          <button className="back-btn" onClick={() => onNavigate('pools')}>
+            Cancel
+          </button>
+          <button 
+            className="nav-btn" 
+            onClick={handleCreate}
+            disabled={creating || !selectedBracket || !poolName.trim()}
+          >
+            {creating ? 'Creating...' : 'Create Pool'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Pool Detail Page
+const PoolDetailPage = ({ poolId, onNavigate }) => {
+  const [pool, setPool] = useState(null);
+  const [entry, setEntry] = useState(null);
+  const [entries, setEntries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('bracket');
+  const [predictions, setPredictions] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const { currentUser } = useAuth();
+
+  const isHost = currentUser && pool?.hostId === currentUser.uid;
+
+  useEffect(() => {
+    loadPoolData();
+  }, [poolId, currentUser]);
+
+  const loadPoolData = async () => {
+    try {
+      const poolData = await getPoolById(poolId);
+      setPool(poolData);
+      
+      if (currentUser) {
+        const entryData = await getPoolEntry(poolId, currentUser.uid);
+        setEntry(entryData);
+        
+        // Initialize predictions from entry or bracket
+        if (entryData?.predictions) {
+          setPredictions(entryData.predictions);
+        } else if (poolData?.bracketMatchups) {
+          setPredictions(JSON.parse(JSON.stringify(poolData.bracketMatchups)));
+        }
+      }
+      
+      // Load all entries for leaderboard
+      const entriesData = await getPoolEntries(poolId);
+      setEntries(entriesData);
+    } catch (error) {
+      console.error('Error loading pool:', error);
+    }
+    setLoading(false);
+  };
+
+  const handlePredictionSelect = (roundIndex, matchIndex, winner) => {
+    if (pool.status !== 'open' || entry?.submittedAt) return;
+    
+    const newPredictions = JSON.parse(JSON.stringify(predictions));
+    newPredictions[roundIndex][matchIndex].winner = winner;
+    
+    // Propagate winner to next round
+    const winnerEntry = winner === 1 
+      ? newPredictions[roundIndex][matchIndex].entry1 
+      : newPredictions[roundIndex][matchIndex].entry2;
+    
+    if (roundIndex < newPredictions.length - 1) {
+      const nextMatchIndex = Math.floor(matchIndex / 2);
+      const isFirstEntry = matchIndex % 2 === 0;
+      
+      if (isFirstEntry) {
+        newPredictions[roundIndex + 1][nextMatchIndex].entry1 = winnerEntry;
+      } else {
+        newPredictions[roundIndex + 1][nextMatchIndex].entry2 = winnerEntry;
+      }
+      
+      // Clear subsequent picks that depended on this
+      clearDependentPicks(newPredictions, roundIndex + 1, nextMatchIndex);
+    }
+    
+    setPredictions(newPredictions);
+  };
+
+  const clearDependentPicks = (matchups, roundIndex, matchIndex) => {
+    if (roundIndex >= matchups.length) return;
+    
+    matchups[roundIndex][matchIndex].winner = null;
+    
+    if (roundIndex < matchups.length - 1) {
+      const nextMatchIndex = Math.floor(matchIndex / 2);
+      const isFirstEntry = matchIndex % 2 === 0;
+      
+      if (isFirstEntry) {
+        matchups[roundIndex + 1][nextMatchIndex].entry1 = null;
+      } else {
+        matchups[roundIndex + 1][nextMatchIndex].entry2 = null;
+      }
+      
+      clearDependentPicks(matchups, roundIndex + 1, nextMatchIndex);
+    }
+  };
+
+  const handleSubmitPredictions = async () => {
+    // Check all matchups are filled
+    const allFilled = predictions.every(round => 
+      round.every(match => match.winner !== null)
+    );
+    
+    if (!allFilled) {
+      alert('Please complete all matchup predictions');
+      return;
+    }
+    
+    const finalMatch = predictions[predictions.length - 1][0];
+    const champion = finalMatch.winner === 1 ? finalMatch.entry1 : finalMatch.entry2;
+    
+    setSubmitting(true);
+    try {
+      await submitPoolPredictions(poolId, currentUser.uid, predictions, champion);
+      await loadPoolData();
+      alert('Predictions submitted!');
+    } catch (error) {
+      alert(error.message);
+    }
+    setSubmitting(false);
+  };
+
+  const handleHostAction = async (action) => {
+    try {
+      switch (action) {
+        case 'lock':
+          await lockPool(poolId, currentUser.uid);
+          break;
+        case 'start':
+          await startPool(poolId, currentUser.uid);
+          break;
+        case 'complete':
+          await completePool(poolId, currentUser.uid);
+          break;
+        case 'delete':
+          if (window.confirm('Are you sure you want to delete this pool?')) {
+            await deletePool(poolId, currentUser.uid);
+            onNavigate('pools');
+            return;
+          }
+          break;
+      }
+      await loadPoolData();
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  const handleResultSelect = async (roundIndex, matchIndex, winner) => {
+    if (!isHost || pool.status !== 'in_progress') return;
+    
+    const newResults = JSON.parse(JSON.stringify(pool.results));
+    newResults[roundIndex][matchIndex].winner = winner;
+    
+    // Propagate winner to next round
+    const winnerEntry = winner === 1 
+      ? newResults[roundIndex][matchIndex].entry1 
+      : newResults[roundIndex][matchIndex].entry2;
+    
+    if (roundIndex < newResults.length - 1) {
+      const nextMatchIndex = Math.floor(matchIndex / 2);
+      const isFirstEntry = matchIndex % 2 === 0;
+      
+      if (isFirstEntry) {
+        newResults[roundIndex + 1][nextMatchIndex].entry1 = winnerEntry;
+      } else {
+        newResults[roundIndex + 1][nextMatchIndex].entry2 = winnerEntry;
+      }
+    }
+    
+    try {
+      await updatePoolResults(poolId, currentUser.uid, newResults);
+      await loadPoolData();
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  const getRoundName = (roundIndex, totalRounds) => {
+    const remaining = totalRounds - roundIndex;
+    if (remaining === 1) return 'Finals';
+    if (remaining === 2) return 'Semi-Finals';
+    if (remaining === 3) return 'Quarter-Finals';
+    return `Round ${roundIndex + 1}`;
+  };
+
+  const copyJoinLink = () => {
+    const link = `${window.location.origin}?pool=${pool.joinCode}`;
+    navigator.clipboard.writeText(link);
+    alert('Join link copied!');
+  };
+
+  if (loading) {
+    return (
+      <div className="home-container">
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p>Loading pool...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!pool) {
+    return (
+      <div className="home-container">
+        <div className="empty-state">
+          <p>Pool not found</p>
+          <button className="back-btn" onClick={() => onNavigate('pools')}>
+            Back to Pools
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const displayMatchups = pool.status === 'in_progress' || pool.status === 'completed' 
+    ? pool.results 
+    : (entry?.submittedAt ? entry.predictions : predictions);
+
+  return (
+    <div className="home-container">
+      <div className="pool-header">
+        <div className="pool-header-info">
+          <button className="back-link" onClick={() => onNavigate('pools')}>
+            ← Back to Pools
+          </button>
+          <h1>{pool.name}</h1>
+          <p>{pool.bracketTitle} • {pool.bracketCategory}</p>
+        </div>
+        
+        <div className="pool-header-actions">
+          <div className="pool-code-display">
+            <span>Join Code:</span>
+            <strong>{pool.joinCode}</strong>
+            <button className="copy-btn" onClick={copyJoinLink}>Copy Link</button>
+          </div>
+          
+          {isHost && (
+            <div className="host-actions">
+              {pool.status === 'open' && (
+                <button className="action-btn" onClick={() => handleHostAction('lock')}>
+                  Lock Entries
+                </button>
+              )}
+              {pool.status === 'locked' && (
+                <button className="action-btn" onClick={() => handleHostAction('start')}>
+                  Start Pool
+                </button>
+              )}
+              {pool.status === 'in_progress' && (
+                <button className="action-btn complete" onClick={() => handleHostAction('complete')}>
+                  Complete Pool
+                </button>
+              )}
+              <button className="action-btn delete" onClick={() => handleHostAction('delete')}>
+                Delete
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="pool-tabs">
+        <button 
+          className={`pool-tab ${activeTab === 'bracket' ? 'active' : ''}`}
+          onClick={() => setActiveTab('bracket')}
+        >
+          {pool.status === 'in_progress' || pool.status === 'completed' ? 'Results' : 'My Predictions'}
+        </button>
+        <button 
+          className={`pool-tab ${activeTab === 'leaderboard' ? 'active' : ''}`}
+          onClick={() => setActiveTab('leaderboard')}
+        >
+          Leaderboard ({entries.length})
+        </button>
+      </div>
+
+      {activeTab === 'bracket' && displayMatchups && (
+        <div className="pool-bracket-container">
+          {pool.status === 'open' && !entry?.submittedAt && currentUser && entry && (
+            <div className="prediction-instructions">
+              <p>Click on entries to make your predictions. Submit before the pool locks!</p>
+              <button 
+                className="submit-predictions-btn"
+                onClick={handleSubmitPredictions}
+                disabled={submitting}
+              >
+                {submitting ? 'Submitting...' : 'Submit Predictions'}
+              </button>
+            </div>
+          )}
+          
+          {pool.status === 'open' && entry?.submittedAt && (
+            <div className="prediction-submitted">
+              <p>✓ Your predictions have been submitted!</p>
+            </div>
+          )}
+          
+          {pool.status === 'in_progress' && isHost && (
+            <div className="host-instructions">
+              <p>Click on entries to set the actual results as games are played.</p>
+            </div>
+          )}
+
+          <div className="pool-bracket">
+            {displayMatchups.map((round, roundIndex) => (
+              <div key={roundIndex} className="pool-round">
+                <div className="pool-round-title">
+                  {getRoundName(roundIndex, displayMatchups.length)}
+                </div>
+                <div className="pool-matchups">
+                  {round.map((match, matchIndex) => {
+                    const canSelect = (pool.status === 'open' && !entry?.submittedAt && entry) ||
+                                     (pool.status === 'in_progress' && isHost);
+                    
+                    return (
+                      <div key={`${roundIndex}-${matchIndex}`} className="pool-matchup">
+                        <div 
+                          className={`pool-entry ${match.winner === 1 ? 'winner' : ''} ${canSelect ? 'selectable' : ''}`}
+                          onClick={() => {
+                            if (pool.status === 'open' && !entry?.submittedAt) {
+                              handlePredictionSelect(roundIndex, matchIndex, 1);
+                            } else if (pool.status === 'in_progress' && isHost) {
+                              handleResultSelect(roundIndex, matchIndex, 1);
+                            }
+                          }}
+                        >
+                          {match.entry1 ? (
+                            <>
+                              <span className="pool-seed">{match.entry1.seed}</span>
+                              <span className="pool-entry-name">{match.entry1.name}</span>
+                            </>
+                          ) : (
+                            <span className="pool-entry-name tbd">TBD</span>
+                          )}
+                        </div>
+                        <div 
+                          className={`pool-entry ${match.winner === 2 ? 'winner' : ''} ${canSelect ? 'selectable' : ''}`}
+                          onClick={() => {
+                            if (pool.status === 'open' && !entry?.submittedAt) {
+                              handlePredictionSelect(roundIndex, matchIndex, 2);
+                            } else if (pool.status === 'in_progress' && isHost) {
+                              handleResultSelect(roundIndex, matchIndex, 2);
+                            }
+                          }}
+                        >
+                          {match.entry2 ? (
+                            <>
+                              <span className="pool-seed">{match.entry2.seed}</span>
+                              <span className="pool-entry-name">{match.entry2.name}</span>
+                            </>
+                          ) : (
+                            <span className="pool-entry-name tbd">TBD</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'leaderboard' && (
+        <div className="pool-leaderboard">
+          {pool.status === 'completed' && pool.winnerId && (
+            <div className="pool-winner-banner">
+              <span className="trophy">🏆</span>
+              <span className="winner-text">{pool.winnerName} wins with {pool.winnerScore} points!</span>
+            </div>
+          )}
+          
+          <div className="leaderboard-table">
+            <div className="leaderboard-header">
+              <span className="lb-rank">Rank</span>
+              <span className="lb-name">Player</span>
+              <span className="lb-champion">Champion Pick</span>
+              <span className="lb-score">Score</span>
+            </div>
+            {entries.map((entry, index) => (
+              <div 
+                key={entry.id} 
+                className={`leaderboard-row ${entry.userId === currentUser?.uid ? 'current-user' : ''}`}
+              >
+                <span className="lb-rank">
+                  {index === 0 && entries.length > 1 ? '👑' : `#${index + 1}`}
+                </span>
+                <span className="lb-name">{entry.userDisplayName}</span>
+                <span className="lb-champion">
+                  {entry.champion?.name || (entry.submittedAt ? 'N/A' : 'Not submitted')}
+                </span>
+                <span className="lb-score">{entry.score}</span>
+              </div>
+            ))}
+            {entries.length === 0 && (
+              <div className="leaderboard-empty">
+                No participants yet
+              </div>
+            )}
+          </div>
+          
+          <div className="scoring-info">
+            <h4>Scoring</h4>
+            <p>Round 1: 1 pt • Round 2: 2 pts • Round 3: 4 pts • Round 4: 8 pts • Finals: 16 pts</p>
+          </div>
+        </div>
+      )}
+
+      {!currentUser && (
+        <div className="login-prompt">
+          <p>Log in to join this pool and make predictions!</p>
+        </div>
+      )}
+      
+      {currentUser && !entry && pool.status === 'open' && (
+        <div className="join-pool-prompt">
+          <button 
+            className="nav-btn"
+            onClick={async () => {
+              try {
+                await joinBracketPool(poolId, currentUser.uid, currentUser.displayName || 'Anonymous');
+                await loadPoolData();
+              } catch (error) {
+                alert(error.message);
+              }
+            }}
+          >
+            Join This Pool
+          </button>
         </div>
       )}
     </div>
@@ -2133,6 +2934,9 @@ function AppContent() {
       {view === 'pdf' && currentBracket && <PDFPage bracket={currentBracket} onBack={() => setView('home')} />}
       {view === 'weekly' && <WeeklyBracketPage />}
       {view === 'champions' && <ChampionsPage />}
+      {view === 'pools' && <PoolsPage onNavigate={setView} />}
+      {view === 'create-pool' && <CreatePoolPage onNavigate={setView} />}
+      {view.startsWith('pool-') && <PoolDetailPage poolId={view.replace('pool-', '')} onNavigate={setView} />}
       {view === 'admin' && <AdminPage />}
     </div>
   );
