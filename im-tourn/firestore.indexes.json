@@ -23,6 +23,21 @@
         { "fieldPath": "userId", "order": "ASCENDING" },
         { "fieldPath": "submittedAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "bracketPools",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "hostId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "poolEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "poolId", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
