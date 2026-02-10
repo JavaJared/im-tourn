@@ -487,3 +487,353 @@ export async function getWeeklyArchive() {
     };
   });
 }
+
+// ============ BRACKET POOLS FUNCTIONS ============
+
+const POOLS_COLLECTION = 'bracketPools';
+const POOL_ENTRIES_COLLECTION = 'poolEntries';
+
+// Generate a random 6-character join code
+function generateJoinCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Removed confusing chars like 0, O, 1, I
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
+// Create a new bracket pool
+export async function createBracketPool(poolData) {
+  const joinCode = generateJoinCode();
+  
+  const docRef = await addDoc(collection(db, POOLS_COLLECTION), {
+    ...poolData,
+    joinCode,
+    bracketMatchups: JSON.stringify(poolData.bracketMatchups),
+    results: null, // Will store host's results as matchups progress
+    status: 'open', // open, locked, in_progress, completed
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  });
+  
+  return { id: docRef.id, joinCode };
+}
+
+// Get pool by ID
+export async function getPoolById(poolId) {
+  const docRef = doc(db, POOLS_COLLECTION, poolId);
+  const docSnap = await getDoc(docRef);
+  
+  if (!docSnap.exists()) return null;
+  
+  const data = docSnap.data();
+  return {
+    id: docSnap.id,
+    ...data,
+    bracketMatchups: typeof data.bracketMatchups === 'string' ? JSON.parse(data.bracketMatchups) : data.bracketMatchups,
+    results: data.results ? (typeof data.results === 'string' ? JSON.parse(data.results) : data.results) : null,
+    lockDate: data.lockDate?.toDate?.() || null,
+    createdAt: data.createdAt?.toDate?.() || null
+  };
+}
+
+// Get pool by join code
+export async function getPoolByJoinCode(joinCode) {
+  const q = query(
+    collection(db, POOLS_COLLECTION),
+    where('joinCode', '==', joinCode.toUpperCase())
+  );
+  const snapshot = await getDocs(q);
+  
+  if (snapshot.empty) return null;
+  
+  const docSnap = snapshot.docs[0];
+  const data = docSnap.data();
+  return {
+    id: docSnap.id,
+    ...data,
+    bracketMatchups: typeof data.bracketMatchups === 'string' ? JSON.parse(data.bracketMatchups) : data.bracketMatchups,
+    results: data.results ? (typeof data.results === 'string' ? JSON.parse(data.results) : data.results) : null,
+    lockDate: data.lockDate?.toDate?.() || null,
+    createdAt: data.createdAt?.toDate?.() || null
+  };
+}
+
+// Get pools hosted by a user
+export async function getUserHostedPools(userId) {
+  const q = query(
+    collection(db, POOLS_COLLECTION),
+    where('hostId', '==', userId),
+    orderBy('createdAt', 'desc')
+  );
+  const snapshot = await getDocs(q);
+  
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      bracketMatchups: typeof data.bracketMatchups === 'string' ? JSON.parse(data.bracketMatchups) : data.bracketMatchups,
+      results: data.results ? (typeof data.results === 'string' ? JSON.parse(data.results) : data.results) : null,
+      lockDate: data.lockDate?.toDate?.() || null,
+      createdAt: data.createdAt?.toDate?.() || null
+    };
+  });
+}
+
+// Get pools a user has joined
+export async function getUserJoinedPools(userId) {
+  const q = query(
+    collection(db, POOL_ENTRIES_COLLECTION),
+    where('userId', '==', userId)
+  );
+  const snapshot = await getDocs(q);
+  
+  const poolIds = snapshot.docs.map(doc => doc.data().poolId);
+  if (poolIds.length === 0) return [];
+  
+  // Fetch each pool
+  const pools = await Promise.all(
+    poolIds.map(async (poolId) => {
+      const pool = await getPoolById(poolId);
+      return pool;
+    })
+  );
+  
+  return pools.filter(p => p !== null);
+}
+
+// Join a bracket pool
+export async function joinBracketPool(poolId, userId, userDisplayName) {
+  // Check if user already joined
+  const existingEntry = await getPoolEntry(poolId, userId);
+  if (existingEntry) {
+    throw new Error('You have already joined this pool');
+  }
+  
+  // Check if pool is still open
+  const pool = await getPoolById(poolId);
+  if (!pool) {
+    throw new Error('Pool not found');
+  }
+  if (pool.status !== 'open') {
+    throw new Error('This pool is no longer accepting entries');
+  }
+  
+  // Create entry
+  const entryRef = doc(db, POOL_ENTRIES_COLLECTION, `${poolId}_${userId}`);
+  await setDoc(entryRef, {
+    poolId,
+    userId,
+    userDisplayName,
+    predictions: null, // Will be filled when user submits predictions
+    score: 0,
+    joinedAt: serverTimestamp(),
+    submittedAt: null
+  });
+  
+  return true;
+}
+
+// Get a user's pool entry
+export async function getPoolEntry(poolId, userId) {
+  const entryRef = doc(db, POOL_ENTRIES_COLLECTION, `${poolId}_${userId}`);
+  const docSnap = await getDoc(entryRef);
+  
+  if (!docSnap.exists()) return null;
+  
+  const data = docSnap.data();
+  return {
+    id: docSnap.id,
+    ...data,
+    predictions: data.predictions ? (typeof data.predictions === 'string' ? JSON.parse(data.predictions) : data.predictions) : null,
+    joinedAt: data.joinedAt?.toDate?.() || null,
+    submittedAt: data.submittedAt?.toDate?.() || null
+  };
+}
+
+// Submit predictions for a pool
+export async function submitPoolPredictions(poolId, userId, predictions, champion) {
+  const pool = await getPoolById(poolId);
+  if (!pool) {
+    throw new Error('Pool not found');
+  }
+  if (pool.status !== 'open') {
+    throw new Error('This pool is no longer accepting predictions');
+  }
+  
+  const entryRef = doc(db, POOL_ENTRIES_COLLECTION, `${poolId}_${userId}`);
+  await updateDoc(entryRef, {
+    predictions: JSON.stringify(predictions),
+    champion,
+    submittedAt: serverTimestamp()
+  });
+  
+  return true;
+}
+
+// Lock the pool (no more entries/predictions allowed)
+export async function lockPool(poolId, hostId) {
+  const pool = await getPoolById(poolId);
+  if (!pool) {
+    throw new Error('Pool not found');
+  }
+  if (pool.hostId !== hostId) {
+    throw new Error('Only the host can lock this pool');
+  }
+  
+  const poolRef = doc(db, POOLS_COLLECTION, poolId);
+  await updateDoc(poolRef, {
+    status: 'locked',
+    updatedAt: serverTimestamp()
+  });
+  
+  return true;
+}
+
+// Start the pool (begin entering results)
+export async function startPool(poolId, hostId) {
+  const pool = await getPoolById(poolId);
+  if (!pool) {
+    throw new Error('Pool not found');
+  }
+  if (pool.hostId !== hostId) {
+    throw new Error('Only the host can start this pool');
+  }
+  
+  const poolRef = doc(db, POOLS_COLLECTION, poolId);
+  await updateDoc(poolRef, {
+    status: 'in_progress',
+    results: JSON.stringify(pool.bracketMatchups), // Initialize results with the bracket structure
+    updatedAt: serverTimestamp()
+  });
+  
+  return true;
+}
+
+// Update pool results (host sets winners)
+export async function updatePoolResults(poolId, hostId, results) {
+  const pool = await getPoolById(poolId);
+  if (!pool) {
+    throw new Error('Pool not found');
+  }
+  if (pool.hostId !== hostId) {
+    throw new Error('Only the host can update results');
+  }
+  
+  const poolRef = doc(db, POOLS_COLLECTION, poolId);
+  await updateDoc(poolRef, {
+    results: JSON.stringify(results),
+    updatedAt: serverTimestamp()
+  });
+  
+  // Recalculate scores for all entries
+  await recalculatePoolScores(poolId, results);
+  
+  return true;
+}
+
+// Calculate score for a single entry
+function calculateEntryScore(predictions, results) {
+  let score = 0;
+  
+  results.forEach((round, roundIndex) => {
+    const pointsForRound = Math.pow(2, roundIndex); // 1, 2, 4, 8, 16...
+    
+    round.forEach((match, matchIndex) => {
+      if (match.winner) {
+        const predictionMatch = predictions[roundIndex]?.[matchIndex];
+        if (predictionMatch?.winner === match.winner) {
+          score += pointsForRound;
+        }
+      }
+    });
+  });
+  
+  return score;
+}
+
+// Recalculate scores for all entries in a pool
+async function recalculatePoolScores(poolId, results) {
+  const entries = await getPoolEntries(poolId);
+  
+  const updatePromises = entries.map(async (entry) => {
+    if (!entry.predictions) return;
+    
+    const score = calculateEntryScore(entry.predictions, results);
+    const entryRef = doc(db, POOL_ENTRIES_COLLECTION, `${poolId}_${entry.userId}`);
+    await updateDoc(entryRef, { score });
+  });
+  
+  await Promise.all(updatePromises);
+}
+
+// Get all entries for a pool (leaderboard)
+export async function getPoolEntries(poolId) {
+  const q = query(
+    collection(db, POOL_ENTRIES_COLLECTION),
+    where('poolId', '==', poolId)
+  );
+  const snapshot = await getDocs(q);
+  
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      predictions: data.predictions ? (typeof data.predictions === 'string' ? JSON.parse(data.predictions) : data.predictions) : null,
+      joinedAt: data.joinedAt?.toDate?.() || null,
+      submittedAt: data.submittedAt?.toDate?.() || null
+    };
+  }).sort((a, b) => b.score - a.score); // Sort by score descending
+}
+
+// Complete the pool (declare winner)
+export async function completePool(poolId, hostId) {
+  const pool = await getPoolById(poolId);
+  if (!pool) {
+    throw new Error('Pool not found');
+  }
+  if (pool.hostId !== hostId) {
+    throw new Error('Only the host can complete this pool');
+  }
+  
+  // Get the winner (highest score)
+  const entries = await getPoolEntries(poolId);
+  const winner = entries.length > 0 ? entries[0] : null;
+  
+  const poolRef = doc(db, POOLS_COLLECTION, poolId);
+  await updateDoc(poolRef, {
+    status: 'completed',
+    winnerId: winner?.userId || null,
+    winnerName: winner?.userDisplayName || null,
+    winnerScore: winner?.score || 0,
+    updatedAt: serverTimestamp()
+  });
+  
+  return { winner };
+}
+
+// Delete a pool (host only)
+export async function deletePool(poolId, hostId) {
+  const pool = await getPoolById(poolId);
+  if (!pool) {
+    throw new Error('Pool not found');
+  }
+  if (pool.hostId !== hostId) {
+    throw new Error('Only the host can delete this pool');
+  }
+  
+  // Delete all entries
+  const entries = await getPoolEntries(poolId);
+  const deleteEntryPromises = entries.map(entry => 
+    deleteDoc(doc(db, POOL_ENTRIES_COLLECTION, `${poolId}_${entry.userId}`))
+  );
+  await Promise.all(deleteEntryPromises);
+  
+  // Delete the pool
+  await deleteDoc(doc(db, POOLS_COLLECTION, poolId));
+  
+  return true;
+}
