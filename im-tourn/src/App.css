@@ -2347,3 +2347,710 @@ body {
   font-size: 0.85rem;
   font-weight: 600;
 }
+
+/* ============ BRACKET POOLS STYLES ============ */
+
+.pools-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+}
+
+.join-pool-form {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.join-code-input {
+  width: 120px;
+  padding: 0.75rem 1rem;
+  background: var(--bg-dark);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.2rem;
+  letter-spacing: 2px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.join-code-input::placeholder {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.85rem;
+  letter-spacing: 0;
+}
+
+.join-btn {
+  background: var(--accent-teal);
+  color: var(--bg-dark);
+  border: none;
+  padding: 0.75rem 1.5rem;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.join-btn:hover:not(:disabled) {
+  background: #00f5c8;
+}
+
+.join-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.error-text {
+  color: #ff6b6b;
+  font-size: 0.85rem;
+  width: 100%;
+}
+
+.pools-section {
+  margin-bottom: 2rem;
+}
+
+.pools-section h2 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.4rem;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+
+.pools-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.pool-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 1.25rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.pool-card:hover {
+  border-color: var(--accent-orange);
+  transform: translateY(-2px);
+}
+
+.pool-status {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-open {
+  background: rgba(0, 212, 170, 0.2);
+  color: var(--accent-teal);
+}
+
+.status-locked {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+}
+
+.status-progress {
+  background: rgba(255, 107, 53, 0.2);
+  color: var(--accent-orange);
+}
+
+.status-completed {
+  background: rgba(156, 39, 176, 0.2);
+  color: #ce93d8;
+}
+
+.pool-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.4rem;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.25rem;
+  padding-right: 60px;
+}
+
+.pool-bracket {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-bottom: 0.75rem;
+}
+
+.pool-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.pool-code {
+  font-family: 'Bebas Neue', sans-serif;
+  letter-spacing: 1px;
+  color: var(--accent-teal);
+}
+
+/* Create Pool Page */
+.create-pool-form {
+  max-width: 800px;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--text-secondary);
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-family: 'Outfit', sans-serif;
+  font-size: 1rem;
+  transition: border-color 0.3s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--accent-orange);
+}
+
+.form-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+}
+
+.bracket-select-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+
+.bracket-select-card {
+  background: var(--bg-card);
+  border: 2px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.bracket-select-card:hover {
+  border-color: var(--accent-orange);
+}
+
+.bracket-select-card.selected {
+  border-color: var(--accent-orange);
+  background: rgba(255, 107, 53, 0.1);
+}
+
+.bracket-select-card h4 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.1rem;
+  margin: 0.5rem 0 0.25rem;
+}
+
+.bracket-select-card p {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* Pool Detail Page */
+.pool-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.pool-header-info h1 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2.5rem;
+  letter-spacing: 1px;
+  margin: 0.5rem 0 0.25rem;
+}
+
+.pool-header-info p {
+  color: var(--text-muted);
+}
+
+.back-link {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.3s ease;
+}
+
+.back-link:hover {
+  color: var(--accent-orange);
+}
+
+.pool-header-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.pool-code-display {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--bg-card);
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+}
+
+.pool-code-display span {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.pool-code-display strong {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.4rem;
+  letter-spacing: 2px;
+  color: var(--accent-teal);
+}
+
+.copy-btn {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.copy-btn:hover {
+  border-color: var(--accent-teal);
+  color: var(--accent-teal);
+}
+
+.host-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.action-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  padding: 0.6rem 1rem;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 500;
+  font-size: 0.85rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.action-btn:hover {
+  border-color: var(--accent-orange);
+  color: var(--accent-orange);
+}
+
+.action-btn.complete {
+  background: var(--accent-teal);
+  border-color: var(--accent-teal);
+  color: var(--bg-dark);
+}
+
+.action-btn.complete:hover {
+  background: #00f5c8;
+}
+
+.action-btn.delete {
+  border-color: #ff6b6b;
+  color: #ff6b6b;
+}
+
+.action-btn.delete:hover {
+  background: rgba(255, 107, 107, 0.1);
+}
+
+.pool-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.pool-tab {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  padding: 0.75rem 1.5rem;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.pool-tab:hover {
+  border-color: var(--accent-orange);
+  color: var(--text-primary);
+}
+
+.pool-tab.active {
+  background: var(--accent-orange);
+  border-color: var(--accent-orange);
+  color: white;
+}
+
+.pool-bracket-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.prediction-instructions,
+.prediction-submitted,
+.host-instructions {
+  text-align: center;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  background: rgba(255, 107, 53, 0.1);
+  border-radius: 8px;
+}
+
+.prediction-submitted {
+  background: rgba(0, 212, 170, 0.1);
+  color: var(--accent-teal);
+}
+
+.submit-predictions-btn {
+  margin-top: 1rem;
+  background: linear-gradient(135deg, var(--accent-orange), #ff8c5a);
+  color: white;
+  border: none;
+  padding: 0.875rem 2rem;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.submit-predictions-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px var(--accent-orange-glow);
+}
+
+.submit-predictions-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pool-bracket {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  min-height: 400px;
+  padding: 1rem 0;
+}
+
+.pool-round {
+  flex-shrink: 0;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+}
+
+.pool-round-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: 0.75rem;
+  letter-spacing: 1px;
+}
+
+.pool-matchups {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+}
+
+.pool-matchup {
+  background: var(--bg-dark);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 0.25rem 0;
+}
+
+.pool-entry {
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: all 0.2s ease;
+}
+
+.pool-entry:last-child {
+  border-bottom: none;
+}
+
+.pool-entry.selectable {
+  cursor: pointer;
+}
+
+.pool-entry.selectable:hover {
+  background: rgba(255, 107, 53, 0.1);
+}
+
+.pool-entry.winner {
+  background: rgba(0, 212, 170, 0.15);
+}
+
+.pool-seed {
+  width: 20px;
+  height: 20px;
+  background: rgba(255, 107, 53, 0.2);
+  color: var(--accent-orange);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.pool-entry-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pool-entry-name.tbd {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Leaderboard */
+.pool-leaderboard {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.pool-winner-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  background: linear-gradient(135deg, rgba(0, 212, 170, 0.2), rgba(255, 107, 53, 0.2));
+  border: 2px solid var(--accent-teal);
+  border-radius: 12px;
+}
+
+.pool-winner-banner .trophy {
+  font-size: 2rem;
+}
+
+.pool-winner-banner .winner-text {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.5rem;
+  letter-spacing: 1px;
+  background: linear-gradient(135deg, var(--accent-teal), var(--accent-orange));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.leaderboard-table {
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.leaderboard-header {
+  display: grid;
+  grid-template-columns: 60px 1fr 1fr 80px;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.leaderboard-row {
+  display: grid;
+  grid-template-columns: 60px 1fr 1fr 80px;
+  padding: 1rem;
+  border-top: 1px solid var(--border-subtle);
+  transition: background 0.2s ease;
+}
+
+.leaderboard-row:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.leaderboard-row.current-user {
+  background: rgba(255, 107, 53, 0.1);
+}
+
+.lb-rank {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.1rem;
+  color: var(--text-muted);
+}
+
+.leaderboard-row:first-of-type .lb-rank {
+  color: var(--accent-orange);
+}
+
+.lb-name {
+  font-weight: 500;
+}
+
+.lb-champion {
+  color: var(--accent-teal);
+  font-size: 0.9rem;
+}
+
+.lb-score {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.2rem;
+  color: var(--accent-orange);
+  text-align: right;
+}
+
+.leaderboard-empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.scoring-info {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.scoring-info h4 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1rem;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.scoring-info p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.join-pool-prompt {
+  text-align: center;
+  margin-top: 2rem;
+}
+
+/* Mobile responsiveness for pools */
+@media (max-width: 768px) {
+  .pools-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .join-pool-form {
+    width: 100%;
+  }
+  
+  .join-code-input {
+    flex: 1;
+  }
+  
+  .pool-header {
+    flex-direction: column;
+  }
+  
+  .pool-header-actions {
+    width: 100%;
+    align-items: stretch;
+  }
+  
+  .host-actions {
+    flex-wrap: wrap;
+  }
+  
+  .leaderboard-header,
+  .leaderboard-row {
+    grid-template-columns: 50px 1fr 80px;
+  }
+  
+  .lb-champion {
+    display: none;
+  }
+  
+  .pool-bracket {
+    flex-direction: column;
+  }
+  
+  .pool-round {
+    min-width: 100%;
+  }
+}
