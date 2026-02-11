@@ -2230,17 +2230,21 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
                 </span>
               </label>
               <select 
-                value={sleeper1?.seed || ''}
+                value={sleeper1 ? String(sleeper1.seed) : ''}
                 onChange={(e) => {
+                  if (!e.target.value) {
+                    setSleeper1(null);
+                    return;
+                  }
                   const losers = getRoundLosers(0);
-                  const selected = losers.find(l => l.seed === parseInt(e.target.value));
+                  const selected = losers.find(l => String(l.seed) === e.target.value);
                   setSleeper1(selected || null);
                 }}
                 className="sleeper-select"
               >
                 <option value="">Select a Round 1 loser...</option>
                 {getRoundLosers(0).map((loser) => (
-                  <option key={loser.seed} value={loser.seed}>
+                  <option key={loser.seed} value={String(loser.seed)}>
                     #{loser.seed} {loser.name}
                   </option>
                 ))}
@@ -2255,17 +2259,21 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
                 </span>
               </label>
               <select 
-                value={sleeper2?.seed || ''}
+                value={sleeper2 ? String(sleeper2.seed) : ''}
                 onChange={(e) => {
+                  if (!e.target.value) {
+                    setSleeper2(null);
+                    return;
+                  }
                   const losers = getRoundLosers(1);
-                  const selected = losers.find(l => l.seed === parseInt(e.target.value));
+                  const selected = losers.find(l => String(l.seed) === e.target.value);
                   setSleeper2(selected || null);
                 }}
                 className="sleeper-select"
               >
                 <option value="">Select a Round 2 loser...</option>
                 {getRoundLosers(1).map((loser) => (
-                  <option key={loser.seed} value={loser.seed}>
+                  <option key={loser.seed} value={String(loser.seed)}>
                     #{loser.seed} {loser.name}
                   </option>
                 ))}
