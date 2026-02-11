@@ -1590,7 +1590,7 @@ const CreatePoolPage = ({ onNavigate }) => {
               className="toggle-checkbox"
             />
             <span className="toggle-switch"></span>
-            Enable Sleeper Picks
+            <span className="toggle-text">Enable Sleeper Picks</span>
           </label>
           <p className="form-hint">
             Allow participants to select "sleeper" picks for bonus points
@@ -2131,11 +2131,12 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
             </div>
           )}
           
-          <div className="leaderboard-table">
+          <div className={`leaderboard-table ${pool.enableSleepers ? 'with-sleepers' : ''}`}>
             <div className="leaderboard-header">
               <span className="lb-rank">Rank</span>
               <span className="lb-name">Player</span>
               <span className="lb-champion">Champion Pick</span>
+              {pool.enableSleepers && <span className="lb-sleepers">Sleeper Picks</span>}
               <span className="lb-score">Score</span>
               <span className="lb-action"></span>
             </div>
@@ -2149,16 +2150,32 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
                 </span>
                 <span className="lb-name">
                   {participantEntry.userDisplayName}
-                  {pool.enableSleepers && (participantEntry.sleeper1Hit || participantEntry.sleeper2Hit) && (
-                    <span className="sleeper-badges">
-                      {participantEntry.sleeper1Hit && <span className="sleeper-badge" title={`Sleeper 1: ${participantEntry.sleeper1?.name}`}>🔮</span>}
-                      {participantEntry.sleeper2Hit && <span className="sleeper-badge" title={`Sleeper 2: ${participantEntry.sleeper2?.name}`}>🔮</span>}
-                    </span>
-                  )}
                 </span>
                 <span className="lb-champion">
                   {participantEntry.champion?.name || (participantEntry.submittedAt ? 'N/A' : 'Not submitted')}
                 </span>
+                {pool.enableSleepers && (
+                  <span className="lb-sleepers">
+                    {participantEntry.sleeper1 || participantEntry.sleeper2 ? (
+                      <div className="sleeper-picks-display">
+                        {participantEntry.sleeper1 && (
+                          <span className={`sleeper-pick-tag ${participantEntry.sleeper1Hit ? 'hit' : ''}`} title="Sleeper 1">
+                            {participantEntry.sleeper1.name}
+                            {participantEntry.sleeper1Hit && ' ✓'}
+                          </span>
+                        )}
+                        {participantEntry.sleeper2 && (
+                          <span className={`sleeper-pick-tag ${participantEntry.sleeper2Hit ? 'hit' : ''}`} title="Sleeper 2">
+                            {participantEntry.sleeper2.name}
+                            {participantEntry.sleeper2Hit && ' ✓'}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="no-sleepers">None</span>
+                    )}
+                  </span>
+                )}
                 <span className="lb-score">{participantEntry.score}</span>
                 <span className="lb-action">
                   {participantEntry.submittedAt && (
