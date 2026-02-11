@@ -1406,6 +1406,15 @@ const CreatePoolPage = ({ onNavigate }) => {
   const [poolName, setPoolName] = useState('');
   const [lockDate, setLockDate] = useState('');
   const [creating, setCreating] = useState(false);
+  
+  // Scoring customization
+  const [roundPoints, setRoundPoints] = useState([1, 2, 4, 8, 16, 32]); // Points per round
+  
+  // Sleeper picks settings
+  const [enableSleepers, setEnableSleepers] = useState(false);
+  const [sleeper1Points, setSleeper1Points] = useState(5); // First round loser makes round 3
+  const [sleeper2Points, setSleeper2Points] = useState(8); // Second round loser makes round 4
+  
   const { currentUser } = useAuth();
 
   useEffect(() => {
@@ -1420,6 +1429,12 @@ const CreatePoolPage = ({ onNavigate }) => {
       console.error('Error loading brackets:', error);
     }
     setLoading(false);
+  };
+
+  const updateRoundPoints = (index, value) => {
+    const newPoints = [...roundPoints];
+    newPoints[index] = parseInt(value) || 0;
+    setRoundPoints(newPoints);
   };
 
   const handleCreate = async () => {
@@ -1469,7 +1484,13 @@ const CreatePoolPage = ({ onNavigate }) => {
         bracketTitle: selectedBracket.title,
         bracketCategory: selectedBracket.category,
         bracketMatchups: matchups,
-        lockDate: lockDate ? new Date(lockDate) : null
+        lockDate: lockDate ? new Date(lockDate) : null,
+        // Scoring settings
+        roundPoints: roundPoints.slice(0, numRounds),
+        // Sleeper picks settings
+        enableSleepers,
+        sleeper1Points: enableSleepers ? sleeper1Points : 0,
+        sleeper2Points: enableSleepers ? sleeper2Points : 0
       });
 
       onNavigate(`pool-${result.id}`);
@@ -1538,6 +1559,81 @@ const CreatePoolPage = ({ onNavigate }) => {
           </div>
         </div>
 
+        {selectedBracket && (
+          <div className="form-group">
+            <label>Points Per Round</label>
+            <p className="form-hint">Set how many points a correct pick is worth in each round</p>
+            <div className="round-points-grid">
+              {Array.from({ length: Math.log2(selectedBracket.size) }, (_, i) => (
+                <div key={i} className="round-points-item">
+                  <span className="round-label">Round {i + 1}</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={roundPoints[i] || 0}
+                    onChange={(e) => updateRoundPoints(i, e.target.value)}
+                    className="round-points-input"
+                  />
+                  <span className="points-label">pts</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="form-group">
+          <label className="toggle-label">
+            <input
+              type="checkbox"
+              checked={enableSleepers}
+              onChange={(e) => setEnableSleepers(e.target.checked)}
+              className="toggle-checkbox"
+            />
+            <span className="toggle-switch"></span>
+            Enable Sleeper Picks
+          </label>
+          <p className="form-hint">
+            Allow participants to select "sleeper" picks for bonus points
+          </p>
+        </div>
+
+        {enableSleepers && (
+          <div className="sleeper-settings">
+            <div className="sleeper-setting">
+              <div className="sleeper-info">
+                <strong>Sleeper Pick 1</strong>
+                <p>A Round 1 loser who makes it to Round 3+</p>
+              </div>
+              <div className="sleeper-points-input">
+                <input
+                  type="number"
+                  min="0"
+                  value={sleeper1Points}
+                  onChange={(e) => setSleeper1Points(parseInt(e.target.value) || 0)}
+                  className="round-points-input"
+                />
+                <span className="points-label">pts</span>
+              </div>
+            </div>
+            <div className="sleeper-setting">
+              <div className="sleeper-info">
+                <strong>Sleeper Pick 2</strong>
+                <p>A Round 2 loser who makes it to Round 4+</p>
+              </div>
+              <div className="sleeper-points-input">
+                <input
+                  type="number"
+                  min="0"
+                  value={sleeper2Points}
+                  onChange={(e) => setSleeper2Points(parseInt(e.target.value) || 0)}
+                  className="round-points-input"
+                />
+                <span className="points-label">pts</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="form-actions">
           <button className="back-btn" onClick={() => onNavigate('pools')}>
             Cancel
@@ -1564,7 +1660,14 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
   const [activeTab, setActiveTab] = useState('bracket');
   const [predictions, setPredictions] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const [viewingEntry, setViewingEntry] = useState(null); // For viewing other participants' brackets
+  const [viewingEntry, setViewingEntry] = useState(null);
+  
+  // Sleeper picks state
+  const [showSleeperModal, setShowSleeperModal] = useState(false);
+  const [sleeper1, setSleeper1] = useState(null);
+  const [sleeper2, setSleeper2] = useState(null);
+  const [submittingSleepers, setSubmittingSleepers] = useState(false);
+  
   const { currentUser } = useAuth();
 
   const isHost = currentUser && pool?.hostId === currentUser.uid;
@@ -1657,18 +1760,53 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
       return;
     }
     
+    // If sleepers are enabled, show the sleeper modal instead of submitting immediately
+    if (pool.enableSleepers) {
+      setShowSleeperModal(true);
+      return;
+    }
+    
+    // Otherwise, submit directly
+    await submitPredictionsToServer();
+  };
+
+  const submitPredictionsToServer = async (sleeperPicks = null) => {
     const finalMatch = predictions[predictions.length - 1][0];
     const champion = finalMatch.winner === 1 ? finalMatch.entry1 : finalMatch.entry2;
     
     setSubmitting(true);
     try {
-      await submitPoolPredictions(poolId, currentUser.uid, predictions, champion);
+      await submitPoolPredictions(poolId, currentUser.uid, predictions, champion, sleeperPicks);
       await loadPoolData();
+      setShowSleeperModal(false);
       alert('Predictions submitted!');
     } catch (error) {
       alert(error.message);
     }
     setSubmitting(false);
+  };
+
+  // Get losers from a specific round for sleeper pick dropdowns
+  const getRoundLosers = (roundIndex) => {
+    if (!predictions || !predictions[roundIndex]) return [];
+    
+    const losers = [];
+    predictions[roundIndex].forEach((match) => {
+      if (match.winner && match.entry1 && match.entry2) {
+        const loser = match.winner === 1 ? match.entry2 : match.entry1;
+        losers.push(loser);
+      }
+    });
+    return losers;
+  };
+
+  const handleSubmitSleepers = async () => {
+    setSubmittingSleepers(true);
+    await submitPredictionsToServer({
+      sleeper1: sleeper1,
+      sleeper2: sleeper2
+    });
+    setSubmittingSleepers(false);
   };
 
   const handleHostAction = async (action) => {
@@ -2009,7 +2147,15 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
                 <span className="lb-rank">
                   {index === 0 && entries.length > 1 ? '👑' : `#${index + 1}`}
                 </span>
-                <span className="lb-name">{participantEntry.userDisplayName}</span>
+                <span className="lb-name">
+                  {participantEntry.userDisplayName}
+                  {pool.enableSleepers && (participantEntry.sleeper1Hit || participantEntry.sleeper2Hit) && (
+                    <span className="sleeper-badges">
+                      {participantEntry.sleeper1Hit && <span className="sleeper-badge" title={`Sleeper 1: ${participantEntry.sleeper1?.name}`}>🔮</span>}
+                      {participantEntry.sleeper2Hit && <span className="sleeper-badge" title={`Sleeper 2: ${participantEntry.sleeper2?.name}`}>🔮</span>}
+                    </span>
+                  )}
+                </span>
                 <span className="lb-champion">
                   {participantEntry.champion?.name || (participantEntry.submittedAt ? 'N/A' : 'Not submitted')}
                 </span>
@@ -2035,7 +2181,96 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
           
           <div className="scoring-info">
             <h4>Scoring</h4>
-            <p>Round 1: 1 pt • Round 2: 2 pts • Round 3: 4 pts • Round 4: 8 pts • Finals: 16 pts</p>
+            <p>
+              {pool.roundPoints?.map((pts, i) => (
+                `Round ${i + 1}: ${pts} pt${pts !== 1 ? 's' : ''}`
+              )).join(' • ') || 'Round 1: 1 pt • Round 2: 2 pts • Round 3: 4 pts • Round 4: 8 pts • Finals: 16 pts'}
+            </p>
+            {pool.enableSleepers && (
+              <p className="sleeper-scoring">
+                Sleeper 1 (R1 loser → R3): {pool.sleeper1Points} pts • 
+                Sleeper 2 (R2 loser → R4): {pool.sleeper2Points} pts
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Sleeper Picks Modal */}
+      {showSleeperModal && (
+        <div className="modal-overlay" onClick={() => setShowSleeperModal(false)}>
+          <div className="sleeper-modal" onClick={(e) => e.stopPropagation()}>
+            <h2>Select Your Sleeper Picks</h2>
+            <p className="sleeper-modal-desc">
+              Choose participants you think will outperform their seeding!
+            </p>
+
+            <div className="sleeper-pick-group">
+              <label>
+                <strong>Sleeper Pick 1</strong>
+                <span className="sleeper-pick-desc">
+                  A Round 1 loser who makes it to Round 3+ ({pool.sleeper1Points} pts)
+                </span>
+              </label>
+              <select 
+                value={sleeper1?.seed || ''}
+                onChange={(e) => {
+                  const losers = getRoundLosers(0);
+                  const selected = losers.find(l => l.seed === parseInt(e.target.value));
+                  setSleeper1(selected || null);
+                }}
+                className="sleeper-select"
+              >
+                <option value="">Select a Round 1 loser...</option>
+                {getRoundLosers(0).map((loser) => (
+                  <option key={loser.seed} value={loser.seed}>
+                    #{loser.seed} {loser.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="sleeper-pick-group">
+              <label>
+                <strong>Sleeper Pick 2</strong>
+                <span className="sleeper-pick-desc">
+                  A Round 2 loser who makes it to Round 4+ ({pool.sleeper2Points} pts)
+                </span>
+              </label>
+              <select 
+                value={sleeper2?.seed || ''}
+                onChange={(e) => {
+                  const losers = getRoundLosers(1);
+                  const selected = losers.find(l => l.seed === parseInt(e.target.value));
+                  setSleeper2(selected || null);
+                }}
+                className="sleeper-select"
+              >
+                <option value="">Select a Round 2 loser...</option>
+                {getRoundLosers(1).map((loser) => (
+                  <option key={loser.seed} value={loser.seed}>
+                    #{loser.seed} {loser.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="sleeper-modal-actions">
+              <button 
+                className="skip-sleepers-btn"
+                onClick={() => submitPredictionsToServer(null)}
+                disabled={submitting || submittingSleepers}
+              >
+                Skip Sleepers
+              </button>
+              <button 
+                className="submit-sleepers-btn"
+                onClick={handleSubmitSleepers}
+                disabled={submitting || submittingSleepers}
+              >
+                {submittingSleepers ? 'Submitting...' : 'Submit Sleepers'}
+              </button>
+            </div>
           </div>
         </div>
       )}
