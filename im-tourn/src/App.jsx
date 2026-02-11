@@ -1564,6 +1564,7 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
   const [activeTab, setActiveTab] = useState('bracket');
   const [predictions, setPredictions] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [viewingEntry, setViewingEntry] = useState(null); // For viewing other participants' brackets
   const { currentUser } = useAuth();
 
   const isHost = currentUser && pool?.hostId === currentUser.uid;
@@ -1740,6 +1741,19 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
     alert('Join link copied!');
   };
 
+  // Determine if a prediction is correct, incorrect, or pending
+  const getMatchStatus = (predictionMatchups, roundIndex, matchIndex) => {
+    if (!pool.results || pool.status === 'open' || pool.status === 'locked') return 'pending';
+    
+    const resultMatch = pool.results[roundIndex]?.[matchIndex];
+    const predictionMatch = predictionMatchups?.[roundIndex]?.[matchIndex];
+    
+    if (!resultMatch?.winner) return 'pending';
+    if (!predictionMatch?.winner) return 'pending';
+    
+    return resultMatch.winner === predictionMatch.winner ? 'correct' : 'incorrect';
+  };
+
   if (loading) {
     return (
       <div className="home-container">
@@ -1764,9 +1778,31 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
     );
   }
 
-  const displayMatchups = pool.status === 'in_progress' || pool.status === 'completed' 
-    ? pool.results 
-    : (entry?.submittedAt ? entry.predictions : predictions);
+  // Determine which matchups to display
+  const getDisplayMatchups = () => {
+    // If viewing another participant's bracket
+    if (viewingEntry) {
+      return viewingEntry.predictions;
+    }
+    // If host is setting results
+    if ((pool.status === 'in_progress' || pool.status === 'completed') && isHost && activeTab === 'results') {
+      return pool.results;
+    }
+    // If viewing own predictions after submission
+    if (entry?.submittedAt && (pool.status !== 'open' || activeTab === 'bracket')) {
+      return entry.predictions;
+    }
+    // If still making predictions
+    if (pool.status === 'open' && !entry?.submittedAt) {
+      return predictions;
+    }
+    // Default to own predictions
+    return entry?.predictions || predictions;
+  };
+
+  const displayMatchups = getDisplayMatchups();
+  const showingPredictions = viewingEntry || (entry?.submittedAt && activeTab === 'bracket');
+  const viewingOwnBracket = !viewingEntry || viewingEntry.userId === currentUser?.uid;
 
   return (
     <div className="home-container">
@@ -1814,21 +1850,40 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
       <div className="pool-tabs">
         <button 
           className={`pool-tab ${activeTab === 'bracket' ? 'active' : ''}`}
-          onClick={() => setActiveTab('bracket')}
+          onClick={() => { setActiveTab('bracket'); setViewingEntry(null); }}
         >
-          {pool.status === 'in_progress' || pool.status === 'completed' ? 'Results' : 'My Predictions'}
+          {pool.status === 'open' && !entry?.submittedAt ? 'My Predictions' : 'My Bracket'}
         </button>
+        {isHost && (pool.status === 'in_progress' || pool.status === 'completed') && (
+          <button 
+            className={`pool-tab ${activeTab === 'results' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('results'); setViewingEntry(null); }}
+          >
+            Set Results
+          </button>
+        )}
         <button 
           className={`pool-tab ${activeTab === 'leaderboard' ? 'active' : ''}`}
-          onClick={() => setActiveTab('leaderboard')}
+          onClick={() => { setActiveTab('leaderboard'); setViewingEntry(null); }}
         >
           Leaderboard ({entries.length})
         </button>
       </div>
 
-      {activeTab === 'bracket' && displayMatchups && (
+      {/* Viewing another participant's bracket */}
+      {viewingEntry && (
+        <div className="viewing-participant-header">
+          <button className="back-link" onClick={() => setViewingEntry(null)}>
+            ← Back to Leaderboard
+          </button>
+          <h3>Viewing {viewingEntry.userDisplayName}'s Bracket</h3>
+          <span className="participant-score">Score: {viewingEntry.score} pts</span>
+        </div>
+      )}
+
+      {(activeTab === 'bracket' || activeTab === 'results' || viewingEntry) && displayMatchups && (
         <div className="pool-bracket-container">
-          {pool.status === 'open' && !entry?.submittedAt && currentUser && entry && (
+          {pool.status === 'open' && !entry?.submittedAt && currentUser && entry && !viewingEntry && (
             <div className="prediction-instructions">
               <p>Click on entries to make your predictions. Submit before the pool locks!</p>
               <button 
@@ -1841,15 +1896,23 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
             </div>
           )}
           
-          {pool.status === 'open' && entry?.submittedAt && (
+          {pool.status === 'open' && entry?.submittedAt && !viewingEntry && (
             <div className="prediction-submitted">
               <p>✓ Your predictions have been submitted!</p>
             </div>
           )}
           
-          {pool.status === 'in_progress' && isHost && (
+          {activeTab === 'results' && isHost && !viewingEntry && (
             <div className="host-instructions">
               <p>Click on entries to set the actual results as games are played.</p>
+            </div>
+          )}
+
+          {(pool.status === 'in_progress' || pool.status === 'completed') && activeTab === 'bracket' && !viewingEntry && entry?.predictions && (
+            <div className="bracket-legend">
+              <span className="legend-item correct">✓ Correct</span>
+              <span className="legend-item incorrect">✗ Incorrect</span>
+              <span className="legend-item pending">○ Pending</span>
             </div>
           )}
 
@@ -1861,18 +1924,23 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
                 </div>
                 <div className="pool-matchups">
                   {round.map((match, matchIndex) => {
-                    const canSelect = (pool.status === 'open' && !entry?.submittedAt && entry) ||
-                                     (pool.status === 'in_progress' && isHost);
+                    const canSelect = (pool.status === 'open' && !entry?.submittedAt && entry && !viewingEntry) ||
+                                     (activeTab === 'results' && isHost && !viewingEntry);
+                    
+                    // Determine match status for coloring
+                    const matchStatus = showingPredictions ? getMatchStatus(displayMatchups, roundIndex, matchIndex) : 'pending';
                     
                     return (
-                      <div key={`${roundIndex}-${matchIndex}`} className="pool-matchup">
+                      <div key={`${roundIndex}-${matchIndex}`} className={`pool-matchup ${matchStatus}`}>
                         <div 
                           className={`pool-entry ${match.winner === 1 ? 'winner' : ''} ${canSelect ? 'selectable' : ''}`}
                           onClick={() => {
-                            if (pool.status === 'open' && !entry?.submittedAt) {
-                              handlePredictionSelect(roundIndex, matchIndex, 1);
-                            } else if (pool.status === 'in_progress' && isHost) {
-                              handleResultSelect(roundIndex, matchIndex, 1);
+                            if (canSelect) {
+                              if (pool.status === 'open' && !entry?.submittedAt) {
+                                handlePredictionSelect(roundIndex, matchIndex, 1);
+                              } else if (activeTab === 'results' && isHost) {
+                                handleResultSelect(roundIndex, matchIndex, 1);
+                              }
                             }
                           }}
                         >
@@ -1888,10 +1956,12 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
                         <div 
                           className={`pool-entry ${match.winner === 2 ? 'winner' : ''} ${canSelect ? 'selectable' : ''}`}
                           onClick={() => {
-                            if (pool.status === 'open' && !entry?.submittedAt) {
-                              handlePredictionSelect(roundIndex, matchIndex, 2);
-                            } else if (pool.status === 'in_progress' && isHost) {
-                              handleResultSelect(roundIndex, matchIndex, 2);
+                            if (canSelect) {
+                              if (pool.status === 'open' && !entry?.submittedAt) {
+                                handlePredictionSelect(roundIndex, matchIndex, 2);
+                              } else if (activeTab === 'results' && isHost) {
+                                handleResultSelect(roundIndex, matchIndex, 2);
+                              }
                             }
                           }}
                         >
@@ -1914,7 +1984,7 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
         </div>
       )}
 
-      {activeTab === 'leaderboard' && (
+      {activeTab === 'leaderboard' && !viewingEntry && (
         <div className="pool-leaderboard">
           {pool.status === 'completed' && pool.winnerId && (
             <div className="pool-winner-banner">
@@ -1929,20 +1999,31 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
               <span className="lb-name">Player</span>
               <span className="lb-champion">Champion Pick</span>
               <span className="lb-score">Score</span>
+              <span className="lb-action"></span>
             </div>
-            {entries.map((entry, index) => (
+            {entries.map((participantEntry, index) => (
               <div 
-                key={entry.id} 
-                className={`leaderboard-row ${entry.userId === currentUser?.uid ? 'current-user' : ''}`}
+                key={participantEntry.id} 
+                className={`leaderboard-row ${participantEntry.userId === currentUser?.uid ? 'current-user' : ''}`}
               >
                 <span className="lb-rank">
                   {index === 0 && entries.length > 1 ? '👑' : `#${index + 1}`}
                 </span>
-                <span className="lb-name">{entry.userDisplayName}</span>
+                <span className="lb-name">{participantEntry.userDisplayName}</span>
                 <span className="lb-champion">
-                  {entry.champion?.name || (entry.submittedAt ? 'N/A' : 'Not submitted')}
+                  {participantEntry.champion?.name || (participantEntry.submittedAt ? 'N/A' : 'Not submitted')}
                 </span>
-                <span className="lb-score">{entry.score}</span>
+                <span className="lb-score">{participantEntry.score}</span>
+                <span className="lb-action">
+                  {participantEntry.submittedAt && (
+                    <button 
+                      className="view-bracket-btn"
+                      onClick={() => setViewingEntry(participantEntry)}
+                    >
+                      View
+                    </button>
+                  )}
+                </span>
               </div>
             ))}
             {entries.length === 0 && (
