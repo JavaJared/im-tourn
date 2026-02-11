@@ -654,7 +654,7 @@ export async function getPoolEntry(poolId, userId) {
 }
 
 // Submit predictions for a pool
-export async function submitPoolPredictions(poolId, userId, predictions, champion) {
+export async function submitPoolPredictions(poolId, userId, predictions, champion, sleeperPicks = null) {
   const pool = await getPoolById(poolId);
   if (!pool) {
     throw new Error('Pool not found');
@@ -664,11 +664,21 @@ export async function submitPoolPredictions(poolId, userId, predictions, champio
   }
   
   const entryRef = doc(db, POOL_ENTRIES_COLLECTION, `${poolId}_${userId}`);
-  await updateDoc(entryRef, {
+  const updateData = {
     predictions: JSON.stringify(predictions),
     champion,
     submittedAt: serverTimestamp()
-  });
+  };
+  
+  // Add sleeper picks if provided
+  if (sleeperPicks) {
+    updateData.sleeper1 = sleeperPicks.sleeper1 ? JSON.stringify(sleeperPicks.sleeper1) : null;
+    updateData.sleeper2 = sleeperPicks.sleeper2 ? JSON.stringify(sleeperPicks.sleeper2) : null;
+    updateData.sleeper1Hit = false;
+    updateData.sleeper2Hit = false;
+  }
+  
+  await updateDoc(entryRef, updateData);
   
   return true;
 }
@@ -729,17 +739,32 @@ export async function updatePoolResults(poolId, hostId, results) {
   });
   
   // Recalculate scores for all entries
-  await recalculatePoolScores(poolId, results);
+  await recalculatePoolScores(poolId, results, pool);
   
   return true;
 }
 
-// Calculate score for a single entry
-function calculateEntryScore(predictions, results) {
-  let score = 0;
+// Check if a participant made it to a specific round in the results
+function didParticipantMakeRound(results, participant, targetRound) {
+  if (!participant || !results) return false;
   
+  // Check if participant appears in the target round
+  for (const match of results[targetRound] || []) {
+    if (match.entry1?.seed === participant.seed || match.entry2?.seed === participant.seed) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Calculate score for a single entry
+function calculateEntryScore(predictions, results, pool, entry) {
+  let score = 0;
+  const roundPoints = pool.roundPoints || [1, 2, 4, 8, 16, 32];
+  
+  // Calculate regular matchup scores
   results.forEach((round, roundIndex) => {
-    const pointsForRound = Math.pow(2, roundIndex); // 1, 2, 4, 8, 16...
+    const pointsForRound = roundPoints[roundIndex] || Math.pow(2, roundIndex);
     
     round.forEach((match, matchIndex) => {
       if (match.winner) {
@@ -751,19 +776,50 @@ function calculateEntryScore(predictions, results) {
     });
   });
   
-  return score;
+  // Calculate sleeper pick scores
+  let sleeper1Hit = false;
+  let sleeper2Hit = false;
+  
+  if (pool.enableSleepers && entry) {
+    // Sleeper 1: Round 1 loser who makes Round 3+
+    if (entry.sleeper1) {
+      const sleeper1Data = typeof entry.sleeper1 === 'string' ? JSON.parse(entry.sleeper1) : entry.sleeper1;
+      if (sleeper1Data && didParticipantMakeRound(results, sleeper1Data, 2)) { // Round 3 is index 2
+        score += pool.sleeper1Points || 0;
+        sleeper1Hit = true;
+      }
+    }
+    
+    // Sleeper 2: Round 2 loser who makes Round 4+
+    if (entry.sleeper2) {
+      const sleeper2Data = typeof entry.sleeper2 === 'string' ? JSON.parse(entry.sleeper2) : entry.sleeper2;
+      if (sleeper2Data && didParticipantMakeRound(results, sleeper2Data, 3)) { // Round 4 is index 3
+        score += pool.sleeper2Points || 0;
+        sleeper2Hit = true;
+      }
+    }
+  }
+  
+  return { score, sleeper1Hit, sleeper2Hit };
 }
 
 // Recalculate scores for all entries in a pool
-async function recalculatePoolScores(poolId, results) {
+async function recalculatePoolScores(poolId, results, pool) {
   const entries = await getPoolEntries(poolId);
   
   const updatePromises = entries.map(async (entry) => {
     if (!entry.predictions) return;
     
-    const score = calculateEntryScore(entry.predictions, results);
+    const { score, sleeper1Hit, sleeper2Hit } = calculateEntryScore(entry.predictions, results, pool, entry);
     const entryRef = doc(db, POOL_ENTRIES_COLLECTION, `${poolId}_${entry.userId}`);
-    await updateDoc(entryRef, { score });
+    
+    const updateData = { score };
+    if (pool.enableSleepers) {
+      updateData.sleeper1Hit = sleeper1Hit;
+      updateData.sleeper2Hit = sleeper2Hit;
+    }
+    
+    await updateDoc(entryRef, updateData);
   });
   
   await Promise.all(updatePromises);
@@ -783,6 +839,10 @@ export async function getPoolEntries(poolId) {
       id: doc.id,
       ...data,
       predictions: data.predictions ? (typeof data.predictions === 'string' ? JSON.parse(data.predictions) : data.predictions) : null,
+      sleeper1: data.sleeper1 ? (typeof data.sleeper1 === 'string' ? JSON.parse(data.sleeper1) : data.sleeper1) : null,
+      sleeper2: data.sleeper2 ? (typeof data.sleeper2 === 'string' ? JSON.parse(data.sleeper2) : data.sleeper2) : null,
+      sleeper1Hit: data.sleeper1Hit || false,
+      sleeper2Hit: data.sleeper2Hit || false,
       joinedAt: data.joinedAt?.toDate?.() || null,
       submittedAt: data.submittedAt?.toDate?.() || null
     };
