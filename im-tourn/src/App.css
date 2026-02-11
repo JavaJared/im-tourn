@@ -3119,20 +3119,24 @@ body {
 
 /* Toggle Switch */
 .toggle-label {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 12px;
   cursor: pointer;
   font-weight: 600;
+  position: relative;
 }
 
 .toggle-checkbox {
-  display: none;
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
 }
 
 .toggle-switch {
+  display: inline-block;
   width: 44px;
-  min-width: 44px;
   height: 24px;
   background: var(--bg-dark);
   border: 2px solid var(--border-subtle);
@@ -3140,6 +3144,7 @@ body {
   position: relative;
   transition: all 0.3s ease;
   flex-shrink: 0;
+  vertical-align: middle;
 }
 
 .toggle-switch::after {
@@ -3165,6 +3170,8 @@ body {
 }
 
 .toggle-text {
+  display: inline-block;
+  vertical-align: middle;
   user-select: none;
 }
 
