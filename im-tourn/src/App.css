@@ -2965,6 +2965,47 @@ body {
   transition: background 0.2s ease;
 }
 
+/* Leaderboard with sleepers column */
+.leaderboard-table.with-sleepers .leaderboard-header,
+.leaderboard-table.with-sleepers .leaderboard-row {
+  grid-template-columns: 50px 1fr 1fr 1fr 70px 60px;
+}
+
+.lb-sleepers {
+  font-size: 0.85rem;
+}
+
+.sleeper-picks-display {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.sleeper-pick-tag {
+  display: inline-block;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  background: rgba(255, 107, 53, 0.15);
+  border: 1px solid rgba(255, 107, 53, 0.3);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+.sleeper-pick-tag.hit {
+  background: rgba(0, 212, 170, 0.2);
+  border-color: var(--accent-teal);
+  color: var(--accent-teal);
+}
+
+.no-sleepers {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
 .leaderboard-row:hover {
   background: rgba(255, 255, 255, 0.02);
 }
@@ -2985,19 +3026,6 @@ body {
 
 .lb-name {
   font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.sleeper-badges {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.sleeper-badge {
-  font-size: 0.9rem;
-  cursor: help;
 }
 
 .lb-champion {
@@ -3104,12 +3132,14 @@ body {
 
 .toggle-switch {
   width: 44px;
+  min-width: 44px;
   height: 24px;
   background: var(--bg-dark);
   border: 2px solid var(--border-subtle);
   border-radius: 12px;
   position: relative;
   transition: all 0.3s ease;
+  flex-shrink: 0;
 }
 
 .toggle-switch::after {
@@ -3132,6 +3162,10 @@ body {
 .toggle-checkbox:checked + .toggle-switch::after {
   left: 22px;
   background: white;
+}
+
+.toggle-text {
+  user-select: none;
 }
 
 /* Sleeper Settings */
@@ -3215,7 +3249,7 @@ body {
 
 .sleeper-select {
   width: 100%;
-  padding: 0.875rem 1rem;
+  padding: 0.875rem 2.5rem 0.875rem 1rem;
   background: var(--bg-dark);
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
@@ -3224,9 +3258,17 @@ body {
   font-size: 1rem;
   cursor: pointer;
   appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 1rem center;
+}
+
+.sleeper-select option {
+  background: var(--bg-dark);
+  color: var(--text-primary);
+  padding: 0.5rem;
 }
 
 .sleeper-select:focus {
@@ -3400,7 +3442,13 @@ body {
     grid-template-columns: 50px 1fr 60px 50px;
   }
   
-  .lb-champion {
+  .leaderboard-table.with-sleepers .leaderboard-header,
+  .leaderboard-table.with-sleepers .leaderboard-row {
+    grid-template-columns: 40px 1fr 60px 50px;
+  }
+  
+  .lb-champion,
+  .lb-sleepers {
     display: none;
   }
   
