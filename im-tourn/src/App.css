@@ -2824,19 +2824,35 @@ body {
 }
 
 .pool-matchup {
-  background: var(--bg-dark);
-  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  border: 2px solid var(--border-subtle);
   border-radius: 6px;
   overflow: hidden;
   margin: 0.25rem 0;
+  transition: border-color 0.3s ease;
+}
+
+.pool-matchup.correct {
+  border-color: var(--accent-teal);
+  box-shadow: 0 0 8px rgba(0, 212, 170, 0.3);
+}
+
+.pool-matchup.incorrect {
+  border-color: #ff6b6b;
+  box-shadow: 0 0 8px rgba(255, 107, 107, 0.3);
+}
+
+.pool-matchup.pending {
+  border-color: var(--border-subtle);
 }
 
 .pool-entry {
-  padding: 0.5rem;
+  padding: 0.6rem 0.5rem;
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
+  color: var(--text-primary);
   border-bottom: 1px solid var(--border-subtle);
   transition: all 0.2s ease;
 }
@@ -2850,24 +2866,24 @@ body {
 }
 
 .pool-entry.selectable:hover {
-  background: rgba(255, 107, 53, 0.1);
+  background: rgba(255, 107, 53, 0.15);
 }
 
 .pool-entry.winner {
-  background: rgba(0, 212, 170, 0.15);
+  background: rgba(0, 212, 170, 0.2);
 }
 
 .pool-seed {
-  width: 20px;
-  height: 20px;
-  background: rgba(255, 107, 53, 0.2);
+  width: 22px;
+  height: 22px;
+  background: rgba(255, 107, 53, 0.25);
   color: var(--accent-orange);
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   flex-shrink: 0;
 }
 
@@ -2925,7 +2941,7 @@ body {
 
 .leaderboard-header {
   display: grid;
-  grid-template-columns: 60px 1fr 1fr 80px;
+  grid-template-columns: 60px 1fr 1fr 80px 70px;
   padding: 1rem;
   background: rgba(255, 255, 255, 0.03);
   font-weight: 600;
@@ -2937,7 +2953,7 @@ body {
 
 .leaderboard-row {
   display: grid;
-  grid-template-columns: 60px 1fr 1fr 80px;
+  grid-template-columns: 60px 1fr 1fr 80px 70px;
   padding: 1rem;
   border-top: 1px solid var(--border-subtle);
   transition: background 0.2s ease;
@@ -3004,6 +3020,87 @@ body {
   font-size: 0.9rem;
 }
 
+.viewing-participant-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  margin-bottom: 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--accent-orange);
+  border-radius: 12px;
+}
+
+.viewing-participant-header h3 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.3rem;
+  letter-spacing: 0.5px;
+  flex: 1;
+}
+
+.participant-score {
+  background: var(--accent-orange);
+  color: white;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.bracket-legend {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.legend-item.correct {
+  color: var(--accent-teal);
+}
+
+.legend-item.incorrect {
+  color: #ff6b6b;
+}
+
+.legend-item.pending {
+  color: var(--text-muted);
+}
+
+.view-bracket-btn {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  padding: 0.35rem 0.75rem;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.view-bracket-btn:hover {
+  border-color: var(--accent-teal);
+  color: var(--accent-teal);
+  background: rgba(0, 212, 170, 0.1);
+}
+
+.lb-action {
+  width: 60px;
+  text-align: center;
+}
+
 .join-pool-prompt {
   text-align: center;
   margin-top: 2rem;
@@ -3039,11 +3136,20 @@ body {
   
   .leaderboard-header,
   .leaderboard-row {
-    grid-template-columns: 50px 1fr 80px;
+    grid-template-columns: 50px 1fr 60px 50px;
   }
   
   .lb-champion {
     display: none;
+  }
+  
+  .lb-action {
+    width: 50px;
+  }
+  
+  .view-bracket-btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
   }
   
   .pool-bracket {
