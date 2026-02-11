@@ -1454,12 +1454,21 @@ const CreatePoolPage = ({ onNavigate }) => {
       const numRounds = Math.log2(entries.length);
       const matchups = [];
       
-      // First round
+      // Generate proper bracket seeding order (1v32, 16v17, 8v25, etc.)
+      const getSeedOrder = (n) => {
+        if (n === 2) return [0, 1];
+        const half = getSeedOrder(n / 2);
+        return half.flatMap((seed) => [seed, n - 1 - seed]);
+      };
+      
+      const seedOrder = getSeedOrder(entries.length);
+      
+      // First round with proper seeding
       const firstRound = [];
       for (let i = 0; i < entries.length / 2; i++) {
         firstRound.push({
-          entry1: entries[i * 2],
-          entry2: entries[i * 2 + 1],
+          entry1: { ...entries[seedOrder[i * 2]], seed: seedOrder[i * 2] + 1 },
+          entry2: { ...entries[seedOrder[i * 2 + 1]], seed: seedOrder[i * 2 + 1] + 1 },
           winner: null
         });
       }
