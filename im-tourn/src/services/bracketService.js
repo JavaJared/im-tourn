@@ -205,6 +205,32 @@ export async function getWeeklyBracket() {
 export async function setWeeklyBracket(bracketData) {
   const docRef = doc(db, WEEKLY_BRACKET_COLLECTION, 'current');
   
+  // First, archive the existing bracket if it has a champion
+  const existingBracketSnap = await getDoc(docRef);
+  if (existingBracketSnap.exists()) {
+    const existingData = existingBracketSnap.data();
+    const existingMatchups = typeof existingData.matchups === 'string' 
+      ? JSON.parse(existingData.matchups) 
+      : existingData.matchups;
+    
+    // Check if there's a final round with a winner
+    const finalRound = existingMatchups[existingMatchups.length - 1];
+    const finalMatch = finalRound?.[0];
+    
+    if (finalMatch?.winner) {
+      const champion = finalMatch.winner === 1 ? finalMatch.entry1 : finalMatch.entry2;
+      
+      // Archive the bracket
+      await addDoc(collection(db, WEEKLY_ARCHIVE_COLLECTION), {
+        title: existingData.title,
+        category: existingData.category,
+        champion: champion ? { name: champion.name, seed: champion.seed } : null,
+        startDate: existingData.startDate,
+        archivedAt: serverTimestamp()
+      });
+    }
+  }
+  
   // Clear all existing votes from previous bracket
   const votesSnapshot = await getDocs(collection(db, WEEKLY_VOTES_COLLECTION));
   const deletePromises = votesSnapshot.docs.map(doc => deleteDoc(doc.ref));
