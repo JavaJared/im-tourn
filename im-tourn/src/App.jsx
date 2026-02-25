@@ -1677,6 +1677,9 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
   const [sleeper2, setSleeper2] = useState(null);
   const [submittingSleepers, setSubmittingSleepers] = useState(false);
   
+  // Participant analysis state
+  const [analyzingParticipant, setAnalyzingParticipant] = useState(null);
+  
   const { currentUser } = useAuth();
 
   const isHost = currentUser && pool?.hostId === currentUser.uid;
@@ -1816,6 +1819,81 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
       sleeper2: sleeper2
     });
     setSubmittingSleepers(false);
+  };
+
+  // Analyze how far each user has a participant going
+  const analyzeParticipant = (participant) => {
+    if (!participant || !entries.length) return null;
+    
+    const analysis = {
+      participant,
+      champion: [],      // Users who have them winning it all
+      byRound: {},       // Users grouped by the round they have them losing
+      totalPicks: 0
+    };
+    
+    const numRounds = pool.bracketMatchups?.length || 0;
+    
+    // Initialize byRound
+    for (let i = 0; i < numRounds; i++) {
+      analysis.byRound[i] = [];
+    }
+    
+    entries.forEach(participantEntry => {
+      if (!participantEntry.predictions) return;
+      
+      // Find how far this user has the participant going
+      let lastRoundAppeared = -1;
+      let isChampion = false;
+      
+      participantEntry.predictions.forEach((round, roundIndex) => {
+        round.forEach(match => {
+          // Check if participant appears in this match
+          const isEntry1 = match.entry1?.seed === participant.seed;
+          const isEntry2 = match.entry2?.seed === participant.seed;
+          
+          if (isEntry1 || isEntry2) {
+            lastRoundAppeared = roundIndex;
+            
+            // Check if they won this match
+            if ((isEntry1 && match.winner === 1) || (isEntry2 && match.winner === 2)) {
+              // They won, check if this is the final
+              if (roundIndex === participantEntry.predictions.length - 1) {
+                isChampion = true;
+              }
+            }
+          }
+        });
+      });
+      
+      if (lastRoundAppeared >= 0) {
+        analysis.totalPicks++;
+        
+        if (isChampion) {
+          analysis.champion.push(participantEntry.userDisplayName);
+        } else {
+          // They lost in the round after they last appeared
+          // (or in their last appeared round if they didn't win)
+          const lostInRound = lastRoundAppeared;
+          if (analysis.byRound[lostInRound]) {
+            analysis.byRound[lostInRound].push(participantEntry.userDisplayName);
+          }
+        }
+      }
+    });
+    
+    return analysis;
+  };
+
+  const handleParticipantClick = (participant, e) => {
+    // Don't open analysis if user is making selections
+    if (pool.status === 'open' && !entry?.submittedAt && entry) return;
+    if (activeTab === 'results' && isHost) return;
+    
+    e.stopPropagation();
+    if (participant) {
+      setAnalyzingParticipant(participant);
+    }
   };
 
   const handleHostAction = async (action) => {
@@ -2063,6 +2141,13 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
             </div>
           )}
 
+          {/* Hint for participant analysis */}
+          {(pool.status !== 'open' || entry?.submittedAt) && activeTab !== 'results' && entries.length > 1 && (
+            <div className="analysis-hint">
+              <span>💡 Click on any participant to see how others picked them</span>
+            </div>
+          )}
+
           <div className="pool-bracket">
             {displayMatchups.map((round, roundIndex) => (
               <div key={roundIndex} className="pool-round">
@@ -2077,17 +2162,22 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
                     // Determine match status for coloring
                     const matchStatus = showingPredictions ? getMatchStatus(displayMatchups, roundIndex, matchIndex) : 'pending';
                     
+                    // Can analyze when not in selection mode
+                    const canAnalyze = !canSelect && entries.length > 1;
+                    
                     return (
                       <div key={`${roundIndex}-${matchIndex}`} className={`pool-matchup ${matchStatus}`}>
                         <div 
-                          className={`pool-entry ${match.winner === 1 ? 'winner' : ''} ${canSelect ? 'selectable' : ''}`}
-                          onClick={() => {
+                          className={`pool-entry ${match.winner === 1 ? 'winner' : ''} ${canSelect ? 'selectable' : ''} ${canAnalyze && match.entry1 ? 'analyzable' : ''}`}
+                          onClick={(e) => {
                             if (canSelect) {
                               if (pool.status === 'open' && !entry?.submittedAt) {
                                 handlePredictionSelect(roundIndex, matchIndex, 1);
                               } else if (activeTab === 'results' && isHost) {
                                 handleResultSelect(roundIndex, matchIndex, 1);
                               }
+                            } else if (canAnalyze && match.entry1) {
+                              handleParticipantClick(match.entry1, e);
                             }
                           }}
                         >
@@ -2101,14 +2191,16 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
                           )}
                         </div>
                         <div 
-                          className={`pool-entry ${match.winner === 2 ? 'winner' : ''} ${canSelect ? 'selectable' : ''}`}
-                          onClick={() => {
+                          className={`pool-entry ${match.winner === 2 ? 'winner' : ''} ${canSelect ? 'selectable' : ''} ${canAnalyze && match.entry2 ? 'analyzable' : ''}`}
+                          onClick={(e) => {
                             if (canSelect) {
                               if (pool.status === 'open' && !entry?.submittedAt) {
                                 handlePredictionSelect(roundIndex, matchIndex, 2);
                               } else if (activeTab === 'results' && isHost) {
                                 handleResultSelect(roundIndex, matchIndex, 2);
                               }
+                            } else if (canAnalyze && match.entry2) {
+                              handleParticipantClick(match.entry2, e);
                             }
                           }}
                         >
@@ -2305,6 +2397,71 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
                 {submittingSleepers ? 'Submitting...' : 'Submit Sleepers'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Participant Analysis Modal */}
+      {analyzingParticipant && (
+        <div className="modal-overlay" onClick={() => setAnalyzingParticipant(null)}>
+          <div className="analysis-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setAnalyzingParticipant(null)}>×</button>
+            <div className="analysis-header">
+              <span className="analysis-seed">#{analyzingParticipant.seed}</span>
+              <h2>{analyzingParticipant.name}</h2>
+            </div>
+            <p className="analysis-subtitle">How far do people have them going?</p>
+            
+            {(() => {
+              const analysis = analyzeParticipant(analyzingParticipant);
+              if (!analysis || analysis.totalPicks === 0) {
+                return <p className="no-analysis">No predictions available for this participant.</p>;
+              }
+              
+              const numRounds = pool.bracketMatchups?.length || 0;
+              
+              return (
+                <div className="analysis-content">
+                  {/* Champion picks */}
+                  {analysis.champion.length > 0 && (
+                    <div className="analysis-row champion-row">
+                      <div className="analysis-round">
+                        <span className="round-icon">🏆</span>
+                        <span className="round-name">Champion</span>
+                      </div>
+                      <div className="analysis-count">{analysis.champion.length}</div>
+                      <div className="analysis-users">
+                        {analysis.champion.map((name, i) => (
+                          <span key={i} className="analysis-user">{name}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Losing in each round (reverse order - show later rounds first) */}
+                  {[...Array(numRounds)].map((_, i) => {
+                    const roundIndex = numRounds - 1 - i;
+                    const users = analysis.byRound[roundIndex] || [];
+                    if (users.length === 0) return null;
+                    
+                    return (
+                      <div key={roundIndex} className="analysis-row">
+                        <div className="analysis-round">
+                          <span className="round-icon">❌</span>
+                          <span className="round-name">Out in {getRoundName(roundIndex, numRounds)}</span>
+                        </div>
+                        <div className="analysis-count">{users.length}</div>
+                        <div className="analysis-users">
+                          {users.map((name, j) => (
+                            <span key={j} className="analysis-user">{name}</span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
