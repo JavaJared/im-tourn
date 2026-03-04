@@ -923,3 +923,347 @@ export async function deletePool(poolId, hostId) {
   
   return true;
 }
+
+// ============ PREDICTION POOLS FUNCTIONS ============
+
+const PREDICTION_POOLS_COLLECTION = 'predictionPools';
+const PREDICTION_ENTRIES_COLLECTION = 'predictionEntries';
+
+// Generate a random 6-character join code for prediction pools
+function generatePredictionJoinCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
+// Create a new prediction pool
+export async function createPredictionPool(poolData) {
+  const joinCode = generatePredictionJoinCode();
+  
+  const docRef = await addDoc(collection(db, PREDICTION_POOLS_COLLECTION), {
+    ...poolData,
+    categories: JSON.stringify(poolData.categories),
+    results: null,
+    joinCode,
+    status: 'open', // open, locked, in_progress, completed
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  });
+  
+  return { id: docRef.id, joinCode };
+}
+
+// Get prediction pool by ID
+export async function getPredictionPoolById(poolId) {
+  const docRef = doc(db, PREDICTION_POOLS_COLLECTION, poolId);
+  const docSnap = await getDoc(docRef);
+  
+  if (!docSnap.exists()) return null;
+  
+  const data = docSnap.data();
+  return {
+    id: docSnap.id,
+    ...data,
+    categories: typeof data.categories === 'string' ? JSON.parse(data.categories) : data.categories,
+    results: data.results ? (typeof data.results === 'string' ? JSON.parse(data.results) : data.results) : null,
+    lockDate: data.lockDate?.toDate?.() || null,
+    createdAt: data.createdAt?.toDate?.() || null
+  };
+}
+
+// Get prediction pool by join code
+export async function getPredictionPoolByJoinCode(joinCode) {
+  const q = query(
+    collection(db, PREDICTION_POOLS_COLLECTION),
+    where('joinCode', '==', joinCode.toUpperCase())
+  );
+  const snapshot = await getDocs(q);
+  
+  if (snapshot.empty) return null;
+  
+  const docSnap = snapshot.docs[0];
+  const data = docSnap.data();
+  return {
+    id: docSnap.id,
+    ...data,
+    categories: typeof data.categories === 'string' ? JSON.parse(data.categories) : data.categories,
+    results: data.results ? (typeof data.results === 'string' ? JSON.parse(data.results) : data.results) : null,
+    lockDate: data.lockDate?.toDate?.() || null,
+    createdAt: data.createdAt?.toDate?.() || null
+  };
+}
+
+// Get prediction pools hosted by a user
+export async function getUserHostedPredictionPools(userId) {
+  const q = query(
+    collection(db, PREDICTION_POOLS_COLLECTION),
+    where('hostId', '==', userId),
+    orderBy('createdAt', 'desc')
+  );
+  const snapshot = await getDocs(q);
+  
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      categories: typeof data.categories === 'string' ? JSON.parse(data.categories) : data.categories,
+      results: data.results ? (typeof data.results === 'string' ? JSON.parse(data.results) : data.results) : null,
+      lockDate: data.lockDate?.toDate?.() || null,
+      createdAt: data.createdAt?.toDate?.() || null
+    };
+  });
+}
+
+// Get prediction pools a user has joined
+export async function getUserJoinedPredictionPools(userId) {
+  const q = query(
+    collection(db, PREDICTION_ENTRIES_COLLECTION),
+    where('userId', '==', userId)
+  );
+  const snapshot = await getDocs(q);
+  
+  const poolIds = snapshot.docs.map(doc => doc.data().poolId);
+  if (poolIds.length === 0) return [];
+  
+  const pools = await Promise.all(
+    poolIds.map(async (poolId) => {
+      const pool = await getPredictionPoolById(poolId);
+      return pool;
+    })
+  );
+  
+  return pools.filter(p => p !== null);
+}
+
+// Join a prediction pool
+export async function joinPredictionPool(poolId, userId, userDisplayName) {
+  const existingEntry = await getPredictionEntry(poolId, userId);
+  if (existingEntry) {
+    throw new Error('You have already joined this pool');
+  }
+  
+  const pool = await getPredictionPoolById(poolId);
+  if (!pool) {
+    throw new Error('Pool not found');
+  }
+  if (pool.status !== 'open') {
+    throw new Error('This pool is no longer accepting entries');
+  }
+  
+  const entryRef = doc(db, PREDICTION_ENTRIES_COLLECTION, `${poolId}_${userId}`);
+  await setDoc(entryRef, {
+    poolId,
+    userId,
+    userDisplayName,
+    predictions: null,
+    score: 0,
+    joinedAt: serverTimestamp(),
+    submittedAt: null
+  });
+  
+  return true;
+}
+
+// Get a user's prediction entry
+export async function getPredictionEntry(poolId, userId) {
+  const entryRef = doc(db, PREDICTION_ENTRIES_COLLECTION, `${poolId}_${userId}`);
+  const docSnap = await getDoc(entryRef);
+  
+  if (!docSnap.exists()) return null;
+  
+  const data = docSnap.data();
+  return {
+    id: docSnap.id,
+    ...data,
+    predictions: data.predictions ? (typeof data.predictions === 'string' ? JSON.parse(data.predictions) : data.predictions) : null,
+    joinedAt: data.joinedAt?.toDate?.() || null,
+    submittedAt: data.submittedAt?.toDate?.() || null
+  };
+}
+
+// Submit predictions for a prediction pool
+export async function submitPredictionPoolPredictions(poolId, userId, predictions) {
+  const pool = await getPredictionPoolById(poolId);
+  if (!pool) {
+    throw new Error('Pool not found');
+  }
+  if (pool.status !== 'open') {
+    throw new Error('This pool is no longer accepting predictions');
+  }
+  
+  const entryRef = doc(db, PREDICTION_ENTRIES_COLLECTION, `${poolId}_${userId}`);
+  await updateDoc(entryRef, {
+    predictions: JSON.stringify(predictions),
+    submittedAt: serverTimestamp()
+  });
+  
+  return true;
+}
+
+// Lock the prediction pool
+export async function lockPredictionPool(poolId, hostId) {
+  const pool = await getPredictionPoolById(poolId);
+  if (!pool) {
+    throw new Error('Pool not found');
+  }
+  if (pool.hostId !== hostId) {
+    throw new Error('Only the host can lock this pool');
+  }
+  
+  const poolRef = doc(db, PREDICTION_POOLS_COLLECTION, poolId);
+  await updateDoc(poolRef, {
+    status: 'locked',
+    updatedAt: serverTimestamp()
+  });
+  
+  return true;
+}
+
+// Start the prediction pool (begin entering results)
+export async function startPredictionPool(poolId, hostId) {
+  const pool = await getPredictionPoolById(poolId);
+  if (!pool) {
+    throw new Error('Pool not found');
+  }
+  if (pool.hostId !== hostId) {
+    throw new Error('Only the host can start this pool');
+  }
+  
+  // Initialize results as empty object
+  const results = {};
+  pool.categories.forEach((_, index) => {
+    results[index] = null;
+  });
+  
+  const poolRef = doc(db, PREDICTION_POOLS_COLLECTION, poolId);
+  await updateDoc(poolRef, {
+    status: 'in_progress',
+    results: JSON.stringify(results),
+    updatedAt: serverTimestamp()
+  });
+  
+  return true;
+}
+
+// Update prediction pool results
+export async function updatePredictionPoolResults(poolId, hostId, results) {
+  const pool = await getPredictionPoolById(poolId);
+  if (!pool) {
+    throw new Error('Pool not found');
+  }
+  if (pool.hostId !== hostId) {
+    throw new Error('Only the host can update results');
+  }
+  
+  const poolRef = doc(db, PREDICTION_POOLS_COLLECTION, poolId);
+  await updateDoc(poolRef, {
+    results: JSON.stringify(results),
+    updatedAt: serverTimestamp()
+  });
+  
+  // Recalculate scores
+  await recalculatePredictionPoolScores(poolId, results, pool);
+  
+  return true;
+}
+
+// Calculate score for a prediction entry
+function calculatePredictionEntryScore(predictions, results, pool) {
+  let score = 0;
+  
+  pool.categories.forEach((category, index) => {
+    const result = results[index];
+    const prediction = predictions[index];
+    
+    if (result !== null && prediction !== null && result === prediction) {
+      score += category.points || 1;
+    }
+  });
+  
+  return score;
+}
+
+// Recalculate scores for all entries
+async function recalculatePredictionPoolScores(poolId, results, pool) {
+  const entries = await getPredictionPoolEntries(poolId);
+  
+  const updatePromises = entries.map(async (entry) => {
+    if (!entry.predictions) return;
+    
+    const score = calculatePredictionEntryScore(entry.predictions, results, pool);
+    const entryRef = doc(db, PREDICTION_ENTRIES_COLLECTION, `${poolId}_${entry.userId}`);
+    await updateDoc(entryRef, { score });
+  });
+  
+  await Promise.all(updatePromises);
+}
+
+// Get all entries for a prediction pool
+export async function getPredictionPoolEntries(poolId) {
+  const q = query(
+    collection(db, PREDICTION_ENTRIES_COLLECTION),
+    where('poolId', '==', poolId)
+  );
+  const snapshot = await getDocs(q);
+  
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      predictions: data.predictions ? (typeof data.predictions === 'string' ? JSON.parse(data.predictions) : data.predictions) : null,
+      joinedAt: data.joinedAt?.toDate?.() || null,
+      submittedAt: data.submittedAt?.toDate?.() || null
+    };
+  }).sort((a, b) => b.score - a.score);
+}
+
+// Complete the prediction pool
+export async function completePredictionPool(poolId, hostId) {
+  const pool = await getPredictionPoolById(poolId);
+  if (!pool) {
+    throw new Error('Pool not found');
+  }
+  if (pool.hostId !== hostId) {
+    throw new Error('Only the host can complete this pool');
+  }
+  
+  const entries = await getPredictionPoolEntries(poolId);
+  const winner = entries.length > 0 ? entries[0] : null;
+  
+  const poolRef = doc(db, PREDICTION_POOLS_COLLECTION, poolId);
+  await updateDoc(poolRef, {
+    status: 'completed',
+    winnerId: winner?.userId || null,
+    winnerName: winner?.userDisplayName || null,
+    winnerScore: winner?.score || 0,
+    updatedAt: serverTimestamp()
+  });
+  
+  return { winner };
+}
+
+// Delete a prediction pool
+export async function deletePredictionPool(poolId, hostId) {
+  const pool = await getPredictionPoolById(poolId);
+  if (!pool) {
+    throw new Error('Pool not found');
+  }
+  if (pool.hostId !== hostId) {
+    throw new Error('Only the host can delete this pool');
+  }
+  
+  const entries = await getPredictionPoolEntries(poolId);
+  const deleteEntryPromises = entries.map(entry => 
+    deleteDoc(doc(db, PREDICTION_ENTRIES_COLLECTION, `${poolId}_${entry.userId}`))
+  );
+  await Promise.all(deleteEntryPromises);
+  
+  await deleteDoc(doc(db, PREDICTION_POOLS_COLLECTION, poolId));
+  
+  return true;
+}
