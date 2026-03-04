@@ -33,7 +33,21 @@ import {
   updatePoolResults,
   getPoolEntries,
   completePool,
-  deletePool
+  deletePool,
+  createPredictionPool,
+  getPredictionPoolById,
+  getPredictionPoolByJoinCode,
+  getUserHostedPredictionPools,
+  getUserJoinedPredictionPools,
+  joinPredictionPool,
+  getPredictionEntry,
+  submitPredictionPoolPredictions,
+  lockPredictionPool,
+  startPredictionPool,
+  updatePredictionPoolResults,
+  getPredictionPoolEntries,
+  completePredictionPool,
+  deletePredictionPool
 } from './services/bracketService';
 import './App.css';
 
@@ -469,10 +483,16 @@ const Header = ({ onNavigate, currentView }) => {
             Weekly Bracket
           </button>
           <button 
-            className={`nav-link ${currentView === 'pools' ? 'active' : ''}`}
+            className={`nav-link ${currentView === 'pools' || currentView === 'create-pool' || currentView.startsWith('pool-') ? 'active' : ''}`}
             onClick={() => onNavigate('pools')}
           >
-            Pools
+            Bracket Pools
+          </button>
+          <button 
+            className={`nav-link ${currentView === 'prediction-pools' || currentView === 'create-prediction-pool' || currentView.startsWith('prediction-pool-') ? 'active' : ''}`}
+            onClick={() => onNavigate('prediction-pools')}
+          >
+            Predictions
           </button>
           <button 
             className={`nav-link ${currentView === 'champions' ? 'active' : ''}`}
@@ -489,7 +509,7 @@ const Header = ({ onNavigate, currentView }) => {
             </button>
           )}
           
-          {currentView !== 'home' && currentView !== 'weekly' && currentView !== 'champions' && currentView !== 'pools' && !currentView.startsWith('pool-') && (
+          {currentView !== 'home' && currentView !== 'weekly' && currentView !== 'champions' && currentView !== 'pools' && currentView !== 'prediction-pools' && !currentView.startsWith('pool-') && !currentView.startsWith('prediction-pool-') && (
             <button className="back-btn" onClick={() => onNavigate('home')}>
               ← Back
             </button>
@@ -2493,6 +2513,784 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
   );
 };
 
+// ============ PREDICTION POOLS COMPONENTS ============
+
+// Prediction Pools Hub Page
+const PredictionPoolsPage = ({ onNavigate }) => {
+  const [hostedPools, setHostedPools] = useState([]);
+  const [joinedPools, setJoinedPools] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [joinCode, setJoinCode] = useState('');
+  const [joinError, setJoinError] = useState('');
+  const [joining, setJoining] = useState(false);
+  const { currentUser } = useAuth();
+
+  useEffect(() => {
+    if (currentUser) {
+      loadPools();
+    } else {
+      setLoading(false);
+    }
+  }, [currentUser]);
+
+  const loadPools = async () => {
+    try {
+      const [hosted, joined] = await Promise.all([
+        getUserHostedPredictionPools(currentUser.uid),
+        getUserJoinedPredictionPools(currentUser.uid)
+      ]);
+      setHostedPools(hosted);
+      setJoinedPools(joined.filter(p => p.hostId !== currentUser.uid));
+    } catch (error) {
+      console.error('Error loading prediction pools:', error);
+    }
+    setLoading(false);
+  };
+
+  const handleJoinPool = async () => {
+    if (!joinCode.trim()) {
+      setJoinError('Please enter a join code');
+      return;
+    }
+    
+    setJoining(true);
+    setJoinError('');
+    
+    try {
+      const pool = await getPredictionPoolByJoinCode(joinCode.trim());
+      if (!pool) {
+        setJoinError('Invalid join code');
+        setJoining(false);
+        return;
+      }
+      
+      await joinPredictionPool(pool.id, currentUser.uid, currentUser.displayName || 'Anonymous');
+      setJoinCode('');
+      onNavigate(`prediction-pool-${pool.id}`);
+    } catch (error) {
+      setJoinError(error.message);
+    }
+    setJoining(false);
+  };
+
+  const getStatusBadge = (status) => {
+    const badges = {
+      open: { text: 'Open', class: 'status-open' },
+      locked: { text: 'Locked', class: 'status-locked' },
+      in_progress: { text: 'In Progress', class: 'status-progress' },
+      completed: { text: 'Completed', class: 'status-completed' }
+    };
+    return badges[status] || { text: status, class: '' };
+  };
+
+  if (!currentUser) {
+    return (
+      <div className="home-container">
+        <div className="page-header">
+          <h1>Prediction Pools</h1>
+          <p>Compete with friends to predict category winners</p>
+        </div>
+        <div className="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+          </svg>
+          <p>Log in to create or join prediction pools</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="home-container">
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p>Loading pools...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="home-container">
+      <div className="page-header">
+        <h1>Prediction Pools</h1>
+        <p>Compete with friends to predict category winners</p>
+      </div>
+
+      <div className="pools-actions">
+        <button className="nav-btn" onClick={() => onNavigate('create-prediction-pool')}>
+          + Create Pool
+        </button>
+        
+        <div className="join-pool-form">
+          <input
+            type="text"
+            placeholder="Enter join code"
+            value={joinCode}
+            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+            maxLength={6}
+            className="join-code-input"
+          />
+          <button 
+            className="join-btn" 
+            onClick={handleJoinPool}
+            disabled={joining}
+          >
+            {joining ? 'Joining...' : 'Join'}
+          </button>
+        </div>
+        {joinError && <p className="error-text">{joinError}</p>}
+      </div>
+
+      {hostedPools.length > 0 && (
+        <div className="pools-section">
+          <h2>Pools You Host</h2>
+          <div className="pools-grid">
+            {hostedPools.map(pool => {
+              const badge = getStatusBadge(pool.status);
+              return (
+                <div 
+                  key={pool.id} 
+                  className="pool-card prediction-pool-card"
+                  onClick={() => onNavigate(`prediction-pool-${pool.id}`)}
+                >
+                  <span className={`pool-status ${badge.class}`}>{badge.text}</span>
+                  <h3 className="pool-title">{pool.name}</h3>
+                  <p className="pool-bracket">{pool.categories?.length || 0} categories</p>
+                  <div className="pool-meta">
+                    <span className="pool-code">Code: {pool.joinCode}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {joinedPools.length > 0 && (
+        <div className="pools-section">
+          <h2>Pools You Joined</h2>
+          <div className="pools-grid">
+            {joinedPools.map(pool => {
+              const badge = getStatusBadge(pool.status);
+              return (
+                <div 
+                  key={pool.id} 
+                  className="pool-card prediction-pool-card"
+                  onClick={() => onNavigate(`prediction-pool-${pool.id}`)}
+                >
+                  <span className={`pool-status ${badge.class}`}>{badge.text}</span>
+                  <h3 className="pool-title">{pool.name}</h3>
+                  <p className="pool-bracket">{pool.categories?.length || 0} categories</p>
+                  <div className="pool-meta">
+                    <span className="pool-host">Hosted by {pool.hostDisplayName}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {hostedPools.length === 0 && joinedPools.length === 0 && (
+        <div className="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+          </svg>
+          <p>No prediction pools yet. Create one or join with a code!</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Create Prediction Pool Page
+const CreatePredictionPoolPage = ({ onNavigate }) => {
+  const [poolName, setPoolName] = useState('');
+  const [lockDate, setLockDate] = useState('');
+  const [categories, setCategories] = useState([{ name: '', options: ['', ''], points: 1 }]);
+  const [creating, setCreating] = useState(false);
+  const { currentUser } = useAuth();
+
+  const addCategory = () => {
+    setCategories([...categories, { name: '', options: ['', ''], points: 1 }]);
+  };
+
+  const removeCategory = (index) => {
+    if (categories.length > 1) {
+      setCategories(categories.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateCategory = (index, field, value) => {
+    const updated = [...categories];
+    updated[index][field] = value;
+    setCategories(updated);
+  };
+
+  const addOption = (categoryIndex) => {
+    const updated = [...categories];
+    updated[categoryIndex].options.push('');
+    setCategories(updated);
+  };
+
+  const removeOption = (categoryIndex, optionIndex) => {
+    const updated = [...categories];
+    if (updated[categoryIndex].options.length > 2) {
+      updated[categoryIndex].options.splice(optionIndex, 1);
+      setCategories(updated);
+    }
+  };
+
+  const updateOption = (categoryIndex, optionIndex, value) => {
+    const updated = [...categories];
+    updated[categoryIndex].options[optionIndex] = value;
+    setCategories(updated);
+  };
+
+  const handleCreate = async () => {
+    if (!poolName.trim()) {
+      alert('Please enter a pool name');
+      return;
+    }
+
+    // Validate categories
+    for (let i = 0; i < categories.length; i++) {
+      if (!categories[i].name.trim()) {
+        alert(`Please enter a name for category ${i + 1}`);
+        return;
+      }
+      const filledOptions = categories[i].options.filter(o => o.trim());
+      if (filledOptions.length < 2) {
+        alert(`Category "${categories[i].name}" needs at least 2 options`);
+        return;
+      }
+    }
+
+    setCreating(true);
+    try {
+      // Clean up categories - remove empty options
+      const cleanedCategories = categories.map(cat => ({
+        name: cat.name.trim(),
+        options: cat.options.filter(o => o.trim()),
+        points: cat.points || 1
+      }));
+
+      const result = await createPredictionPool({
+        name: poolName.trim(),
+        hostId: currentUser.uid,
+        hostDisplayName: currentUser.displayName || 'Anonymous',
+        categories: cleanedCategories,
+        lockDate: lockDate ? new Date(lockDate) : null
+      });
+
+      onNavigate(`prediction-pool-${result.id}`);
+    } catch (error) {
+      console.error('Error creating prediction pool:', error);
+      alert('Failed to create pool. Please try again.');
+    }
+    setCreating(false);
+  };
+
+  return (
+    <div className="home-container">
+      <div className="page-header">
+        <h1>Create Prediction Pool</h1>
+        <p>Set up categories for your friends to predict</p>
+      </div>
+
+      <div className="create-pool-form prediction-pool-form">
+        <div className="form-group">
+          <label>Pool Name</label>
+          <input
+            type="text"
+            placeholder="e.g., 2024 Oscars Predictions"
+            value={poolName}
+            onChange={(e) => setPoolName(e.target.value)}
+            className="form-input"
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Lock Date (optional)</label>
+          <input
+            type="datetime-local"
+            value={lockDate}
+            onChange={(e) => setLockDate(e.target.value)}
+            className="form-input"
+          />
+          <p className="form-hint">Predictions will be locked at this time</p>
+        </div>
+
+        <div className="form-group">
+          <label>Categories</label>
+          <p className="form-hint">Add the categories and options people will predict</p>
+          
+          <div className="categories-builder">
+            {categories.map((category, catIndex) => (
+              <div key={catIndex} className="category-card">
+                <div className="category-header">
+                  <input
+                    type="text"
+                    placeholder={`Category ${catIndex + 1} name (e.g., Best Picture)`}
+                    value={category.name}
+                    onChange={(e) => updateCategory(catIndex, 'name', e.target.value)}
+                    className="category-name-input"
+                  />
+                  <div className="category-points">
+                    <input
+                      type="number"
+                      min="1"
+                      value={category.points}
+                      onChange={(e) => updateCategory(catIndex, 'points', parseInt(e.target.value) || 1)}
+                      className="points-input"
+                    />
+                    <span>pts</span>
+                  </div>
+                  {categories.length > 1 && (
+                    <button 
+                      className="remove-category-btn"
+                      onClick={() => removeCategory(catIndex)}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+                
+                <div className="category-options">
+                  {category.options.map((option, optIndex) => (
+                    <div key={optIndex} className="option-row">
+                      <input
+                        type="text"
+                        placeholder={`Option ${optIndex + 1}`}
+                        value={option}
+                        onChange={(e) => updateOption(catIndex, optIndex, e.target.value)}
+                        className="option-input"
+                      />
+                      {category.options.length > 2 && (
+                        <button 
+                          className="remove-option-btn"
+                          onClick={() => removeOption(catIndex, optIndex)}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button 
+                    className="add-option-btn"
+                    onClick={() => addOption(catIndex)}
+                  >
+                    + Add Option
+                  </button>
+                </div>
+              </div>
+            ))}
+            
+            <button className="add-category-btn" onClick={addCategory}>
+              + Add Category
+            </button>
+          </div>
+        </div>
+
+        <div className="form-actions">
+          <button className="back-btn" onClick={() => onNavigate('prediction-pools')}>
+            Cancel
+          </button>
+          <button 
+            className="nav-btn" 
+            onClick={handleCreate}
+            disabled={creating || !poolName.trim()}
+          >
+            {creating ? 'Creating...' : 'Create Pool'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Prediction Pool Detail Page
+const PredictionPoolDetailPage = ({ poolId, onNavigate }) => {
+  const [pool, setPool] = useState(null);
+  const [entry, setEntry] = useState(null);
+  const [entries, setEntries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('predictions');
+  const [predictions, setPredictions] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+  const [viewingEntry, setViewingEntry] = useState(null);
+  const { currentUser } = useAuth();
+
+  const isHost = currentUser && pool?.hostId === currentUser.uid;
+
+  useEffect(() => {
+    loadPoolData();
+  }, [poolId, currentUser]);
+
+  const loadPoolData = async () => {
+    try {
+      const poolData = await getPredictionPoolById(poolId);
+      setPool(poolData);
+      
+      if (currentUser) {
+        const entryData = await getPredictionEntry(poolId, currentUser.uid);
+        setEntry(entryData);
+        
+        if (entryData?.predictions) {
+          setPredictions(entryData.predictions);
+        }
+      }
+      
+      const entriesData = await getPredictionPoolEntries(poolId);
+      setEntries(entriesData);
+    } catch (error) {
+      console.error('Error loading pool:', error);
+    }
+    setLoading(false);
+  };
+
+  const handlePredictionSelect = (categoryIndex, optionIndex) => {
+    if (pool.status !== 'open' || entry?.submittedAt) return;
+    
+    setPredictions(prev => ({
+      ...prev,
+      [categoryIndex]: optionIndex
+    }));
+  };
+
+  const handleSubmitPredictions = async () => {
+    // Check all categories are filled
+    const allFilled = pool.categories.every((_, index) => predictions[index] !== undefined);
+    
+    if (!allFilled) {
+      alert('Please make a prediction for all categories');
+      return;
+    }
+    
+    setSubmitting(true);
+    try {
+      await submitPredictionPoolPredictions(poolId, currentUser.uid, predictions);
+      await loadPoolData();
+      alert('Predictions submitted!');
+    } catch (error) {
+      alert(error.message);
+    }
+    setSubmitting(false);
+  };
+
+  const handleHostAction = async (action) => {
+    try {
+      switch (action) {
+        case 'lock':
+          await lockPredictionPool(poolId, currentUser.uid);
+          break;
+        case 'start':
+          await startPredictionPool(poolId, currentUser.uid);
+          break;
+        case 'complete':
+          await completePredictionPool(poolId, currentUser.uid);
+          break;
+        case 'delete':
+          if (window.confirm('Are you sure you want to delete this pool?')) {
+            await deletePredictionPool(poolId, currentUser.uid);
+            onNavigate('prediction-pools');
+            return;
+          }
+          break;
+      }
+      await loadPoolData();
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  const handleResultSelect = async (categoryIndex, optionIndex) => {
+    if (!isHost || pool.status !== 'in_progress') return;
+    
+    const newResults = { ...(pool.results || {}) };
+    newResults[categoryIndex] = optionIndex;
+    
+    try {
+      await updatePredictionPoolResults(poolId, currentUser.uid, newResults);
+      await loadPoolData();
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  const copyJoinLink = () => {
+    const link = `${window.location.origin}?predictionpool=${pool.joinCode}`;
+    navigator.clipboard.writeText(link);
+    alert('Join link copied!');
+  };
+
+  const getPredictionStatus = (categoryIndex, optionIndex) => {
+    if (!pool.results || pool.results[categoryIndex] === null || pool.results[categoryIndex] === undefined) {
+      return 'pending';
+    }
+    const displayPredictions = viewingEntry ? viewingEntry.predictions : (entry?.predictions || predictions);
+    if (displayPredictions[categoryIndex] === optionIndex) {
+      return pool.results[categoryIndex] === optionIndex ? 'correct' : 'incorrect';
+    }
+    return 'neutral';
+  };
+
+  if (loading) {
+    return (
+      <div className="home-container">
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p>Loading pool...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!pool) {
+    return (
+      <div className="home-container">
+        <div className="empty-state">
+          <p>Pool not found</p>
+          <button className="back-btn" onClick={() => onNavigate('prediction-pools')}>
+            Back to Pools
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const displayPredictions = viewingEntry ? viewingEntry.predictions : (entry?.submittedAt ? entry.predictions : predictions);
+  const canMakePredictions = pool.status === 'open' && !entry?.submittedAt && entry && !viewingEntry;
+  const canSetResults = activeTab === 'results' && isHost && pool.status === 'in_progress' && !viewingEntry;
+
+  return (
+    <div className="home-container">
+      <div className="pool-header">
+        <div className="pool-header-info">
+          <button className="back-link" onClick={() => onNavigate('prediction-pools')}>
+            ← Back to Pools
+          </button>
+          <h1>{pool.name}</h1>
+          <p>{pool.categories?.length || 0} categories</p>
+        </div>
+        
+        <div className="pool-header-actions">
+          <div className="pool-code-display">
+            <span>Join Code:</span>
+            <strong>{pool.joinCode}</strong>
+            <button className="copy-btn" onClick={copyJoinLink}>Copy Link</button>
+          </div>
+          
+          {isHost && (
+            <div className="host-actions">
+              {pool.status === 'open' && (
+                <button className="action-btn" onClick={() => handleHostAction('lock')}>
+                  Lock Entries
+                </button>
+              )}
+              {pool.status === 'locked' && (
+                <button className="action-btn" onClick={() => handleHostAction('start')}>
+                  Start Pool
+                </button>
+              )}
+              {pool.status === 'in_progress' && (
+                <button className="action-btn complete" onClick={() => handleHostAction('complete')}>
+                  Complete Pool
+                </button>
+              )}
+              <button className="action-btn delete" onClick={() => handleHostAction('delete')}>
+                Delete
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="pool-tabs">
+        <button 
+          className={`pool-tab ${activeTab === 'predictions' ? 'active' : ''}`}
+          onClick={() => { setActiveTab('predictions'); setViewingEntry(null); }}
+        >
+          {pool.status === 'open' && !entry?.submittedAt ? 'Make Predictions' : 'My Predictions'}
+        </button>
+        {isHost && (pool.status === 'in_progress' || pool.status === 'completed') && (
+          <button 
+            className={`pool-tab ${activeTab === 'results' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('results'); setViewingEntry(null); }}
+          >
+            Set Results
+          </button>
+        )}
+        <button 
+          className={`pool-tab ${activeTab === 'leaderboard' ? 'active' : ''}`}
+          onClick={() => { setActiveTab('leaderboard'); setViewingEntry(null); }}
+        >
+          Leaderboard ({entries.length})
+        </button>
+      </div>
+
+      {viewingEntry && (
+        <div className="viewing-participant-header">
+          <button className="back-link" onClick={() => setViewingEntry(null)}>
+            ← Back to Leaderboard
+          </button>
+          <h3>Viewing {viewingEntry.userDisplayName}'s Predictions</h3>
+          <span className="participant-score">Score: {viewingEntry.score} pts</span>
+        </div>
+      )}
+
+      {(activeTab === 'predictions' || activeTab === 'results' || viewingEntry) && (
+        <div className="prediction-categories-container">
+          {canMakePredictions && (
+            <div className="prediction-instructions">
+              <p>Select your prediction for each category, then submit!</p>
+              <button 
+                className="submit-predictions-btn"
+                onClick={handleSubmitPredictions}
+                disabled={submitting}
+              >
+                {submitting ? 'Submitting...' : 'Submit Predictions'}
+              </button>
+            </div>
+          )}
+          
+          {pool.status === 'open' && entry?.submittedAt && !viewingEntry && (
+            <div className="prediction-submitted">
+              <p>✓ Your predictions have been submitted!</p>
+            </div>
+          )}
+          
+          {canSetResults && (
+            <div className="host-instructions">
+              <p>Click on options to set the actual winners for each category.</p>
+            </div>
+          )}
+
+          <div className="prediction-categories">
+            {pool.categories.map((category, catIndex) => (
+              <div key={catIndex} className="prediction-category">
+                <div className="category-title">
+                  <h3>{category.name}</h3>
+                  <span className="category-points">{category.points} pt{category.points !== 1 ? 's' : ''}</span>
+                </div>
+                <div className="category-options-list">
+                  {category.options.map((option, optIndex) => {
+                    const isSelected = displayPredictions?.[catIndex] === optIndex;
+                    const isResult = pool.results?.[catIndex] === optIndex;
+                    const status = (pool.status === 'in_progress' || pool.status === 'completed') && !canSetResults
+                      ? getPredictionStatus(catIndex, optIndex)
+                      : 'neutral';
+                    
+                    return (
+                      <div 
+                        key={optIndex}
+                        className={`prediction-option ${isSelected ? 'selected' : ''} ${isResult && !canSetResults ? 'is-result' : ''} ${status} ${canMakePredictions || canSetResults ? 'clickable' : ''}`}
+                        onClick={() => {
+                          if (canMakePredictions) {
+                            handlePredictionSelect(catIndex, optIndex);
+                          } else if (canSetResults) {
+                            handleResultSelect(catIndex, optIndex);
+                          }
+                        }}
+                      >
+                        <span className="option-text">{option}</span>
+                        {isSelected && <span className="selected-check">✓</span>}
+                        {isResult && !canSetResults && <span className="result-badge">Winner</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'leaderboard' && !viewingEntry && (
+        <div className="pool-leaderboard">
+          {pool.status === 'completed' && pool.winnerId && (
+            <div className="pool-winner-banner">
+              <span className="trophy">🏆</span>
+              <span className="winner-text">{pool.winnerName} wins with {pool.winnerScore} points!</span>
+            </div>
+          )}
+          
+          <div className="leaderboard-table prediction-leaderboard">
+            <div className="leaderboard-header">
+              <span className="lb-rank">Rank</span>
+              <span className="lb-name">Player</span>
+              <span className="lb-score">Score</span>
+              <span className="lb-action"></span>
+            </div>
+            {entries.map((participantEntry, index) => (
+              <div 
+                key={participantEntry.id} 
+                className={`leaderboard-row ${participantEntry.userId === currentUser?.uid ? 'current-user' : ''}`}
+              >
+                <span className="lb-rank">
+                  {index === 0 && entries.length > 1 ? '👑' : `#${index + 1}`}
+                </span>
+                <span className="lb-name">{participantEntry.userDisplayName}</span>
+                <span className="lb-score">{participantEntry.score}</span>
+                <span className="lb-action">
+                  {participantEntry.submittedAt && (
+                    <button 
+                      className="view-bracket-btn"
+                      onClick={() => setViewingEntry(participantEntry)}
+                    >
+                      View
+                    </button>
+                  )}
+                </span>
+              </div>
+            ))}
+            {entries.length === 0 && (
+              <div className="leaderboard-empty">
+                No participants yet
+              </div>
+            )}
+          </div>
+          
+          <div className="scoring-info">
+            <h4>Scoring</h4>
+            <p>
+              {pool.categories.map((cat, i) => (
+                `${cat.name}: ${cat.points} pt${cat.points !== 1 ? 's' : ''}`
+              )).join(' • ')}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {!currentUser && (
+        <div className="login-prompt">
+          <p>Log in to join this pool and make predictions!</p>
+        </div>
+      )}
+      
+      {currentUser && !entry && pool.status === 'open' && (
+        <div className="join-pool-prompt">
+          <button 
+            className="nav-btn"
+            onClick={async () => {
+              try {
+                await joinPredictionPool(poolId, currentUser.uid, currentUser.displayName || 'Anonymous');
+                await loadPoolData();
+              } catch (error) {
+                alert(error.message);
+              }
+            }}
+          >
+            Join This Pool
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Admin Page Component
 const AdminPage = () => {
   const [brackets, setBrackets] = useState([]);
@@ -3443,7 +4241,10 @@ function AppContent() {
       {view === 'champions' && <ChampionsPage />}
       {view === 'pools' && <PoolsPage onNavigate={setView} />}
       {view === 'create-pool' && <CreatePoolPage onNavigate={setView} />}
-      {view.startsWith('pool-') && <PoolDetailPage poolId={view.replace('pool-', '')} onNavigate={setView} />}
+      {view.startsWith('pool-') && !view.startsWith('prediction-pool-') && <PoolDetailPage poolId={view.replace('pool-', '')} onNavigate={setView} />}
+      {view === 'prediction-pools' && <PredictionPoolsPage onNavigate={setView} />}
+      {view === 'create-prediction-pool' && <CreatePredictionPoolPage onNavigate={setView} />}
+      {view.startsWith('prediction-pool-') && <PredictionPoolDetailPage poolId={view.replace('prediction-pool-', '')} onNavigate={setView} />}
       {view === 'admin' && <AdminPage />}
     </div>
   );
