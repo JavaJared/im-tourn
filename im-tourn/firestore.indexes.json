@@ -38,6 +38,21 @@
       "fields": [
         { "fieldPath": "poolId", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "predictionPools",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "hostId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "predictionEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "poolId", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
