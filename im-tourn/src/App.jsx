@@ -34,6 +34,7 @@ import {
   getPoolEntries,
   completePool,
   deletePool,
+  recalculatePoolScoresManual,
   createPredictionPool,
   getPredictionPoolById,
   getPredictionPoolByJoinCode,
@@ -1925,6 +1926,10 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
         case 'start':
           await startPool(poolId, currentUser.uid);
           break;
+        case 'recalculate':
+          await recalculatePoolScoresManual(poolId, currentUser.uid);
+          alert('Scores recalculated!');
+          break;
         case 'complete':
           await completePool(poolId, currentUser.uid);
           break;
@@ -1987,6 +1992,7 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
   };
 
   // Determine if a prediction is correct, incorrect, or pending
+  // Determine if a prediction is correct, incorrect, or pending
   const getMatchStatus = (predictionMatchups, roundIndex, matchIndex) => {
     if (!pool.results || pool.status === 'open' || pool.status === 'locked') return 'pending';
     
@@ -1996,7 +2002,14 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
     if (!resultMatch?.winner) return 'pending';
     if (!predictionMatch?.winner) return 'pending';
     
-    return resultMatch.winner === predictionMatch.winner ? 'correct' : 'incorrect';
+    // Get the actual winner participants from both matches
+    const actualWinner = resultMatch.winner === 1 ? resultMatch.entry1 : resultMatch.entry2;
+    const predictedWinner = predictionMatch.winner === 1 ? predictionMatch.entry1 : predictionMatch.entry2;
+    
+    // Compare by seed to determine if the same participant was predicted
+    if (!actualWinner || !predictedWinner) return 'pending';
+    
+    return actualWinner.seed === predictedWinner.seed ? 'correct' : 'incorrect';
   };
 
   if (loading) {
@@ -2080,9 +2093,14 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
                 </button>
               )}
               {pool.status === 'in_progress' && (
-                <button className="action-btn complete" onClick={() => handleHostAction('complete')}>
-                  Complete Pool
-                </button>
+                <>
+                  <button className="action-btn" onClick={() => handleHostAction('recalculate')}>
+                    Recalculate Scores
+                  </button>
+                  <button className="action-btn complete" onClick={() => handleHostAction('complete')}>
+                    Complete Pool
+                  </button>
+                </>
               )}
               <button className="action-btn delete" onClick={() => handleHostAction('delete')}>
                 Delete
