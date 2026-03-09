@@ -783,6 +783,18 @@ function didParticipantMakeRound(results, participant, targetRound) {
   return false;
 }
 
+// Get the actual winner participant from a match
+function getMatchWinner(match) {
+  if (!match || !match.winner) return null;
+  return match.winner === 1 ? match.entry1 : match.entry2;
+}
+
+// Check if two participants are the same (by seed)
+function isSameParticipant(p1, p2) {
+  if (!p1 || !p2) return false;
+  return p1.seed === p2.seed;
+}
+
 // Calculate score for a single entry
 function calculateEntryScore(predictions, results, pool, entry) {
   let score = 0;
@@ -795,8 +807,16 @@ function calculateEntryScore(predictions, results, pool, entry) {
     round.forEach((match, matchIndex) => {
       if (match.winner) {
         const predictionMatch = predictions[roundIndex]?.[matchIndex];
-        if (predictionMatch?.winner === match.winner) {
-          score += pointsForRound;
+        if (predictionMatch?.winner) {
+          // Get the actual winner from both the result and prediction
+          const actualWinner = getMatchWinner(match);
+          const predictedWinner = getMatchWinner(predictionMatch);
+          
+          // Only count as correct if they predicted the same PARTICIPANT winning
+          // (not just the same position winning)
+          if (isSameParticipant(actualWinner, predictedWinner)) {
+            score += pointsForRound;
+          }
         }
       }
     });
@@ -849,6 +869,23 @@ async function recalculatePoolScores(poolId, results, pool) {
   });
   
   await Promise.all(updatePromises);
+}
+
+// Manually recalculate scores (exported for host use)
+export async function recalculatePoolScoresManual(poolId, hostId) {
+  const pool = await getPoolById(poolId);
+  if (!pool) {
+    throw new Error('Pool not found');
+  }
+  if (pool.hostId !== hostId) {
+    throw new Error('Only the host can recalculate scores');
+  }
+  if (!pool.results) {
+    throw new Error('No results to score against');
+  }
+  
+  await recalculatePoolScores(poolId, pool.results, pool);
+  return true;
 }
 
 // Get all entries for a pool (leaderboard)
