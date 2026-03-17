@@ -10,6 +10,7 @@ import {
   getBracketSubmissions,
   toggleSubmissionUpvote,
   get32EntryBrackets,
+  getLargeBrackets,
   getWeeklyBracket,
   setWeeklyBracket,
   submitWeeklyVote,
@@ -868,8 +869,10 @@ const WeeklyBracketPage = () => {
   };
 
   const getRoundName = (roundIndex) => {
-    const roundNames = ['Round of 32', 'Sweet 16', 'Elite 8', 'Final 4', 'Championship'];
-    return roundNames[roundIndex] || `Round ${roundIndex + 1}`;
+    const roundNames = ['Round of 64', 'Round of 32', 'Sweet 16', 'Elite 8', 'Final 4', 'Championship'];
+    // For 32-entry brackets, skip 'Round of 64'
+    const startIndex = weeklyBracket?.matchups?.length === 5 ? 1 : 0;
+    return roundNames[roundIndex + startIndex] || `Round ${roundIndex + 1}`;
   };
 
   const dayInfo = getDayInfo();
@@ -1429,7 +1432,7 @@ const CreatePoolPage = ({ onNavigate }) => {
   const [creating, setCreating] = useState(false);
   
   // Scoring customization
-  const [roundPoints, setRoundPoints] = useState([1, 2, 4, 8, 16, 32]); // Points per round
+  const [roundPoints, setRoundPoints] = useState([1, 2, 4, 8, 16, 32, 64]); // Points per round (up to 7 rounds for 128 entries)
   
   // Sleeper picks settings
   const [enableSleepers, setEnableSleepers] = useState(false);
@@ -3322,8 +3325,11 @@ const AdminPage = () => {
   const isAdmin = currentUser && ADMIN_USER_IDS.includes(currentUser.uid);
 
   const getRoundName = (roundIndex) => {
-    const names = ['Round of 32', 'Sweet 16', 'Elite 8', 'Final 4', 'Championship'];
-    return names[roundIndex] || `Round ${roundIndex + 1}`;
+    const names = ['Round of 64', 'Round of 32', 'Sweet 16', 'Elite 8', 'Final 4', 'Championship'];
+    // For 32-entry brackets, skip 'Round of 64'
+    const totalRounds = currentWeekly?.matchups?.length || 5;
+    const startIndex = totalRounds === 5 ? 1 : 0;
+    return names[roundIndex + startIndex] || `Round ${roundIndex + 1}`;
   };
 
   useEffect(() => {
@@ -3335,7 +3341,7 @@ const AdminPage = () => {
   const loadData = async () => {
     try {
       const [bracketsData, weeklyData] = await Promise.all([
-        get32EntryBrackets(),
+        getLargeBrackets(),
         getWeeklyBracket()
       ]);
       setBrackets(bracketsData);
@@ -3348,7 +3354,7 @@ const AdminPage = () => {
 
   const handleRandomBracket = () => {
     if (brackets.length === 0) {
-      alert('No 32-entry brackets available');
+      alert('No 32 or 64-entry brackets available');
       return;
     }
     const randomIndex = Math.floor(Math.random() * brackets.length);
@@ -3492,7 +3498,7 @@ const AdminPage = () => {
       {/* Select New Bracket */}
       <div className="admin-section">
         <h2 className="admin-section-title">Select New Weekly Bracket</h2>
-        <p className="admin-hint">Available 32-entry brackets: {brackets.length}</p>
+        <p className="admin-hint">Available 32/64-entry brackets: {brackets.length}</p>
         
         <button 
           className="admin-btn primary" 
@@ -3694,7 +3700,7 @@ const CreatePage = ({ onPublish, onNavigate }) => {
         <div className="form-group">
           <label className="form-label">Bracket Size *</label>
           <div className="size-options">
-            {[4, 8, 16, 32].map(num => (
+            {[4, 8, 16, 32, 64].map(num => (
               <div key={num} className={`size-option ${size === num ? 'selected' : ''}`} onClick={() => handleSizeSelect(num)}>
                 <div className="number">{num}</div>
                 <div className="label">entries</div>
@@ -4017,8 +4023,12 @@ const PDFPage = ({ bracket, onBack }) => {
   const downloadPDF = async () => {
     const { jsPDF } = await import('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/+esm');
     
-    // Create landscape letter PDF
-    const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'letter' });
+    // Use larger page for 64-entry brackets
+    const isLargeBracket = bracket.size >= 64;
+    const pageFormat = isLargeBracket ? 'tabloid' : 'letter';
+    
+    // Create landscape PDF
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: pageFormat });
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
     
