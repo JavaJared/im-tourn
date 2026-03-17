@@ -1072,7 +1072,7 @@ body {
   padding: 0.5rem;
 }
 
-.size-options { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+.size-options { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; }
 
 .size-option {
   background: rgba(255, 255, 255, 0.03);
@@ -1438,7 +1438,7 @@ body {
   .logo { font-size: 1.6rem; }
   .hero h1 { font-size: 2.5rem; }
   .brackets-grid { grid-template-columns: 1fr; }
-  .size-options { grid-template-columns: repeat(2, 1fr); }
+  .size-options { grid-template-columns: repeat(3, 1fr); }
   .create-container, .fill-container, .pdf-container { padding: 1.5rem; }
   .auth-buttons { flex-direction: column; }
   .user-name { display: none; }
