@@ -184,6 +184,40 @@ export async function get32EntryBrackets() {
   });
 }
 
+// Get brackets with 32 or 64 entries (for weekly bracket selection)
+export async function getLargeBrackets() {
+  // Firestore doesn't support 'in' with orderBy, so we fetch both separately
+  const q32 = query(
+    collection(db, BRACKETS_COLLECTION),
+    where('size', '==', 32)
+  );
+  const q64 = query(
+    collection(db, BRACKETS_COLLECTION),
+    where('size', '==', 64)
+  );
+  
+  const [snapshot32, snapshot64] = await Promise.all([
+    getDocs(q32),
+    getDocs(q64)
+  ]);
+  
+  const brackets = [...snapshot32.docs, ...snapshot64.docs].map(doc => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      matchups: typeof data.matchups === 'string' ? JSON.parse(data.matchups) : data.matchups,
+      createdAt: data.createdAt?.toDate?.()?.toLocaleDateString() || 'Recently'
+    };
+  });
+  
+  // Sort by createdAt descending
+  return brackets.sort((a, b) => {
+    if (!a.createdAt || !b.createdAt) return 0;
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
+}
+
 // Get current weekly bracket
 export async function getWeeklyBracket() {
   const docRef = doc(db, WEEKLY_BRACKET_COLLECTION, 'current');
@@ -798,7 +832,7 @@ function isSameParticipant(p1, p2) {
 // Calculate score for a single entry
 function calculateEntryScore(predictions, results, pool, entry) {
   let score = 0;
-  const roundPoints = pool.roundPoints || [1, 2, 4, 8, 16, 32];
+  const roundPoints = pool.roundPoints || [1, 2, 4, 8, 16, 32, 64];
   
   // Calculate regular matchup scores
   results.forEach((round, roundIndex) => {
