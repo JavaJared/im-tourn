@@ -1054,7 +1054,28 @@ body {
 }
 
 .form-input::placeholder { color: var(--text-muted); }
-.form-textarea { min-height: 100px; resize: vertical; }
+
+.form-textarea {
+  width: 100%;
+  min-height: 100px;
+  resize: vertical;
+  padding: 0.875rem 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 2px solid var(--border-subtle);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.95rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-textarea:focus {
+  outline: none;
+  border-color: var(--accent-orange);
+  box-shadow: 0 0 0 3px var(--accent-orange-glow);
+}
+
+.form-textarea::placeholder { color: var(--text-muted); }
 
 .form-select {
   appearance: none;
@@ -2715,6 +2736,104 @@ body {
 
 .action-btn.delete:hover {
   background: rgba(255, 107, 107, 0.1);
+}
+
+/* Pool Description Section */
+.pool-description-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.description-display {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.pool-description {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  flex: 1;
+}
+
+.pool-description.empty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.edit-description-btn {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  padding: 0.4rem 0.75rem;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.edit-description-btn:hover {
+  border-color: var(--accent-orange);
+  color: var(--accent-orange);
+}
+
+.description-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.description-edit .form-textarea {
+  min-height: 80px;
+}
+
+.description-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.cancel-btn {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  padding: 0.5rem 1rem;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.85rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancel-btn:hover {
+  border-color: var(--text-secondary);
+  color: var(--text-secondary);
+}
+
+.save-btn {
+  background: var(--accent-orange);
+  border: none;
+  color: white;
+  padding: 0.5rem 1rem;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.save-btn:hover {
+  background: var(--accent-orange-hover);
 }
 
 .pool-tabs {
