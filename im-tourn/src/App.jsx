@@ -30,6 +30,7 @@ import {
   getPoolEntry,
   submitPoolPredictions,
   lockPool,
+  updatePoolDescription,
   startPool,
   updatePoolResults,
   getPoolEntries,
@@ -45,6 +46,7 @@ import {
   getPredictionEntry,
   submitPredictionPoolPredictions,
   lockPredictionPool,
+  updatePredictionPoolDescription,
   startPredictionPool,
   updatePredictionPoolResults,
   getPredictionPoolEntries,
@@ -1428,6 +1430,7 @@ const CreatePoolPage = ({ onNavigate }) => {
   const [loading, setLoading] = useState(true);
   const [selectedBracket, setSelectedBracket] = useState(null);
   const [poolName, setPoolName] = useState('');
+  const [poolDescription, setPoolDescription] = useState('');
   const [lockDate, setLockDate] = useState('');
   const [creating, setCreating] = useState(false);
   
@@ -1511,6 +1514,7 @@ const CreatePoolPage = ({ onNavigate }) => {
 
       const result = await createBracketPool({
         name: poolName.trim(),
+        description: poolDescription.trim(),
         hostId: currentUser.uid,
         hostDisplayName: currentUser.displayName || 'Anonymous',
         bracketId: selectedBracket.id,
@@ -1561,6 +1565,17 @@ const CreatePoolPage = ({ onNavigate }) => {
             value={poolName}
             onChange={(e) => setPoolName(e.target.value)}
             className="form-input"
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Description (optional)</label>
+          <textarea
+            placeholder="Add rules, prizes, or any other info for participants..."
+            value={poolDescription}
+            onChange={(e) => setPoolDescription(e.target.value)}
+            className="form-textarea"
+            rows={3}
           />
         </div>
 
@@ -1703,6 +1718,10 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
   
   // Participant analysis state
   const [analyzingParticipant, setAnalyzingParticipant] = useState(null);
+  
+  // Description editing state
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [descriptionDraft, setDescriptionDraft] = useState('');
   
   const { currentUser } = useAuth();
 
@@ -2065,6 +2084,21 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
   const showingPredictions = viewingEntry || (entry?.submittedAt && activeTab === 'bracket');
   const viewingOwnBracket = !viewingEntry || viewingEntry.userId === currentUser?.uid;
 
+  const handleSaveDescription = async () => {
+    try {
+      await updatePoolDescription(poolId, currentUser.uid, descriptionDraft);
+      setEditingDescription(false);
+      await loadPoolData();
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  const startEditingDescription = () => {
+    setDescriptionDraft(pool.description || '');
+    setEditingDescription(true);
+  };
+
   return (
     <div className="home-container">
       <div className="pool-header">
@@ -2112,6 +2146,44 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
           )}
         </div>
       </div>
+
+      {/* Pool Description */}
+      {(pool.description || isHost) && (
+        <div className="pool-description-section">
+          {editingDescription ? (
+            <div className="description-edit">
+              <textarea
+                value={descriptionDraft}
+                onChange={(e) => setDescriptionDraft(e.target.value)}
+                className="form-textarea"
+                rows={3}
+                placeholder="Add rules, prizes, or any other info for participants..."
+              />
+              <div className="description-edit-actions">
+                <button className="cancel-btn" onClick={() => setEditingDescription(false)}>
+                  Cancel
+                </button>
+                <button className="save-btn" onClick={handleSaveDescription}>
+                  Save
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="description-display">
+              {pool.description ? (
+                <p className="pool-description">{pool.description}</p>
+              ) : (
+                <p className="pool-description empty">No description added</p>
+              )}
+              {isHost && (
+                <button className="edit-description-btn" onClick={startEditingDescription}>
+                  {pool.description ? 'Edit' : 'Add Description'}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="pool-tabs">
         <button 
@@ -2729,6 +2801,7 @@ const PredictionPoolsPage = ({ onNavigate }) => {
 // Create Prediction Pool Page
 const CreatePredictionPoolPage = ({ onNavigate }) => {
   const [poolName, setPoolName] = useState('');
+  const [poolDescription, setPoolDescription] = useState('');
   const [lockDate, setLockDate] = useState('');
   const [categories, setCategories] = useState([{ name: '', options: ['', ''], points: 1 }]);
   const [creating, setCreating] = useState(false);
@@ -2800,6 +2873,7 @@ const CreatePredictionPoolPage = ({ onNavigate }) => {
 
       const result = await createPredictionPool({
         name: poolName.trim(),
+        description: poolDescription.trim(),
         hostId: currentUser.uid,
         hostDisplayName: currentUser.displayName || 'Anonymous',
         categories: cleanedCategories,
@@ -2830,6 +2904,17 @@ const CreatePredictionPoolPage = ({ onNavigate }) => {
             value={poolName}
             onChange={(e) => setPoolName(e.target.value)}
             className="form-input"
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Description (optional)</label>
+          <textarea
+            placeholder="Add rules, prizes, or any other info for participants..."
+            value={poolDescription}
+            onChange={(e) => setPoolDescription(e.target.value)}
+            className="form-textarea"
+            rows={3}
           />
         </div>
 
@@ -2942,6 +3027,11 @@ const PredictionPoolDetailPage = ({ poolId, onNavigate }) => {
   const [predictions, setPredictions] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [viewingEntry, setViewingEntry] = useState(null);
+  
+  // Description editing state
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [descriptionDraft, setDescriptionDraft] = useState('');
+  
   const { currentUser } = useAuth();
 
   const isHost = currentUser && pool?.hostId === currentUser.uid;
@@ -3086,6 +3176,21 @@ const PredictionPoolDetailPage = ({ poolId, onNavigate }) => {
   const canMakePredictions = pool.status === 'open' && !entry?.submittedAt && entry && !viewingEntry;
   const canSetResults = activeTab === 'results' && isHost && pool.status === 'in_progress' && !viewingEntry;
 
+  const handleSaveDescription = async () => {
+    try {
+      await updatePredictionPoolDescription(poolId, currentUser.uid, descriptionDraft);
+      setEditingDescription(false);
+      await loadPoolData();
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  const startEditingDescription = () => {
+    setDescriptionDraft(pool.description || '');
+    setEditingDescription(true);
+  };
+
   return (
     <div className="home-container">
       <div className="pool-header">
@@ -3128,6 +3233,44 @@ const PredictionPoolDetailPage = ({ poolId, onNavigate }) => {
           )}
         </div>
       </div>
+
+      {/* Pool Description */}
+      {(pool.description || isHost) && (
+        <div className="pool-description-section">
+          {editingDescription ? (
+            <div className="description-edit">
+              <textarea
+                value={descriptionDraft}
+                onChange={(e) => setDescriptionDraft(e.target.value)}
+                className="form-textarea"
+                rows={3}
+                placeholder="Add rules, prizes, or any other info for participants..."
+              />
+              <div className="description-edit-actions">
+                <button className="cancel-btn" onClick={() => setEditingDescription(false)}>
+                  Cancel
+                </button>
+                <button className="save-btn" onClick={handleSaveDescription}>
+                  Save
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="description-display">
+              {pool.description ? (
+                <p className="pool-description">{pool.description}</p>
+              ) : (
+                <p className="pool-description empty">No description added</p>
+              )}
+              {isHost && (
+                <button className="edit-description-btn" onClick={startEditingDescription}>
+                  {pool.description ? 'Edit' : 'Add Description'}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="pool-tabs">
         <button 
