@@ -762,6 +762,25 @@ export async function lockPool(poolId, hostId) {
   return true;
 }
 
+// Update pool description
+export async function updatePoolDescription(poolId, hostId, description) {
+  const pool = await getPoolById(poolId);
+  if (!pool) {
+    throw new Error('Pool not found');
+  }
+  if (pool.hostId !== hostId) {
+    throw new Error('Only the host can edit this pool');
+  }
+  
+  const poolRef = doc(db, POOLS_COLLECTION, poolId);
+  await updateDoc(poolRef, {
+    description: description,
+    updatedAt: serverTimestamp()
+  });
+  
+  return true;
+}
+
 // Start the pool (begin entering results)
 export async function startPool(poolId, hostId) {
   const pool = await getPoolById(poolId);
@@ -1188,6 +1207,25 @@ export async function lockPredictionPool(poolId, hostId) {
   const poolRef = doc(db, PREDICTION_POOLS_COLLECTION, poolId);
   await updateDoc(poolRef, {
     status: 'locked',
+    updatedAt: serverTimestamp()
+  });
+  
+  return true;
+}
+
+// Update prediction pool description
+export async function updatePredictionPoolDescription(poolId, hostId, description) {
+  const pool = await getPredictionPoolById(poolId);
+  if (!pool) {
+    throw new Error('Pool not found');
+  }
+  if (pool.hostId !== hostId) {
+    throw new Error('Only the host can edit this pool');
+  }
+  
+  const poolRef = doc(db, PREDICTION_POOLS_COLLECTION, poolId);
+  await updateDoc(poolRef, {
+    description: description,
     updatedAt: serverTimestamp()
   });
   
