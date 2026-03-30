@@ -56,7 +56,7 @@ import {
 import './App.css';
 
 // Admin user IDs (add your Firebase user ID here)
-const ADMIN_USER_IDS = ['VBbDwj6gkVgW7gBcs3vTmt0ulLF2'];
+const ADMIN_USER_IDS = ['YOUR_ADMIN_USER_ID_HERE'];
 
 const CATEGORIES = [
   'Movies', 'TV Shows', 'Books', 'Sports Teams', 'Video Games',
@@ -559,6 +559,284 @@ const Header = ({ onNavigate, currentView }) => {
         initialMode={authMode}
       />
     </>
+  );
+};
+
+// Feedback Modal Component
+const FeedbackModal = ({ isOpen, onClose }) => {
+  const [feedbackType, setFeedbackType] = useState('bug');
+  const [subject, setSubject] = useState('');
+  const [description, setDescription] = useState('');
+  const [email, setEmail] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const { currentUser } = useAuth();
+
+  useEffect(() => {
+    if (currentUser?.email) {
+      setEmail(currentUser.email);
+    }
+  }, [currentUser]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!subject.trim() || !description.trim()) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    setSubmitting(true);
+    
+    // In a real app, you'd send this to a backend/email service
+    // For now, we'll simulate the submission and log it
+    console.log('Feedback submitted:', {
+      type: feedbackType,
+      subject,
+      description,
+      email,
+      userId: currentUser?.uid,
+      timestamp: new Date().toISOString()
+    });
+
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    setSubmitting(false);
+    setSubmitted(true);
+  };
+
+  const handleClose = () => {
+    setFeedbackType('bug');
+    setSubject('');
+    setDescription('');
+    setSubmitted(false);
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="modal-overlay" onClick={handleClose}>
+      <div className="feedback-modal" onClick={e => e.stopPropagation()}>
+        <button className="modal-close" onClick={handleClose}>×</button>
+        
+        {submitted ? (
+          <div className="feedback-success">
+            <div className="success-icon">✓</div>
+            <h2>Thank You!</h2>
+            <p>Your feedback has been submitted. We appreciate you helping us improve I'm Tourn!</p>
+            <button className="nav-btn" onClick={handleClose}>Close</button>
+          </div>
+        ) : (
+          <>
+            <h2>Send Feedback</h2>
+            <p className="feedback-subtitle">Help us improve I'm Tourn</p>
+            
+            <form onSubmit={handleSubmit}>
+              <div className="feedback-type-selector">
+                <button
+                  type="button"
+                  className={`feedback-type-btn ${feedbackType === 'bug' ? 'active' : ''}`}
+                  onClick={() => setFeedbackType('bug')}
+                >
+                  🐛 Report Bug
+                </button>
+                <button
+                  type="button"
+                  className={`feedback-type-btn ${feedbackType === 'feature' ? 'active' : ''}`}
+                  onClick={() => setFeedbackType('feature')}
+                >
+                  💡 Feature Request
+                </button>
+                <button
+                  type="button"
+                  className={`feedback-type-btn ${feedbackType === 'other' ? 'active' : ''}`}
+                  onClick={() => setFeedbackType('other')}
+                >
+                  💬 Other
+                </button>
+              </div>
+
+              <div className="form-group">
+                <label>Subject *</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder={feedbackType === 'bug' ? 'Brief description of the issue' : 'What would you like to see?'}
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Description *</label>
+                <textarea
+                  className="form-textarea"
+                  placeholder={feedbackType === 'bug' 
+                    ? 'Please describe the bug in detail. What did you expect to happen? What actually happened?' 
+                    : 'Please describe your idea in detail. How would this feature help you?'}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={5}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Email (optional)</label>
+                <input
+                  type="email"
+                  className="form-input"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+                <p className="form-hint">We'll only use this to follow up on your feedback</p>
+              </div>
+
+              <button 
+                type="submit" 
+                className="nav-btn feedback-submit-btn"
+                disabled={submitting}
+              >
+                {submitting ? 'Submitting...' : 'Submit Feedback'}
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Footer Component
+const Footer = ({ onOpenFeedback }) => {
+  const currentYear = new Date().getFullYear();
+  
+  return (
+    <footer className="site-footer">
+      <div className="footer-content">
+        <div className="footer-section footer-brand">
+          <div className="footer-logo">I'M TOURN</div>
+          <p className="footer-tagline">Create, compete, and crown champions in bracket tournaments and prediction pools.</p>
+        </div>
+        
+        <div className="footer-section">
+          <h4>Features</h4>
+          <ul>
+            <li><a href="#" onClick={(e) => { e.preventDefault(); }}>Bracket Pools</a></li>
+            <li><a href="#" onClick={(e) => { e.preventDefault(); }}>Prediction Pools</a></li>
+            <li><a href="#" onClick={(e) => { e.preventDefault(); }}>Weekly Brackets</a></li>
+            <li><a href="#" onClick={(e) => { e.preventDefault(); }}>PDF Export</a></li>
+          </ul>
+        </div>
+        
+        <div className="footer-section">
+          <h4>Support</h4>
+          <ul>
+            <li><a href="#" onClick={(e) => { e.preventDefault(); onOpenFeedback(); }}>Report a Bug</a></li>
+            <li><a href="#" onClick={(e) => { e.preventDefault(); onOpenFeedback(); }}>Request a Feature</a></li>
+            <li><a href="#" onClick={(e) => { e.preventDefault(); onOpenFeedback(); }}>Contact Us</a></li>
+          </ul>
+        </div>
+        
+        <div className="footer-section">
+          <h4>Legal</h4>
+          <ul>
+            <li><a href="#" onClick={(e) => { e.preventDefault(); }}>Privacy Policy</a></li>
+            <li><a href="#" onClick={(e) => { e.preventDefault(); }}>Terms of Service</a></li>
+          </ul>
+        </div>
+      </div>
+      
+      <div className="footer-bottom">
+        <p>© {currentYear} I'm Tourn. All rights reserved.</p>
+        <p className="footer-credits">Made with 🏆 for tournament lovers</p>
+      </div>
+    </footer>
+  );
+};
+
+// Guided Tour Component
+const GuidedTour = ({ onComplete }) => {
+  const [currentStep, setCurrentStep] = useState(0);
+  
+  const steps = [
+    {
+      title: "Welcome to I'm Tourn! 🏆",
+      content: "We're excited to have you! Let's take a quick tour of what you can do here.",
+      icon: "👋"
+    },
+    {
+      title: "Browse & Create Brackets",
+      content: "Explore brackets created by the community or create your own custom bracket with up to 64 entries. Topics range from movies to sports to food!",
+      icon: "📋"
+    },
+    {
+      title: "Bracket Pools",
+      content: "Compete with friends! Create a bracket pool, share the join code, and see who can predict the most winners. Perfect for March Madness, playoffs, and more.",
+      icon: "🏀"
+    },
+    {
+      title: "Prediction Pools",
+      content: "Not just brackets! Create prediction pools for award shows, reality TV, or any event with categories. Predict winners and compete on the leaderboard.",
+      icon: "🎬"
+    },
+    {
+      title: "Weekly Bracket",
+      content: "Vote daily on the community bracket! A new bracket is featured each week, and your votes help determine the champion.",
+      icon: "📅"
+    },
+    {
+      title: "You're All Set!",
+      content: "That's the basics! Start by browsing brackets or creating your first pool. Have fun competing!",
+      icon: "🎉"
+    }
+  ];
+
+  const handleNext = () => {
+    if (currentStep < steps.length - 1) {
+      setCurrentStep(currentStep + 1);
+    } else {
+      onComplete();
+    }
+  };
+
+  const handleSkip = () => {
+    onComplete();
+  };
+
+  const step = steps[currentStep];
+
+  return (
+    <div className="tour-overlay">
+      <div className="tour-modal">
+        <div className="tour-progress">
+          {steps.map((_, index) => (
+            <div 
+              key={index} 
+              className={`tour-progress-dot ${index === currentStep ? 'active' : ''} ${index < currentStep ? 'completed' : ''}`}
+            />
+          ))}
+        </div>
+        
+        <div className="tour-icon">{step.icon}</div>
+        <h2 className="tour-title">{step.title}</h2>
+        <p className="tour-content">{step.content}</p>
+        
+        <div className="tour-actions">
+          {currentStep < steps.length - 1 && (
+            <button className="tour-skip-btn" onClick={handleSkip}>
+              Skip Tour
+            </button>
+          )}
+          <button className="tour-next-btn" onClick={handleNext}>
+            {currentStep === steps.length - 1 ? "Get Started!" : "Next"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -4388,6 +4666,29 @@ function AppContent() {
   const [view, setView] = useState('home');
   const [currentBracket, setCurrentBracket] = useState(null);
   const [fillingBracket, setFillingBracket] = useState(null);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showTour, setShowTour] = useState(false);
+  const { currentUser } = useAuth();
+
+  // Check if user needs the guided tour (first time signup)
+  useEffect(() => {
+    if (currentUser) {
+      const tourCompleted = localStorage.getItem(`tour_completed_${currentUser.uid}`);
+      const isNewUser = currentUser.metadata?.creationTime === currentUser.metadata?.lastSignInTime;
+      
+      if (!tourCompleted && isNewUser) {
+        // Small delay to let the UI settle after login
+        setTimeout(() => setShowTour(true), 500);
+      }
+    }
+  }, [currentUser]);
+
+  const handleTourComplete = () => {
+    if (currentUser) {
+      localStorage.setItem(`tour_completed_${currentUser.uid}`, 'true');
+    }
+    setShowTour(false);
+  };
   
   const handleFillOut = (bracket) => {
     setFillingBracket({ ...bracket, matchups: bracket.matchups.map(round => round.map(match => ({ ...match }))) });
@@ -4403,20 +4704,31 @@ function AppContent() {
     <div className="bracket-app">
       <Header onNavigate={setView} currentView={view} />
       
-      {view === 'home' && <HomePage onFillOut={handleFillOut} onNavigate={setView} />}
-      {view === 'my-brackets' && <MyBracketsPage onFillOut={handleFillOut} onNavigate={setView} />}
-      {view === 'create' && <CreatePage onNavigate={setView} />}
-      {view === 'fill' && fillingBracket && <FillPage bracket={fillingBracket} onSubmit={handleSubmitFilled} onBack={() => setView('home')} />}
-      {view === 'pdf' && currentBracket && <PDFPage bracket={currentBracket} onBack={() => setView('home')} />}
-      {view === 'weekly' && <WeeklyBracketPage />}
-      {view === 'champions' && <ChampionsPage />}
-      {view === 'pools' && <PoolsPage onNavigate={setView} />}
-      {view === 'create-pool' && <CreatePoolPage onNavigate={setView} />}
-      {view.startsWith('pool-') && !view.startsWith('prediction-pool-') && <PoolDetailPage poolId={view.replace('pool-', '')} onNavigate={setView} />}
-      {view === 'prediction-pools' && <PredictionPoolsPage onNavigate={setView} />}
-      {view === 'create-prediction-pool' && <CreatePredictionPoolPage onNavigate={setView} />}
-      {view.startsWith('prediction-pool-') && <PredictionPoolDetailPage poolId={view.replace('prediction-pool-', '')} onNavigate={setView} />}
-      {view === 'admin' && <AdminPage />}
+      <main className="main-content">
+        {view === 'home' && <HomePage onFillOut={handleFillOut} onNavigate={setView} />}
+        {view === 'my-brackets' && <MyBracketsPage onFillOut={handleFillOut} onNavigate={setView} />}
+        {view === 'create' && <CreatePage onNavigate={setView} />}
+        {view === 'fill' && fillingBracket && <FillPage bracket={fillingBracket} onSubmit={handleSubmitFilled} onBack={() => setView('home')} />}
+        {view === 'pdf' && currentBracket && <PDFPage bracket={currentBracket} onBack={() => setView('home')} />}
+        {view === 'weekly' && <WeeklyBracketPage />}
+        {view === 'champions' && <ChampionsPage />}
+        {view === 'pools' && <PoolsPage onNavigate={setView} />}
+        {view === 'create-pool' && <CreatePoolPage onNavigate={setView} />}
+        {view.startsWith('pool-') && !view.startsWith('prediction-pool-') && <PoolDetailPage poolId={view.replace('pool-', '')} onNavigate={setView} />}
+        {view === 'prediction-pools' && <PredictionPoolsPage onNavigate={setView} />}
+        {view === 'create-prediction-pool' && <CreatePredictionPoolPage onNavigate={setView} />}
+        {view.startsWith('prediction-pool-') && <PredictionPoolDetailPage poolId={view.replace('prediction-pool-', '')} onNavigate={setView} />}
+        {view === 'admin' && <AdminPage />}
+      </main>
+      
+      <Footer onOpenFeedback={() => setShowFeedbackModal(true)} />
+      
+      <FeedbackModal 
+        isOpen={showFeedbackModal} 
+        onClose={() => setShowFeedbackModal(false)} 
+      />
+      
+      {showTour && <GuidedTour onComplete={handleTourComplete} />}
     </div>
   );
 }
