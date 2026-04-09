@@ -57,7 +57,8 @@ import {
   RankingPoolsPage,
   CreateRankingPoolPage,
   RankingPoolDetailPage,
-  RankingVotePage
+  RankingVotePage,
+  MyRankingsPage
 } from './components/RankingPages';
 import './App.css';
 
@@ -505,8 +506,8 @@ const Header = ({ onNavigate, currentView }) => {
             Predictions
           </button>
           <button 
-            className={`nav-link ${currentView === 'ranking-pools' || currentView === 'create-ranking-pool' || currentView.startsWith('ranking-pool-') || currentView.startsWith('ranking-vote-') ? 'active' : ''}`}
-            onClick={() => onNavigate('ranking-pools')}
+            className={`nav-link ${currentView === 'rankings' || currentView === 'create-ranking' || currentView.startsWith('ranking-') ? 'active' : ''}`}
+            onClick={() => onNavigate('rankings')}
           >
             Rankings
           </button>
@@ -525,7 +526,7 @@ const Header = ({ onNavigate, currentView }) => {
             </button>
           )}
           
-          {currentView !== 'home' && currentView !== 'weekly' && currentView !== 'champions' && currentView !== 'pools' && currentView !== 'prediction-pools' && currentView !== 'ranking-pools' && !currentView.startsWith('pool-') && !currentView.startsWith('prediction-pool-') && !currentView.startsWith('ranking-pool-') && !currentView.startsWith('ranking-vote-') && (
+          {currentView !== 'home' && currentView !== 'weekly' && currentView !== 'champions' && currentView !== 'pools' && currentView !== 'prediction-pools' && currentView !== 'rankings' && currentView !== 'my-rankings' && !currentView.startsWith('pool-') && !currentView.startsWith('prediction-pool-') && !currentView.startsWith('ranking-') && (
             <button className="back-btn" onClick={() => onNavigate('home')}>
               ← Back
             </button>
@@ -544,6 +545,9 @@ const Header = ({ onNavigate, currentView }) => {
                 <div className="user-dropdown">
                   <button onClick={() => { onNavigate('my-brackets'); setShowUserMenu(false); }}>
                     My Brackets
+                  </button>
+                  <button onClick={() => { onNavigate('my-rankings'); setShowUserMenu(false); }}>
+                    My Rankings
                   </button>
                   {isAdmin && (
                     <button onClick={() => { onNavigate('admin'); setShowUserMenu(false); }}>
@@ -4730,10 +4734,11 @@ function AppContent() {
         {view === 'prediction-pools' && <PredictionPoolsPage onNavigate={setView} />}
         {view === 'create-prediction-pool' && <CreatePredictionPoolPage onNavigate={setView} />}
         {view.startsWith('prediction-pool-') && <PredictionPoolDetailPage poolId={view.replace('prediction-pool-', '')} onNavigate={setView} />}
-        {view === 'ranking-pools' && <RankingPoolsPage onNavigate={setView} />}
-        {view === 'create-ranking-pool' && <CreateRankingPoolPage onNavigate={setView} />}
-        {view.startsWith('ranking-vote-') && <RankingVotePage poolId={view.replace('ranking-vote-', '')} onNavigate={setView} />}
-        {view.startsWith('ranking-pool-') && !view.startsWith('ranking-vote-') && <RankingPoolDetailPage poolId={view.replace('ranking-pool-', '')} onNavigate={setView} />}
+        {view === 'rankings' && <RankingsBrowsePage onNavigate={setView} />}
+        {view === 'create-ranking' && <CreateRankingPage onNavigate={setView} />}
+        {view === 'my-rankings' && <MyRankingsPage onNavigate={setView} />}
+        {view.startsWith('ranking-vote-') && <RankingVotePage rankingId={view.replace('ranking-vote-', '')} onNavigate={setView} />}
+        {view.startsWith('ranking-') && !view.startsWith('ranking-vote-') && view !== 'rankings' && <RankingDetailPage rankingId={view.replace('ranking-', '')} onNavigate={setView} />}
         {view === 'admin' && <AdminPage />}
       </main>
       
