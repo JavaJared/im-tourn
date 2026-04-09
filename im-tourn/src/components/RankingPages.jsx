@@ -1,31 +1,28 @@
 // src/components/RankingPages.jsx
 //
-// All the React components for the Rankings feature. This is kept as a
-// separate file rather than inlined into App.jsx to keep App.jsx from
-// growing further. App.jsx only needs to import the four exported pages
-// and wire them into its view router.
+// All the React components for the Rankings feature.
 //
 // Exported components:
-//   <RankingPoolsPage />       — list view, create/join entry point
-//   <CreateRankingPoolPage />  — build a new ranking pool
-//   <RankingPoolDetailPage />  — view a pool, start voting, see results
+//   <RankingsBrowsePage />     — public list of all rankings (the main entry point)
+//   <CreateRankingPage />      — build a new ranking
+//   <RankingDetailPage />      — view a ranking, start voting, see results
 //   <RankingVotePage />        — head-to-head voting screen
+//   <MyRankingsPage />         — profile view: tabs for Created / Voted In
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import {
-  createRankingPool,
-  getRankingPoolById,
-  getRankingPoolByJoinCode,
-  getUserHostedRankingPools,
-  getUserVotedRankingPools,
+  createRanking,
+  getRankingById,
+  getAllRankings,
+  getUserCreatedRankings,
+  getUserVotedRankings,
   getUserRankingVote,
   submitRankingVote,
-  updateRankingPoolDescription,
-  lockRankingPool,
-  reopenRankingPool,
-  deleteRankingPool,
-  getRankingPoolVotes,
+  updateRankingDescription,
+  closeRanking,
+  reopenRanking,
+  deleteRanking,
   parseConsensus,
   compressImageToBase64,
   MAX_RANKING_ENTRIES,
@@ -43,188 +40,182 @@ import {
 } from '../services/interactiveSort';
 
 // ============================================================================
-// RankingPoolsPage — list view
+// Shared: card component used in browse and profile views
 // ============================================================================
 
-export const RankingPoolsPage = ({ onNavigate }) => {
-  const [hostedPools, setHostedPools] = useState([]);
-  const [votedPools, setVotedPools] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [joinCode, setJoinCode] = useState('');
-  const [joinError, setJoinError] = useState('');
-  const [joining, setJoining] = useState(false);
+const RankingCard = ({ ranking, onClick }) => {
+  const isClosed = ranking.status === 'closed';
+  return (
+    <div className="ranking-browse-card" onClick={onClick}>
+      {isClosed && <span className="ranking-card-closed-badge">Closed</span>}
+      {ranking.category && <span className="ranking-card-category">{ranking.category}</span>}
+      <h3 className="ranking-card-title">{ranking.title}</h3>
+      {ranking.description && (
+        <p className="ranking-card-description">{ranking.description}</p>
+      )}
+      <div className="ranking-card-meta">
+        <span className="ranking-card-stats">
+          {ranking.entryCount} entries · {ranking.voteCount || 0} {(ranking.voteCount === 1) ? 'vote' : 'votes'}
+        </span>
+        <span className="ranking-card-host">by {ranking.hostDisplayName}</span>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================================
+// RankingsBrowsePage — public list, the main entry point from the nav
+// ============================================================================
+
+export const RankingsBrowsePage = ({ onNavigate }) => {
   const { currentUser } = useAuth();
+  const [rankings, setRankings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [sortBy, setSortBy] = useState('newest'); // newest | popular
 
   useEffect(() => {
-    if (currentUser) {
-      loadPools();
-    } else {
-      setLoading(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser]);
+    loadRankings();
+  }, []);
 
-  const loadPools = async () => {
+  const loadRankings = async () => {
     try {
-      const [hosted, voted] = await Promise.all([
-        getUserHostedRankingPools(currentUser.uid),
-        getUserVotedRankingPools(currentUser.uid),
-      ]);
-      setHostedPools(hosted);
-      // Exclude pools the user also hosts (to avoid duplicates in the "voted" section)
-      setVotedPools(voted.filter(p => p.hostId !== currentUser.uid));
+      const data = await getAllRankings();
+      setRankings(data);
     } catch (error) {
-      console.error('Error loading ranking pools:', error);
+      console.error('Error loading rankings:', error);
     }
     setLoading(false);
   };
 
-  const handleJoinPool = async () => {
-    if (!joinCode.trim()) {
-      setJoinError('Please enter a join code');
-      return;
-    }
-    setJoining(true);
-    setJoinError('');
-    try {
-      const pool = await getRankingPoolByJoinCode(joinCode.trim());
-      if (!pool) {
-        setJoinError('Invalid join code');
-        setJoining(false);
-        return;
+  const categories = [...new Set(rankings.map(r => r.category).filter(Boolean))].sort();
+
+  const filtered = rankings
+    .filter(r => {
+      const matchesSearch = r.title.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = !selectedCategory || r.category === selectedCategory;
+      return matchesSearch && matchesCategory;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'popular') {
+        // Sort by vote count desc; tiebreak on newest
+        const voteCmp = (b.voteCount || 0) - (a.voteCount || 0);
+        if (voteCmp !== 0) return voteCmp;
       }
-      setJoinCode('');
-      onNavigate(`ranking-pool-${pool.id}`);
-    } catch (error) {
-      setJoinError(error.message);
-    }
-    setJoining(false);
+      // Default / fallback: newest first
+      if (!a.createdAt || !b.createdAt) return 0;
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSelectedCategory('');
+    setSortBy('newest');
   };
 
-  const getStatusBadge = (status) => {
-    const badges = {
-      open: { text: 'Open', class: 'status-open' },
-      locked: { text: 'Locked', class: 'status-locked' },
-    };
-    return badges[status] || { text: status, class: '' };
-  };
-
-  if (!currentUser) {
-    return (
-      <div className="home-container">
-        <div className="page-header">
-          <h1>Ranking Pools</h1>
-          <p>Create head-to-head rankings and discover the consensus</p>
-        </div>
-        <div className="empty-state">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-          </svg>
-          <p>Log in to create or join ranking pools</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="home-container">
-        <div className="loading-state">
-          <div className="spinner"></div>
-          <p>Loading pools...</p>
-        </div>
-      </div>
-    );
-  }
+  const hasActiveFilters = searchTerm || selectedCategory || sortBy !== 'newest';
 
   return (
     <div className="home-container">
-      <div className="page-header">
-        <h1>Ranking Pools</h1>
-        <p>Rank anything — and see what the crowd really thinks</p>
+      <div className="hero">
+        <h1>RANK <span>ANYTHING</span></h1>
+        <p>Create a list, let the crowd sort it head-to-head, and discover the consensus.</p>
+        {!currentUser && (
+          <p className="hero-cta">Sign up to create and vote on rankings!</p>
+        )}
       </div>
 
-      <div className="pools-actions">
-        <button className="nav-btn" onClick={() => onNavigate('create-ranking-pool')}>
-          + Create Ranking
-        </button>
+      <div className="section-title">BROWSE RANKINGS</div>
 
-        <div className="join-pool-form">
+      {/* Filter / sort bar — mirrors the brackets browse layout */}
+      <div className="filter-bar">
+        <div className="search-box">
+          <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
           <input
             type="text"
-            placeholder="Enter join code"
-            value={joinCode}
-            onChange={e => setJoinCode(e.target.value.toUpperCase())}
-            maxLength={6}
-            className="join-code-input"
+            placeholder="Search rankings..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
           />
-          <button
-            className="join-btn"
-            onClick={handleJoinPool}
-            disabled={joining}
+        </div>
+
+        {categories.length > 0 && (
+          <select
+            value={selectedCategory}
+            onChange={e => setSelectedCategory(e.target.value)}
+            className="filter-select"
           >
-            {joining ? 'Joining...' : 'Join'}
+            <option value="">All Categories</option>
+            {categories.map(cat => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+        )}
+
+        <div className="ranking-sort-toggle">
+          <button
+            className={sortBy === 'newest' ? 'active' : ''}
+            onClick={() => setSortBy('newest')}
+          >
+            Newest
+          </button>
+          <button
+            className={sortBy === 'popular' ? 'active' : ''}
+            onClick={() => setSortBy('popular')}
+          >
+            Popular
           </button>
         </div>
-        {joinError && <p className="error-text">{joinError}</p>}
+
+        {hasActiveFilters && (
+          <button className="clear-filters-btn" onClick={clearFilters}>Clear</button>
+        )}
       </div>
 
-      {hostedPools.length > 0 && (
-        <div className="pools-section">
-          <h2>Rankings You Host</h2>
-          <div className="pools-grid">
-            {hostedPools.map(pool => {
-              const badge = getStatusBadge(pool.status);
-              return (
-                <div
-                  key={pool.id}
-                  className="pool-card ranking-pool-card"
-                  onClick={() => onNavigate(`ranking-pool-${pool.id}`)}
-                >
-                  <span className={`pool-status ${badge.class}`}>{badge.text}</span>
-                  <h3 className="pool-title">{pool.title}</h3>
-                  <p className="pool-bracket">{pool.entryCount} entries · {pool.voteCount || 0} {(pool.voteCount === 1) ? 'vote' : 'votes'}</p>
-                  <div className="pool-meta">
-                    <span className="pool-code">Code: {pool.joinCode}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      {currentUser && (
+        <div className="ranking-browse-actions">
+          <button className="nav-btn" onClick={() => onNavigate('create-ranking')}>
+            + Create Ranking
+          </button>
         </div>
       )}
 
-      {votedPools.length > 0 && (
-        <div className="pools-section">
-          <h2>Rankings You've Voted In</h2>
-          <div className="pools-grid">
-            {votedPools.map(pool => {
-              const badge = getStatusBadge(pool.status);
-              return (
-                <div
-                  key={pool.id}
-                  className="pool-card ranking-pool-card"
-                  onClick={() => onNavigate(`ranking-pool-${pool.id}`)}
-                >
-                  <span className={`pool-status ${badge.class}`}>{badge.text}</span>
-                  <h3 className="pool-title">{pool.title}</h3>
-                  <p className="pool-bracket">{pool.entryCount} entries · {pool.voteCount || 0} {(pool.voteCount === 1) ? 'vote' : 'votes'}</p>
-                  <div className="pool-meta">
-                    <span className="pool-host">Hosted by {pool.hostDisplayName}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      {loading ? (
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p>Loading rankings...</p>
         </div>
-      )}
-
-      {hostedPools.length === 0 && votedPools.length === 0 && (
+      ) : filtered.length === 0 ? (
         <div className="empty-state">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M4 6h16M4 12h16M4 18h7" />
           </svg>
-          <p>No rankings yet. Create one to get started!</p>
+          {rankings.length === 0 ? (
+            <>
+              <p>No rankings yet. Be the first to create one!</p>
+              {currentUser && (
+                <button className="nav-btn" onClick={() => onNavigate('create-ranking')} style={{ marginTop: '1rem' }}>
+                  Create the First Ranking
+                </button>
+              )}
+            </>
+          ) : (
+            <p>No rankings match your filters.</p>
+          )}
+        </div>
+      ) : (
+        <div className="ranking-browse-grid">
+          {filtered.map(r => (
+            <RankingCard
+              key={r.id}
+              ranking={r}
+              onClick={() => onNavigate(`ranking-${r.id}`)}
+            />
+          ))}
         </div>
       )}
     </div>
@@ -232,13 +223,14 @@ export const RankingPoolsPage = ({ onNavigate }) => {
 };
 
 // ============================================================================
-// CreateRankingPoolPage — build a new ranking pool
+// CreateRankingPage — build a new ranking
 // ============================================================================
 
-export const CreateRankingPoolPage = ({ onNavigate }) => {
+export const CreateRankingPage = ({ onNavigate }) => {
   const { currentUser } = useAuth();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('');
   const [entries, setEntries] = useState([
     { id: 'new-0', text: '', imageUrl: null },
     { id: 'new-1', text: '', imageUrl: null },
@@ -304,18 +296,19 @@ export const CreateRankingPoolPage = ({ onNavigate }) => {
 
     setCreating(true);
     try {
-      const { id } = await createRankingPool(
+      const { id } = await createRanking(
         {
           title: title.trim(),
           description: description.trim(),
+          category: category.trim(),
           hostId: currentUser.uid,
           hostDisplayName: currentUser.displayName || 'Anonymous',
         },
         filled
       );
-      onNavigate(`ranking-pool-${id}`);
+      onNavigate(`ranking-${id}`);
     } catch (err) {
-      setError(err.message || 'Failed to create ranking pool');
+      setError(err.message || 'Failed to create ranking');
       setCreating(false);
     }
   };
@@ -336,6 +329,17 @@ export const CreateRankingPoolPage = ({ onNavigate }) => {
             onChange={e => setTitle(e.target.value)}
             placeholder="e.g. Best Pixar Movies of All Time"
             maxLength={100}
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Category (optional)</label>
+          <input
+            type="text"
+            value={category}
+            onChange={e => setCategory(e.target.value)}
+            placeholder="e.g. Movies, Music, Sports"
+            maxLength={40}
           />
         </div>
 
@@ -388,7 +392,7 @@ export const CreateRankingPoolPage = ({ onNavigate }) => {
                     ref={el => (fileInputRefs.current[index] = el)}
                     onChange={e => {
                       handleImageSelect(index, e.target.files?.[0]);
-                      e.target.value = ''; // allow same file re-selection
+                      e.target.value = '';
                     }}
                     style={{ display: 'none' }}
                   />
@@ -427,7 +431,7 @@ export const CreateRankingPoolPage = ({ onNavigate }) => {
           <button
             type="button"
             className="btn-secondary"
-            onClick={() => onNavigate('ranking-pools')}
+            onClick={() => onNavigate('rankings')}
             disabled={creating}
           >
             Cancel
@@ -447,65 +451,61 @@ export const CreateRankingPoolPage = ({ onNavigate }) => {
 };
 
 // ============================================================================
-// RankingPoolDetailPage — view a pool, start voting, see results
+// RankingDetailPage — view a ranking, start voting, see results
 // ============================================================================
 
-export const RankingPoolDetailPage = ({ poolId, onNavigate }) => {
+export const RankingDetailPage = ({ rankingId, onNavigate }) => {
   const { currentUser } = useAuth();
-  const [pool, setPool] = useState(null);
+  const [ranking, setRanking] = useState(null);
   const [userVote, setUserVote] = useState(null);
-  const [votes, setVotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('info'); // info | personal | consensus
   const [editingDescription, setEditingDescription] = useState(false);
   const [draftDescription, setDraftDescription] = useState('');
   const [error, setError] = useState('');
 
-  const isHost = pool && currentUser && pool.hostId === currentUser.uid;
+  const isHost = ranking && currentUser && ranking.hostId === currentUser.uid;
   const hasVoted = userVote !== null;
+  const isClosed = ranking?.status === 'closed';
 
-  const loadPool = useCallback(async () => {
+  const loadRanking = useCallback(async () => {
     setLoading(true);
     try {
-      const p = await getRankingPoolById(poolId);
-      if (!p) {
-        setError('Pool not found');
+      const r = await getRankingById(rankingId);
+      if (!r) {
+        setError('Ranking not found');
         setLoading(false);
         return;
       }
-      setPool(p);
-      setDraftDescription(p.description || '');
+      setRanking(r);
+      setDraftDescription(r.description || '');
 
       if (currentUser) {
-        const vote = await getUserRankingVote(poolId, currentUser.uid);
+        const vote = await getUserRankingVote(rankingId, currentUser.uid);
         setUserVote(vote);
       }
-
-      // Load all votes for the vote count display (host view mostly)
-      const allVotes = await getRankingPoolVotes(poolId);
-      setVotes(allVotes);
     } catch (err) {
-      setError(err.message || 'Failed to load pool');
+      setError(err.message || 'Failed to load ranking');
     }
     setLoading(false);
-  }, [poolId, currentUser]);
+  }, [rankingId, currentUser]);
 
-  useEffect(() => { loadPool(); }, [loadPool]);
+  useEffect(() => { loadRanking(); }, [loadRanking]);
 
   const handleSaveDescription = async () => {
     try {
-      await updateRankingPoolDescription(poolId, currentUser.uid, draftDescription);
-      setPool({ ...pool, description: draftDescription });
+      await updateRankingDescription(rankingId, currentUser.uid, draftDescription);
+      setRanking({ ...ranking, description: draftDescription });
       setEditingDescription(false);
     } catch (err) {
       setError(err.message);
     }
   };
 
-  const handleLock = async () => {
+  const handleClose = async () => {
     try {
-      await lockRankingPool(poolId, currentUser.uid);
-      setPool({ ...pool, status: 'locked' });
+      await closeRanking(rankingId, currentUser.uid);
+      setRanking({ ...ranking, status: 'closed' });
     } catch (err) {
       setError(err.message);
     }
@@ -513,18 +513,18 @@ export const RankingPoolDetailPage = ({ poolId, onNavigate }) => {
 
   const handleReopen = async () => {
     try {
-      await reopenRankingPool(poolId, currentUser.uid);
-      setPool({ ...pool, status: 'open' });
+      await reopenRanking(rankingId, currentUser.uid);
+      setRanking({ ...ranking, status: 'open' });
     } catch (err) {
       setError(err.message);
     }
   };
 
   const handleDelete = async () => {
-    if (!window.confirm('Delete this ranking pool? This cannot be undone.')) return;
+    if (!window.confirm('Delete this ranking? This cannot be undone.')) return;
     try {
-      await deleteRankingPool(poolId, currentUser.uid);
-      onNavigate('ranking-pools');
+      await deleteRanking(rankingId, currentUser.uid);
+      onNavigate('rankings');
     } catch (err) {
       setError(err.message);
     }
@@ -541,33 +541,34 @@ export const RankingPoolDetailPage = ({ poolId, onNavigate }) => {
     );
   }
 
-  if (error && !pool) {
+  if (error && !ranking) {
     return (
       <div className="home-container">
         <div className="empty-state">
           <p>{error}</p>
-          <button className="nav-btn" onClick={() => onNavigate('ranking-pools')}>Back</button>
+          <button className="nav-btn" onClick={() => onNavigate('rankings')}>Back to Rankings</button>
         </div>
       </div>
     );
   }
 
-  if (!pool) return null;
+  if (!ranking) return null;
 
-  const entryMap = new Map(pool.entries.map(e => [e.id, e]));
-  const consensus = parseConsensus(pool);
+  const entryMap = new Map(ranking.entries.map(e => [e.id, e]));
+  const consensus = parseConsensus(ranking);
 
   return (
     <div className="home-container">
       <div className="pool-detail-header">
         <div className="pool-detail-title-row">
-          <h1>{pool.title}</h1>
-          <span className={`pool-status ${pool.status === 'open' ? 'status-open' : 'status-locked'}`}>
-            {pool.status === 'open' ? 'Open' : 'Locked'}
-          </span>
+          <h1>{ranking.title}</h1>
+          {isClosed && (
+            <span className="pool-status status-locked">Closed</span>
+          )}
         </div>
         <p className="pool-detail-meta">
-          Hosted by {pool.hostDisplayName} · {pool.entryCount} entries · {pool.voteCount || 0} {(pool.voteCount === 1) ? 'vote' : 'votes'} · Code: <strong>{pool.joinCode}</strong>
+          by {ranking.hostDisplayName} · {ranking.entryCount} entries · {ranking.voteCount || 0} {(ranking.voteCount === 1) ? 'vote' : 'votes'}
+          {ranking.category && <> · {ranking.category}</>}
         </p>
 
         {editingDescription ? (
@@ -580,7 +581,7 @@ export const RankingPoolDetailPage = ({ poolId, onNavigate }) => {
             />
             <div className="description-edit-actions">
               <button className="btn-secondary" onClick={() => {
-                setDraftDescription(pool.description || '');
+                setDraftDescription(ranking.description || '');
                 setEditingDescription(false);
               }}>Cancel</button>
               <button className="nav-btn" onClick={handleSaveDescription}>Save</button>
@@ -588,8 +589,8 @@ export const RankingPoolDetailPage = ({ poolId, onNavigate }) => {
           </div>
         ) : (
           <div className="pool-description-block">
-            {pool.description ? (
-              <p className="pool-description">{pool.description}</p>
+            {ranking.description ? (
+              <p className="pool-description">{ranking.description}</p>
             ) : (
               isHost && <p className="pool-description-empty">No description yet.</p>
             )}
@@ -598,7 +599,7 @@ export const RankingPoolDetailPage = ({ poolId, onNavigate }) => {
                 className="description-edit-btn"
                 onClick={() => setEditingDescription(true)}
               >
-                {pool.description ? 'Edit' : 'Add description'}
+                {ranking.description ? 'Edit' : 'Add description'}
               </button>
             )}
           </div>
@@ -635,7 +636,7 @@ export const RankingPoolDetailPage = ({ poolId, onNavigate }) => {
       {activeTab === 'info' && (
         <div className="ranking-entries-display">
           <div className="ranking-entries-grid">
-            {pool.entries.map((entry, idx) => (
+            {ranking.entries.map((entry) => (
               <div key={entry.id} className="ranking-entry-display">
                 {entry.imageUrl && (
                   <img src={entry.imageUrl} alt={entry.text} className="ranking-entry-display-img" />
@@ -648,19 +649,19 @@ export const RankingPoolDetailPage = ({ poolId, onNavigate }) => {
           <div className="ranking-vote-cta">
             {!currentUser ? (
               <p>Log in to vote on this ranking</p>
-            ) : pool.status !== 'open' ? (
-              <p>This pool is locked and no longer accepting votes.</p>
+            ) : isClosed ? (
+              <p>This ranking is closed and no longer accepting votes.</p>
             ) : hasVoted ? (
               <div>
                 <p>✓ You've submitted your ranking.</p>
-                <button className="nav-btn" onClick={() => onNavigate(`ranking-vote-${poolId}`)}>
+                <button className="nav-btn" onClick={() => onNavigate(`ranking-vote-${rankingId}`)}>
                   Vote Again
                 </button>
               </div>
             ) : (
               <button
                 className="nav-btn ranking-start-btn"
-                onClick={() => onNavigate(`ranking-vote-${poolId}`)}
+                onClick={() => onNavigate(`ranking-vote-${rankingId}`)}
               >
                 Start Ranking →
               </button>
@@ -697,15 +698,16 @@ export const RankingPoolDetailPage = ({ poolId, onNavigate }) => {
         <div className="ranking-results">
           <h2>Consensus Ranking</h2>
           <p className="ranking-results-sub">
-            Combined from {pool.voteCount || 0} {(pool.voteCount === 1) ? 'voter' : 'voters'} using Borda count
+            Combined from {ranking.voteCount || 0} {(ranking.voteCount === 1) ? 'voter' : 'voters'} using Borda count
           </p>
           {consensus.length === 0 ? (
             <p className="empty-state">No votes yet. Be the first!</p>
           ) : (
             <ol className="ranking-results-list">
-              {consensus.map((item, idx) => {
+              {consensus.map((item) => {
                 const entry = entryMap.get(item.id);
                 if (!entry) return null;
+                const idx = consensus.indexOf(item);
                 return (
                   <li key={item.id} className="ranking-result-item">
                     <span className="ranking-result-rank">{idx + 1}</span>
@@ -724,14 +726,14 @@ export const RankingPoolDetailPage = ({ poolId, onNavigate }) => {
 
       {isHost && (
         <div className="ranking-host-controls">
-          <h3>Host Controls</h3>
+          <h3>Creator Controls</h3>
           <div className="ranking-host-buttons">
-            {pool.status === 'open' ? (
-              <button className="btn-secondary" onClick={handleLock}>Lock Pool</button>
+            {!isClosed ? (
+              <button className="btn-secondary" onClick={handleClose}>Close Ranking</button>
             ) : (
-              <button className="btn-secondary" onClick={handleReopen}>Reopen Pool</button>
+              <button className="btn-secondary" onClick={handleReopen}>Reopen Ranking</button>
             )}
-            <button className="btn-danger" onClick={handleDelete}>Delete Pool</button>
+            <button className="btn-danger" onClick={handleDelete}>Delete Ranking</button>
           </div>
         </div>
       )}
@@ -743,9 +745,9 @@ export const RankingPoolDetailPage = ({ poolId, onNavigate }) => {
 // RankingVotePage — the head-to-head voting screen
 // ============================================================================
 
-export const RankingVotePage = ({ poolId, onNavigate }) => {
+export const RankingVotePage = ({ rankingId, onNavigate }) => {
   const { currentUser } = useAuth();
-  const [pool, setPool] = useState(null);
+  const [ranking, setRanking] = useState(null);
   const [sortState, setSortState] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -753,21 +755,21 @@ export const RankingVotePage = ({ poolId, onNavigate }) => {
   const [showResumePrompt, setShowResumePrompt] = useState(false);
   const [animating, setAnimating] = useState(null); // 'a' | 'b' | null
 
-  const storageKey = currentUser ? `ranking_sort_${poolId}_${currentUser.uid}` : null;
+  const storageKey = currentUser ? `ranking_sort_${rankingId}_${currentUser.uid}` : null;
 
-  // Load pool and check for saved state.
+  // Load ranking and check for saved state.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const p = await getRankingPoolById(poolId);
+        const r = await getRankingById(rankingId);
         if (cancelled) return;
-        if (!p) {
-          setError('Pool not found');
+        if (!r) {
+          setError('Ranking not found');
           setLoading(false);
           return;
         }
-        setPool(p);
+        setRanking(r);
 
         // Try to resume a saved sort state
         if (storageKey) {
@@ -775,9 +777,9 @@ export const RankingVotePage = ({ poolId, onNavigate }) => {
           if (saved) {
             const restored = deserializeState(saved);
             // Validate that the saved state matches current entries
-            const entryIds = new Set(p.entries.map(e => e.id));
+            const entryIds = new Set(r.entries.map(e => e.id));
             const savedIds = new Set();
-            restored?.runs?.forEach(r => r.forEach(id => savedIds.add(id)));
+            restored?.runs?.forEach(run => run.forEach(id => savedIds.add(id)));
             if (restored?.currentMerge) {
               restored.currentMerge.left.forEach(id => savedIds.add(id));
               restored.currentMerge.right.forEach(id => savedIds.add(id));
@@ -793,14 +795,13 @@ export const RankingVotePage = ({ poolId, onNavigate }) => {
               setLoading(false);
               return;
             } else {
-              // Saved state is stale — clear it
               localStorage.removeItem(storageKey);
             }
           }
         }
 
         // Start fresh
-        const entryIds = p.entries.map(e => e.id);
+        const entryIds = r.entries.map(e => e.id);
         setSortState(initSort(entryIds));
       } catch (err) {
         setError(err.message || 'Failed to load');
@@ -809,7 +810,7 @@ export const RankingVotePage = ({ poolId, onNavigate }) => {
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [poolId, currentUser]);
+  }, [rankingId, currentUser]);
 
   // Persist sort state on every change
   useEffect(() => {
@@ -821,7 +822,6 @@ export const RankingVotePage = ({ poolId, onNavigate }) => {
   const handleChoice = useCallback((choice) => {
     if (!sortState || animating) return;
     setAnimating(choice);
-    // Small delay to let the selection animation play
     setTimeout(() => {
       setSortState(prev => recordChoice(prev, choice));
       setAnimating(null);
@@ -834,10 +834,10 @@ export const RankingVotePage = ({ poolId, onNavigate }) => {
   };
 
   const handleRestart = () => {
-    if (!pool) return;
+    if (!ranking) return;
     if (!window.confirm('Restart from the beginning? Your progress will be lost.')) return;
     if (storageKey) localStorage.removeItem(storageKey);
-    const entryIds = pool.entries.map(e => e.id);
+    const entryIds = ranking.entries.map(e => e.id);
     setSortState(initSort(entryIds));
     setShowResumePrompt(false);
   };
@@ -848,7 +848,7 @@ export const RankingVotePage = ({ poolId, onNavigate }) => {
 
   const handleResumeStartFresh = () => {
     if (storageKey) localStorage.removeItem(storageKey);
-    const entryIds = pool.entries.map(e => e.id);
+    const entryIds = ranking.entries.map(e => e.id);
     setSortState(initSort(entryIds));
     setShowResumePrompt(false);
   };
@@ -859,22 +859,21 @@ export const RankingVotePage = ({ poolId, onNavigate }) => {
     setError('');
     try {
       await submitRankingVote(
-        poolId,
+        rankingId,
         currentUser.uid,
         currentUser.displayName || 'Anonymous',
         sortState.finalRanking,
         sortState.comparisonsMade
       );
-      // Clear saved state
       if (storageKey) localStorage.removeItem(storageKey);
-      onNavigate(`ranking-pool-${poolId}`);
+      onNavigate(`ranking-${rankingId}`);
     } catch (err) {
       setError(err.message || 'Failed to submit');
       setSubmitting(false);
     }
   };
 
-  // Keyboard shortcuts: ← chooses a, → chooses b
+  // Keyboard shortcuts: ← chooses a, → chooses b, ⌘Z undoes
   useEffect(() => {
     const onKey = (e) => {
       if (!sortState || isComplete(sortState) || animating) return;
@@ -898,18 +897,18 @@ export const RankingVotePage = ({ poolId, onNavigate }) => {
     );
   }
 
-  if (error && !pool) {
+  if (error && !ranking) {
     return (
       <div className="home-container">
         <div className="empty-state">
           <p>{error}</p>
-          <button className="nav-btn" onClick={() => onNavigate('ranking-pools')}>Back</button>
+          <button className="nav-btn" onClick={() => onNavigate('rankings')}>Back to Rankings</button>
         </div>
       </div>
     );
   }
 
-  if (!pool || !sortState) return null;
+  if (!ranking || !sortState) return null;
 
   if (!currentUser) {
     return (
@@ -927,7 +926,7 @@ export const RankingVotePage = ({ poolId, onNavigate }) => {
     return (
       <div className="home-container">
         <div className="page-header">
-          <h1>{pool.title}</h1>
+          <h1>{ranking.title}</h1>
         </div>
         <div className="ranking-resume-prompt">
           <h2>Welcome back!</h2>
@@ -943,11 +942,11 @@ export const RankingVotePage = ({ poolId, onNavigate }) => {
 
   // Completion screen
   if (isComplete(sortState)) {
-    const entryMap = new Map(pool.entries.map(e => [e.id, e]));
+    const entryMap = new Map(ranking.entries.map(e => [e.id, e]));
     return (
       <div className="home-container">
         <div className="page-header">
-          <h1>{pool.title}</h1>
+          <h1>{ranking.title}</h1>
           <p>Your final ranking — review before submitting</p>
         </div>
 
@@ -985,7 +984,7 @@ export const RankingVotePage = ({ poolId, onNavigate }) => {
   const matchup = getCurrentMatchup(sortState);
   if (!matchup) return null;
 
-  const entryMap = new Map(pool.entries.map(e => [e.id, e]));
+  const entryMap = new Map(ranking.entries.map(e => [e.id, e]));
   const entryA = entryMap.get(matchup.a);
   const entryB = entryMap.get(matchup.b);
   const progress = Math.round(getProgress(sortState) * 100);
@@ -993,7 +992,7 @@ export const RankingVotePage = ({ poolId, onNavigate }) => {
   return (
     <div className="home-container ranking-vote-container">
       <div className="ranking-vote-header">
-        <h1>{pool.title}</h1>
+        <h1>{ranking.title}</h1>
         <div className="ranking-progress">
           <div className="ranking-progress-bar">
             <div className="ranking-progress-fill" style={{ width: `${progress}%` }} />
@@ -1041,11 +1040,131 @@ export const RankingVotePage = ({ poolId, onNavigate }) => {
         <span className="ranking-hint">Use ← → to pick · ⌘Z to undo</span>
         <button
           className="btn-secondary"
-          onClick={() => onNavigate(`ranking-pool-${poolId}`)}
+          onClick={() => onNavigate(`ranking-${rankingId}`)}
         >
           Save & Exit
         </button>
       </div>
+    </div>
+  );
+};
+
+// ============================================================================
+// MyRankingsPage — profile view with Created / Voted In tabs
+// ============================================================================
+
+export const MyRankingsPage = ({ onNavigate }) => {
+  const { currentUser } = useAuth();
+  const [created, setCreated] = useState([]);
+  const [voted, setVoted] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('created'); // created | voted
+
+  useEffect(() => {
+    if (currentUser) {
+      loadAll();
+    } else {
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser]);
+
+  const loadAll = async () => {
+    try {
+      const [createdData, votedData] = await Promise.all([
+        getUserCreatedRankings(currentUser.uid),
+        getUserVotedRankings(currentUser.uid),
+      ]);
+      setCreated(createdData);
+      // Filter out rankings the user also created — they're already in the
+      // Created tab and we don't want to show them twice.
+      setVoted(votedData.filter(r => r.hostId !== currentUser.uid));
+    } catch (err) {
+      console.error('Error loading my rankings:', err);
+    }
+    setLoading(false);
+  };
+
+  if (!currentUser) {
+    return (
+      <div className="home-container">
+        <div className="page-header">
+          <h1>My Rankings</h1>
+        </div>
+        <div className="empty-state">
+          <p>Log in to see your rankings</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="home-container">
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p>Loading your rankings...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const list = activeTab === 'created' ? created : voted;
+
+  return (
+    <div className="home-container">
+      <div className="page-header">
+        <h1>My Rankings</h1>
+        <p>Rankings you've created and voted on</p>
+      </div>
+
+      <div className="ranking-detail-tabs">
+        <button
+          className={`ranking-tab ${activeTab === 'created' ? 'active' : ''}`}
+          onClick={() => setActiveTab('created')}
+        >
+          Created ({created.length})
+        </button>
+        <button
+          className={`ranking-tab ${activeTab === 'voted' ? 'active' : ''}`}
+          onClick={() => setActiveTab('voted')}
+        >
+          Voted In ({voted.length})
+        </button>
+      </div>
+
+      {list.length === 0 ? (
+        <div className="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M4 6h16M4 12h16M4 18h7" />
+          </svg>
+          {activeTab === 'created' ? (
+            <>
+              <p>You haven't created any rankings yet.</p>
+              <button className="nav-btn" onClick={() => onNavigate('create-ranking')} style={{ marginTop: '1rem' }}>
+                Create Your First Ranking
+              </button>
+            </>
+          ) : (
+            <>
+              <p>You haven't voted in any rankings yet.</p>
+              <button className="nav-btn" onClick={() => onNavigate('rankings')} style={{ marginTop: '1rem' }}>
+                Browse Rankings
+              </button>
+            </>
+          )}
+        </div>
+      ) : (
+        <div className="ranking-browse-grid">
+          {list.map(r => (
+            <RankingCard
+              key={r.id}
+              ranking={r}
+              onClick={() => onNavigate(`ranking-${r.id}`)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 };
