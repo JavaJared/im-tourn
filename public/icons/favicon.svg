@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff6b35"/>
+      <stop offset="100%" style="stop-color:#00d4aa"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="64" fill="#0a0a0f"/>
+  <!-- Bracket shape -->
+  <path d="M100 120 L100 200 L160 200" stroke="url(#grad)" stroke-width="24" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M100 280 L100 200" stroke="url(#grad)" stroke-width="24" fill="none" stroke-linecap="round"/>
+  <path d="M100 280 L100 360 L160 360" stroke="url(#grad)" stroke-width="24" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <path d="M160 200 L220 200 L220 280 L280 280" stroke="url(#grad)" stroke-width="24" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M160 360 L220 360 L220 280" stroke="url(#grad)" stroke-width="24" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Trophy -->
+  <path d="M340 160 L340 240 Q340 300 390 320 Q440 300 440 240 L440 160 Z" fill="url(#grad)"/>
+  <rect x="370" y="320" width="40" height="40" fill="url(#grad)"/>
+  <rect x="350" y="360" width="80" height="20" rx="4" fill="url(#grad)"/>
+  <!-- Trophy handles -->
+  <path d="M340 180 Q300 180 300 220 Q300 260 340 260" stroke="url(#grad)" stroke-width="16" fill="none" stroke-linecap="round"/>
+  <path d="M440 180 Q480 180 480 220 Q480 260 440 260" stroke="url(#grad)" stroke-width="16" fill="none" stroke-linecap="round"/>
+</svg>
