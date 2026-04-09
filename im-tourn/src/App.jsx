@@ -53,6 +53,12 @@ import {
   completePredictionPool,
   deletePredictionPool
 } from './services/bracketService';
+import {
+  RankingPoolsPage,
+  CreateRankingPoolPage,
+  RankingPoolDetailPage,
+  RankingVotePage
+} from './components/RankingPages';
 import './App.css';
 
 // Admin user IDs (add your Firebase user ID here)
@@ -499,6 +505,12 @@ const Header = ({ onNavigate, currentView }) => {
             Predictions
           </button>
           <button 
+            className={`nav-link ${currentView === 'ranking-pools' || currentView === 'create-ranking-pool' || currentView.startsWith('ranking-pool-') || currentView.startsWith('ranking-vote-') ? 'active' : ''}`}
+            onClick={() => onNavigate('ranking-pools')}
+          >
+            Rankings
+          </button>
+          <button 
             className={`nav-link ${currentView === 'champions' ? 'active' : ''}`}
             onClick={() => onNavigate('champions')}
           >
@@ -513,7 +525,7 @@ const Header = ({ onNavigate, currentView }) => {
             </button>
           )}
           
-          {currentView !== 'home' && currentView !== 'weekly' && currentView !== 'champions' && currentView !== 'pools' && currentView !== 'prediction-pools' && !currentView.startsWith('pool-') && !currentView.startsWith('prediction-pool-') && (
+          {currentView !== 'home' && currentView !== 'weekly' && currentView !== 'champions' && currentView !== 'pools' && currentView !== 'prediction-pools' && currentView !== 'ranking-pools' && !currentView.startsWith('pool-') && !currentView.startsWith('prediction-pool-') && !currentView.startsWith('ranking-pool-') && !currentView.startsWith('ranking-vote-') && (
             <button className="back-btn" onClick={() => onNavigate('home')}>
               ← Back
             </button>
@@ -4718,6 +4730,10 @@ function AppContent() {
         {view === 'prediction-pools' && <PredictionPoolsPage onNavigate={setView} />}
         {view === 'create-prediction-pool' && <CreatePredictionPoolPage onNavigate={setView} />}
         {view.startsWith('prediction-pool-') && <PredictionPoolDetailPage poolId={view.replace('prediction-pool-', '')} onNavigate={setView} />}
+        {view === 'ranking-pools' && <RankingPoolsPage onNavigate={setView} />}
+        {view === 'create-ranking-pool' && <CreateRankingPoolPage onNavigate={setView} />}
+        {view.startsWith('ranking-vote-') && <RankingVotePage poolId={view.replace('ranking-vote-', '')} onNavigate={setView} />}
+        {view.startsWith('ranking-pool-') && !view.startsWith('ranking-vote-') && <RankingPoolDetailPage poolId={view.replace('ranking-pool-', '')} onNavigate={setView} />}
         {view === 'admin' && <AdminPage />}
       </main>
       
