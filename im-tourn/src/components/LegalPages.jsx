@@ -52,12 +52,12 @@ const LegalPageLayout = ({ title, effectiveDate, children }) => (
 
 export const PrivacyPolicyPage = () => {
   return (
-    <LegalPageLayout title="Privacy Policy" effectiveDate="[EFFECTIVE DATE]">
+    <LegalPageLayout title="Privacy Policy" effectiveDate="April 10, 2026">
       <p className="legal-intro">
         This Privacy Policy explains how I'm Tourn ("we," "us," or "our")
         collects, uses, and shares information when you use our website and
         services. We've tried to write this in plain English — if anything
-        is unclear, reach out at <a href="mailto:[CONTACT EMAIL]">[CONTACT EMAIL]</a>.
+        is unclear, reach out at <a href="mailto:jaredellis533@gmail.com">jaredellis533@gmail.com</a>.
       </p>
 
       <h2>What we collect</h2>
@@ -150,7 +150,7 @@ export const PrivacyPolicyPage = () => {
 
       <p>
         <strong>Delete your account.</strong> If you want to delete your
-        account entirely, email us at <a href="mailto:[CONTACT EMAIL]">[CONTACT EMAIL]</a>.
+        account entirely, email us at <a href="mailto:jaredellis533@gmail.com">jaredellis533@gmail.com</a>.
         We'll remove your account and the content associated with it. Some
         information may remain in backups for a limited time before being
         purged.
@@ -203,7 +203,7 @@ export const PrivacyPolicyPage = () => {
       <p>
         If you have questions about this Privacy Policy or how your
         information is handled, email us at{' '}
-        <a href="mailto:[CONTACT EMAIL]">[CONTACT EMAIL]</a>.
+        <a href="mailto:jaredellis533@gmail.com">jaredellis533@gmail.com</a>.
       </p>
     </LegalPageLayout>
   );
@@ -228,7 +228,7 @@ export const TermsOfServicePage = () => {
       <p>
         I'm Tourn is a platform for creating tournament brackets, prediction
         pools, and ranking lists, and sharing them with other users. The
-        service is provided by [LEGAL NAME] and is free to use.
+        service is provided by I'm Tourn and is free to use.
       </p>
 
       <h2>Your account</h2>
@@ -311,7 +311,7 @@ export const TermsOfServicePage = () => {
 
       <p>
         If you believe content on I'm Tourn infringes your copyright, please
-        contact us at <a href="mailto:[CONTACT EMAIL]">[CONTACT EMAIL]</a>{' '}
+        contact us at <a href="mailto:jaredellis533@gmail.com">jaredellis533@gmail.com</a>{' '}
         with: (1) a description of the copyrighted work, (2) where the
         infringing content is located on the site, (3) your contact
         information, (4) a statement that you have a good faith belief the
@@ -372,10 +372,10 @@ export const TermsOfServicePage = () => {
       <h2>Governing law and disputes</h2>
 
       <p>
-        These Terms are governed by the laws of [JURISDICTION], without
+        These Terms are governed by the laws of Massachusetts, USA, without
         regard to conflict-of-laws principles. Any disputes arising out of
         these Terms or the service will be resolved in the state or federal
-        courts located in [JURISDICTION], and you consent to the jurisdiction
+        courts located in Massachusetts, USA, and you consent to the jurisdiction
         of those courts.
       </p>
 
@@ -393,7 +393,7 @@ export const TermsOfServicePage = () => {
 
       <p>
         Questions about these Terms? Email us at{' '}
-        <a href="mailto:[CONTACT EMAIL]">[CONTACT EMAIL]</a>.
+        <a href="mailto:jaredellis533@gmail.com">jaredellis533@gmail.com</a>.
       </p>
     </LegalPageLayout>
   );
