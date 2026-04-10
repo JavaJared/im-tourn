@@ -3,8 +3,8 @@
 // All the React components for the Rankings feature.
 //
 // Exported components:
-//   <RankingsBrowsePage />     — public list of all rankings (the main entry point)
-//   <CreateRankingPage />      — build a new ranking
+//   <RankingsBrowsePage />     — public list of all rankings
+//   <CreateRankingPage />      — build a new ranking (now uploads to Storage)
 //   <RankingDetailPage />      — view a ranking, start voting, see results
 //   <RankingVotePage />        — head-to-head voting screen
 //   <MyRankingsPage />         — profile view: tabs for Created / Voted In
@@ -24,7 +24,7 @@ import {
   reopenRanking,
   deleteRanking,
   parseConsensus,
-  compressImageToBase64,
+  compressImage,
   MAX_RANKING_ENTRIES,
   MIN_RANKING_ENTRIES,
 } from '../services/rankingService';
@@ -99,11 +99,9 @@ export const RankingsBrowsePage = ({ onNavigate }) => {
     })
     .sort((a, b) => {
       if (sortBy === 'popular') {
-        // Sort by vote count desc; tiebreak on newest
         const voteCmp = (b.voteCount || 0) - (a.voteCount || 0);
         if (voteCmp !== 0) return voteCmp;
       }
-      // Default / fallback: newest first
       if (!a.createdAt || !b.createdAt) return 0;
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
@@ -128,7 +126,6 @@ export const RankingsBrowsePage = ({ onNavigate }) => {
 
       <div className="section-title">BROWSE RANKINGS</div>
 
-      {/* Filter / sort bar — mirrors the brackets browse layout */}
       <div className="filter-bar">
         <div className="search-box">
           <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -225,6 +222,12 @@ export const RankingsBrowsePage = ({ onNavigate }) => {
 
 // ============================================================================
 // CreateRankingPage — build a new ranking
+//
+// Images are held locally as Blobs (compressed but not uploaded) until the
+// user clicks "Create Ranking". This means:
+//   - No Storage files are leaked if the user abandons the form
+//   - Image preview is instant (via URL.createObjectURL)
+//   - On submit, all uploads happen in parallel inside createRanking()
 // ============================================================================
 
 export const CreateRankingPage = ({ onNavigate }) => {
@@ -232,21 +235,44 @@ export const CreateRankingPage = ({ onNavigate }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
+
+  // Each entry now has:
+  //   id: local React key
+  //   text: string
+  //   imageBlob: Blob | null   (compressed, awaiting upload)
+  //   imagePreviewUrl: string | null  (object URL for preview, revoked on unmount)
   const [entries, setEntries] = useState([
-    { id: 'new-0', text: '', imageUrl: null },
-    { id: 'new-1', text: '', imageUrl: null },
-    { id: 'new-2', text: '', imageUrl: null },
+    { id: 'new-0', text: '', imageBlob: null, imagePreviewUrl: null },
+    { id: 'new-1', text: '', imageBlob: null, imagePreviewUrl: null },
+    { id: 'new-2', text: '', imageBlob: null, imagePreviewUrl: null },
   ]);
+
   const [creating, setCreating] = useState(false);
+  const [createStatus, setCreateStatus] = useState(''); // user-facing status text
+  const [compressingIndex, setCompressingIndex] = useState(null); // which entry is compressing right now
   const [error, setError] = useState('');
   const fileInputRefs = useRef({});
+
+  // Revoke object URLs on unmount to avoid memory leaks.
+  useEffect(() => {
+    return () => {
+      entries.forEach(e => {
+        if (e.imagePreviewUrl) URL.revokeObjectURL(e.imagePreviewUrl);
+      });
+    };
+    // We intentionally don't depend on entries — this is a pure unmount cleanup.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const addEntry = () => {
     if (entries.length >= MAX_RANKING_ENTRIES) {
       setError(`Maximum of ${MAX_RANKING_ENTRIES} entries`);
       return;
     }
-    setEntries([...entries, { id: `new-${Date.now()}`, text: '', imageUrl: null }]);
+    setEntries([
+      ...entries,
+      { id: `new-${Date.now()}`, text: '', imageBlob: null, imagePreviewUrl: null },
+    ]);
   };
 
   const removeEntry = (index) => {
@@ -254,6 +280,8 @@ export const CreateRankingPage = ({ onNavigate }) => {
       setError(`You need at least ${MIN_RANKING_ENTRIES} entries`);
       return;
     }
+    const removed = entries[index];
+    if (removed.imagePreviewUrl) URL.revokeObjectURL(removed.imagePreviewUrl);
     setEntries(entries.filter((_, i) => i !== index));
     setError('');
   };
@@ -266,20 +294,32 @@ export const CreateRankingPage = ({ onNavigate }) => {
 
   const handleImageSelect = async (index, file) => {
     if (!file) return;
+    setCompressingIndex(index);
+    setError('');
     try {
-      const dataUrl = await compressImageToBase64(file);
-      const next = [...entries];
-      next[index] = { ...next[index], imageUrl: dataUrl };
-      setEntries(next);
-      setError('');
+      // Revoke the old preview URL if there was one
+      const old = entries[index];
+      if (old.imagePreviewUrl) URL.revokeObjectURL(old.imagePreviewUrl);
+
+      const blob = await compressImage(file);
+      const previewUrl = URL.createObjectURL(blob);
+
+      setEntries(prev => {
+        const next = [...prev];
+        next[index] = { ...next[index], imageBlob: blob, imagePreviewUrl: previewUrl };
+        return next;
+      });
     } catch (err) {
       setError(err.message || 'Failed to process image');
     }
+    setCompressingIndex(null);
   };
 
   const removeImage = (index) => {
+    const old = entries[index];
+    if (old.imagePreviewUrl) URL.revokeObjectURL(old.imagePreviewUrl);
     const next = [...entries];
-    next[index] = { ...next[index], imageUrl: null };
+    next[index] = { ...next[index], imageBlob: null, imagePreviewUrl: null };
     setEntries(next);
   };
 
@@ -296,7 +336,22 @@ export const CreateRankingPage = ({ onNavigate }) => {
     }
 
     setCreating(true);
+
+    // Count how many images we'll upload so we can show meaningful status.
+    const imageCount = filled.filter(e => e.imageBlob).length;
+    if (imageCount > 0) {
+      setCreateStatus(`Uploading ${imageCount} image${imageCount === 1 ? '' : 's'}...`);
+    } else {
+      setCreateStatus('Creating ranking...');
+    }
+
     try {
+      // Pass entries with only the fields the service expects.
+      const servicePayload = filled.map(e => ({
+        text: e.text,
+        imageBlob: e.imageBlob,
+      }));
+
       const { id } = await createRanking(
         {
           title: title.trim(),
@@ -305,12 +360,19 @@ export const CreateRankingPage = ({ onNavigate }) => {
           hostId: currentUser.uid,
           hostDisplayName: currentUser.displayName || 'Anonymous',
         },
-        filled
+        servicePayload
       );
+
+      // Revoke all preview URLs before navigating away.
+      entries.forEach(e => {
+        if (e.imagePreviewUrl) URL.revokeObjectURL(e.imagePreviewUrl);
+      });
+
       onNavigate(`ranking-${id}`);
     } catch (err) {
       setError(err.message || 'Failed to create ranking');
       setCreating(false);
+      setCreateStatus('');
     }
   };
 
@@ -330,6 +392,7 @@ export const CreateRankingPage = ({ onNavigate }) => {
             onChange={e => setTitle(e.target.value)}
             placeholder="e.g. Best Pixar Movies of All Time"
             maxLength={100}
+            disabled={creating}
           />
         </div>
 
@@ -341,6 +404,7 @@ export const CreateRankingPage = ({ onNavigate }) => {
             onChange={e => setCategory(e.target.value)}
             placeholder="e.g. Movies, Music, Sports"
             maxLength={40}
+            disabled={creating}
           />
         </div>
 
@@ -352,6 +416,7 @@ export const CreateRankingPage = ({ onNavigate }) => {
             placeholder="Add context for voters..."
             maxLength={500}
             rows={3}
+            disabled={creating}
           />
         </div>
 
@@ -363,14 +428,19 @@ export const CreateRankingPage = ({ onNavigate }) => {
                 <span className="ranking-entry-number">{index + 1}</span>
 
                 <div className="ranking-entry-image-slot">
-                  {entry.imageUrl ? (
+                  {compressingIndex === index ? (
+                    <div className="ranking-entry-compressing">
+                      <div className="spinner-small"></div>
+                    </div>
+                  ) : entry.imagePreviewUrl ? (
                     <div className="ranking-entry-thumb-wrap">
-                      <img src={entry.imageUrl} alt="" className="ranking-entry-thumb" />
+                      <img src={entry.imagePreviewUrl} alt="" className="ranking-entry-thumb" />
                       <button
                         type="button"
                         className="ranking-entry-remove-img"
                         onClick={() => removeImage(index)}
                         title="Remove image"
+                        disabled={creating}
                       >×</button>
                     </div>
                   ) : (
@@ -379,6 +449,7 @@ export const CreateRankingPage = ({ onNavigate }) => {
                       className="ranking-entry-add-img"
                       onClick={() => fileInputRefs.current[index]?.click()}
                       title="Add image"
+                      disabled={creating}
                     >
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -406,6 +477,7 @@ export const CreateRankingPage = ({ onNavigate }) => {
                   placeholder={`Entry ${index + 1}`}
                   maxLength={80}
                   className="ranking-entry-text"
+                  disabled={creating}
                 />
 
                 <button
@@ -413,20 +485,32 @@ export const CreateRankingPage = ({ onNavigate }) => {
                   className="ranking-entry-delete"
                   onClick={() => removeEntry(index)}
                   title="Remove entry"
-                  disabled={entries.length <= MIN_RANKING_ENTRIES}
+                  disabled={entries.length <= MIN_RANKING_ENTRIES || creating}
                 >×</button>
               </div>
             ))}
           </div>
 
           {entries.length < MAX_RANKING_ENTRIES && (
-            <button type="button" className="ranking-add-entry-btn" onClick={addEntry}>
+            <button
+              type="button"
+              className="ranking-add-entry-btn"
+              onClick={addEntry}
+              disabled={creating}
+            >
               + Add Entry
             </button>
           )}
         </div>
 
         {error && <p className="error-text">{error}</p>}
+
+        {creating && createStatus && (
+          <div className="ranking-creating-status">
+            <div className="spinner-small"></div>
+            <span>{createStatus}</span>
+          </div>
+        )}
 
         <div className="form-actions">
           <button
@@ -460,7 +544,7 @@ export const RankingDetailPage = ({ rankingId, onNavigate }) => {
   const [ranking, setRanking] = useState(null);
   const [userVote, setUserVote] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('info'); // info | personal | consensus
+  const [activeTab, setActiveTab] = useState('info');
   const [editingDescription, setEditingDescription] = useState(false);
   const [draftDescription, setDraftDescription] = useState('');
   const [error, setError] = useState('');
@@ -705,10 +789,9 @@ export const RankingDetailPage = ({ rankingId, onNavigate }) => {
             <p className="empty-state">No votes yet. Be the first!</p>
           ) : (
             <ol className="ranking-results-list">
-              {consensus.map((item) => {
+              {consensus.map((item, idx) => {
                 const entry = entryMap.get(item.id);
                 if (!entry) return null;
-                const idx = consensus.indexOf(item);
                 return (
                   <li key={item.id} className="ranking-result-item">
                     <span className="ranking-result-rank">{idx + 1}</span>
@@ -754,11 +837,10 @@ export const RankingVotePage = ({ rankingId, onNavigate }) => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [showResumePrompt, setShowResumePrompt] = useState(false);
-  const [animating, setAnimating] = useState(null); // 'a' | 'b' | null
+  const [animating, setAnimating] = useState(null);
 
   const storageKey = currentUser ? `ranking_sort_${rankingId}_${currentUser.uid}` : null;
 
-  // Load ranking and check for saved state.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -772,12 +854,10 @@ export const RankingVotePage = ({ rankingId, onNavigate }) => {
         }
         setRanking(r);
 
-        // Try to resume a saved sort state
         if (storageKey) {
           const saved = localStorage.getItem(storageKey);
           if (saved) {
             const restored = deserializeState(saved);
-            // Validate that the saved state matches current entries
             const entryIds = new Set(r.entries.map(e => e.id));
             const savedIds = new Set();
             restored?.runs?.forEach(run => run.forEach(id => savedIds.add(id)));
@@ -801,7 +881,6 @@ export const RankingVotePage = ({ rankingId, onNavigate }) => {
           }
         }
 
-        // Start fresh
         const entryIds = r.entries.map(e => e.id);
         setSortState(initSort(entryIds));
       } catch (err) {
@@ -813,7 +892,6 @@ export const RankingVotePage = ({ rankingId, onNavigate }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rankingId, currentUser]);
 
-  // Persist sort state on every change
   useEffect(() => {
     if (sortState && storageKey && !isComplete(sortState)) {
       localStorage.setItem(storageKey, serializeState(sortState));
@@ -874,7 +952,6 @@ export const RankingVotePage = ({ rankingId, onNavigate }) => {
     }
   };
 
-  // Keyboard shortcuts: ← chooses a, → chooses b, ⌘Z undoes
   useEffect(() => {
     const onKey = (e) => {
       if (!sortState || isComplete(sortState) || animating) return;
@@ -921,7 +998,6 @@ export const RankingVotePage = ({ rankingId, onNavigate }) => {
     );
   }
 
-  // Show resume prompt
   if (showResumePrompt) {
     const progress = Math.round(getProgress(sortState) * 100);
     return (
@@ -941,7 +1017,6 @@ export const RankingVotePage = ({ rankingId, onNavigate }) => {
     );
   }
 
-  // Completion screen
   if (isComplete(sortState)) {
     const entryMap = new Map(ranking.entries.map(e => [e.id, e]));
     return (
@@ -981,7 +1056,6 @@ export const RankingVotePage = ({ rankingId, onNavigate }) => {
     );
   }
 
-  // Voting screen
   const matchup = getCurrentMatchup(sortState);
   if (!matchup) return null;
 
@@ -1059,7 +1133,7 @@ export const MyRankingsPage = ({ onNavigate }) => {
   const [created, setCreated] = useState([]);
   const [voted, setVoted] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('created'); // created | voted
+  const [activeTab, setActiveTab] = useState('created');
 
   useEffect(() => {
     if (currentUser) {
@@ -1077,8 +1151,6 @@ export const MyRankingsPage = ({ onNavigate }) => {
         getUserVotedRankings(currentUser.uid),
       ]);
       setCreated(createdData);
-      // Filter out rankings the user also created — they're already in the
-      // Created tab and we don't want to show them twice.
       setVoted(votedData.filter(r => r.hostId !== currentUser.uid));
     } catch (err) {
       console.error('Error loading my rankings:', err);
