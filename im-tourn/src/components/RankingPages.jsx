@@ -140,6 +140,7 @@ export const RankingsBrowsePage = ({ onNavigate }) => {
             placeholder="Search rankings..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
+            className="search-input"
           />
         </div>
 
