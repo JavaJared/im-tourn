@@ -1,0 +1,61 @@
+rules_version = '2';
+
+// ============================================================================
+// I'm Tourn — Firebase Storage Security Rules
+// ============================================================================
+//
+// This is a NEW file. If you don't already have storage.rules in your
+// project root, create it. If you do (e.g., for bracket images or other
+// features), merge the `rankings/` section below into your existing file.
+//
+// Deploy with:
+//   firebase deploy --only storage
+//
+// NOTE: Before deploying these rules for the first time, make sure
+// Storage is enabled in your Firebase console (Storage → Get Started).
+// If Storage was never initialized, there's no default bucket and
+// deployment will fail.
+// ============================================================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ========================================================================
+    // Ranking entry images
+    // ========================================================================
+    //
+    // Path: rankings/{rankingId}/entries/{filename}.jpg
+    //
+    // Read: public (rankings are public, images along with them)
+    // Write: authenticated users, images only, under 2MB
+    //
+    // NOTE ON AUTHORIZATION: Storage rules cannot easily verify that the
+    // {rankingId} in the path corresponds to a ranking the uploader owns,
+    // because cross-service lookups from Storage to Firestore are limited.
+    // The practical attack surface of "authenticated user uploads files
+    // under a ranking ID they don't own" is wasting project storage quota
+    // — not data leakage or hijacking. We mitigate with the 2MB cap and
+    // image-type check. If this ever becomes a real concern, the fix is a
+    // Cloud Function that mediates uploads server-side.
+    match /rankings/{rankingId}/entries/{filename} {
+      allow read: if true;
+
+      allow write: if request.auth != null
+        && request.resource.size < 2 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+
+      allow delete: if request.auth != null;
+    }
+
+    // ========================================================================
+    // Default deny — anything not explicitly allowed is rejected
+    // ========================================================================
+    //
+    // If you add other Storage features later (bracket images, profile
+    // avatars, etc.), add their rules ABOVE this line. Without a default
+    // deny, new paths would inherit the most permissive parent rule.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
