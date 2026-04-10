@@ -60,6 +60,10 @@ import {
   RankingVotePage,
   MyRankingsPage
 } from './components/RankingPages';
+import {
+  PrivacyPolicyPage,
+  TermsOfServicePage
+} from './components/LegalPages';
 import './App.css';
 
 // Admin user IDs (add your Firebase user ID here)
@@ -526,7 +530,7 @@ const Header = ({ onNavigate, currentView }) => {
             </button>
           )}
           
-          {currentView !== 'home' && currentView !== 'weekly' && currentView !== 'champions' && currentView !== 'pools' && currentView !== 'prediction-pools' && currentView !== 'rankings' && currentView !== 'my-rankings' && !currentView.startsWith('pool-') && !currentView.startsWith('prediction-pool-') && !currentView.startsWith('ranking-') && (
+          {currentView !== 'home' && currentView !== 'weekly' && currentView !== 'champions' && currentView !== 'pools' && currentView !== 'prediction-pools' && currentView !== 'rankings' && currentView !== 'my-rankings' && currentView !== 'privacy' && currentView !== 'terms' && !currentView.startsWith('pool-') && !currentView.startsWith('prediction-pool-') && !currentView.startsWith('ranking-') && (
             <button className="back-btn" onClick={() => onNavigate('home')}>
               ← Back
             </button>
@@ -727,27 +731,37 @@ const FeedbackModal = ({ isOpen, onClose }) => {
 };
 
 // Footer Component
-const Footer = ({ onOpenFeedback }) => {
+const Footer = ({ onOpenFeedback, onNavigate }) => {
   const currentYear = new Date().getFullYear();
-  
+ 
+  // Small helper that intercepts a click, prevents the anchor default,
+  // and routes to the given view key. Using anchors (instead of plain
+  // buttons) keeps the existing footer look without needing new CSS.
+  const navTo = (viewKey) => (e) => {
+    e.preventDefault();
+    onNavigate(viewKey);
+    // Scroll to top so users don't land mid-page when they click a footer link
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  };
+ 
   return (
     <footer className="site-footer">
       <div className="footer-content">
         <div className="footer-section footer-brand">
           <div className="footer-logo">I'M TOURN</div>
-          <p className="footer-tagline">Create, compete, and crown champions in bracket tournaments and prediction pools.</p>
+          <p className="footer-tagline">Create, compete, and crown champions with brackets, prediction pools, and head-to-head rankings.</p>
         </div>
-        
+ 
         <div className="footer-section">
           <h4>Features</h4>
           <ul>
-            <li><a href="#" onClick={(e) => { e.preventDefault(); }}>Bracket Pools</a></li>
-            <li><a href="#" onClick={(e) => { e.preventDefault(); }}>Prediction Pools</a></li>
-            <li><a href="#" onClick={(e) => { e.preventDefault(); }}>Weekly Brackets</a></li>
-            <li><a href="#" onClick={(e) => { e.preventDefault(); }}>PDF Export</a></li>
+            <li><a href="#" onClick={navTo('pools')}>Bracket Pools</a></li>
+            <li><a href="#" onClick={navTo('prediction-pools')}>Prediction Pools</a></li>
+            <li><a href="#" onClick={navTo('rankings')}>Rankings</a></li>
+            <li><a href="#" onClick={navTo('weekly')}>Weekly Brackets</a></li>
           </ul>
         </div>
-        
+ 
         <div className="footer-section">
           <h4>Support</h4>
           <ul>
@@ -756,16 +770,16 @@ const Footer = ({ onOpenFeedback }) => {
             <li><a href="#" onClick={(e) => { e.preventDefault(); onOpenFeedback(); }}>Contact Us</a></li>
           </ul>
         </div>
-        
+ 
         <div className="footer-section">
           <h4>Legal</h4>
           <ul>
-            <li><a href="#" onClick={(e) => { e.preventDefault(); }}>Privacy Policy</a></li>
-            <li><a href="#" onClick={(e) => { e.preventDefault(); }}>Terms of Service</a></li>
+            <li><a href="#" onClick={navTo('privacy')}>Privacy Policy</a></li>
+            <li><a href="#" onClick={navTo('terms')}>Terms of Service</a></li>
           </ul>
         </div>
       </div>
-      
+ 
       <div className="footer-bottom">
         <p>© {currentYear} I'm Tourn. All rights reserved.</p>
         <p className="footer-credits">Made with 🏆 for tournament lovers</p>
@@ -4739,10 +4753,12 @@ function AppContent() {
         {view === 'my-rankings' && <MyRankingsPage onNavigate={setView} />}
         {view.startsWith('ranking-vote-') && <RankingVotePage rankingId={view.replace('ranking-vote-', '')} onNavigate={setView} />}
         {view.startsWith('ranking-') && !view.startsWith('ranking-vote-') && view !== 'rankings' && <RankingDetailPage rankingId={view.replace('ranking-', '')} onNavigate={setView} />}
+        {view === 'privacy' && <PrivacyPolicyPage />}
+        {view === 'terms' && <TermsOfServicePage />}
         {view === 'admin' && <AdminPage />}
       </main>
       
-      <Footer onOpenFeedback={() => setShowFeedbackModal(true)} />
+      <Footer onOpenFeedback={() => setShowFeedbackModal(true)} onNavigate={setView} />
       
       <FeedbackModal 
         isOpen={showFeedbackModal} 
