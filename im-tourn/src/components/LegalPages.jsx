@@ -215,7 +215,7 @@ export const PrivacyPolicyPage = () => {
 
 export const TermsOfServicePage = () => {
   return (
-    <LegalPageLayout title="Terms of Service" effectiveDate="[EFFECTIVE DATE]">
+    <LegalPageLayout title="Terms of Service" effectiveDate="April 10, 2026">
       <p className="legal-intro">
         Welcome to I'm Tourn. These Terms of Service ("Terms") are the rules
         for using our website and services. By creating an account or using
