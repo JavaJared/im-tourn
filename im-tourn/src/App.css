@@ -5357,3 +5357,106 @@ body {
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* ==========================================================================
+   Launch Cleanup — CSS additions
+   --------------------------------------------------------------------------
+   Append these to the end of your App.css.
+
+   Contents:
+     1. Legal page layout (Privacy Policy, Terms of Service)
+     2. Fix for the truncated join-code-input placeholder
+   ========================================================================== */
+
+
+/* ----- 1. Legal pages ----- */
+
+.legal-page {
+  max-width: 780px;
+}
+
+.legal-effective-date {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.legal-content {
+  color: var(--text-secondary);
+  line-height: 1.7;
+  font-size: 1rem;
+}
+
+.legal-intro {
+  color: var(--text-primary);
+  font-size: 1.05rem;
+  line-height: 1.6;
+  padding: 1rem 1.25rem;
+  background: var(--bg-card);
+  border-left: 3px solid var(--accent-teal);
+  border-radius: 8px;
+  margin-bottom: 2rem;
+}
+
+.legal-content h2 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.5rem;
+  letter-spacing: 0.04em;
+  color: var(--text-primary);
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.legal-content h2:first-of-type {
+  margin-top: 0.5rem;
+}
+
+.legal-content p {
+  margin-bottom: 1rem;
+}
+
+.legal-content p strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.legal-content ul {
+  margin-bottom: 1rem;
+  padding-left: 1.5rem;
+}
+
+.legal-content li {
+  margin-bottom: 0.4rem;
+}
+
+.legal-content a {
+  color: var(--accent-teal);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.15s ease;
+}
+
+.legal-content a:hover {
+  color: var(--accent-orange);
+}
+
+
+/* ----- 2. Join code input width fix -----
+   The existing .join-code-input is 120px wide, which is enough for the
+   actual 6-character code but crops the longer placeholder "Enter join code".
+   Widening to 170px comfortably fits both without looking oversized.
+
+   We use a more-specific selector (.join-pool-form .join-code-input) so this
+   overrides the earlier width: 120px rule without needing to edit it. */
+
+.join-pool-form .join-code-input {
+  width: 170px;
+}
+
+@media (max-width: 768px) {
+  .join-pool-form .join-code-input {
+    width: 100%;
+  }
+}
