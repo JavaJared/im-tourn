@@ -54,9 +54,9 @@ import {
   deletePredictionPool
 } from './services/bracketService';
 import {
-  RankingPoolsPage,
-  CreateRankingPoolPage,
-  RankingPoolDetailPage,
+  RankingsBrowsePage,
+  CreateRankingPage,
+  RankingDetailPage,
   RankingVotePage,
   MyRankingsPage
 } from './components/RankingPages';
