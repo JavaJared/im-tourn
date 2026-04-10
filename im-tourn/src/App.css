@@ -5277,3 +5277,56 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* ==========================================================================
+   Rankings v3 CSS additions — for Firebase Storage upload flow
+   --------------------------------------------------------------------------
+   Append these to the end of your App.css (after the other ranking styles).
+   These add a small spinner for per-entry image compression and a status
+   indicator for the create-time upload flow.
+   ========================================================================== */
+
+/* Small spinner variant — used inside the 48px image slot while compressing */
+
+.spinner-small {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-subtle);
+  border-top-color: var(--accent-teal);
+  border-radius: 50%;
+  animation: spinner-rotate 0.8s linear infinite;
+}
+
+@keyframes spinner-rotate {
+  to { transform: rotate(360deg); }
+}
+
+/* Compressing placeholder in the image slot — replaces the "add image"
+   button while an image is being resized in the background */
+
+.ranking-entry-compressing {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  background: rgba(0, 212, 170, 0.05);
+  border: 1px dashed var(--accent-teal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* "Uploading 3 images..." status bar shown while the create flow is running */
+
+.ranking-creating-status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  background: rgba(0, 212, 170, 0.08);
+  border: 1px solid rgba(0, 212, 170, 0.2);
+  border-radius: 10px;
+  color: var(--accent-teal);
+  font-size: 0.95rem;
+  font-weight: 500;
+  margin-top: 1rem;
+}
