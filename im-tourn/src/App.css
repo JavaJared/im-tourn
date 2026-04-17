@@ -5460,3 +5460,528 @@ body {
     width: 100%;
   }
 }
+
+/* ==========================================================================
+   Drafts Feature Styles
+   Append to the end of App.css.
+   ========================================================================== */
+
+/* ----- Browse page cards ----- */
+
+.draft-browse-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.draft-browse-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.draft-browse-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 1.25rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border-left: 3px solid var(--accent-orange);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.draft-browse-card:hover {
+  background: var(--bg-card-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(255, 107, 53, 0.1);
+}
+
+.draft-status-badge {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.draft-status-badge.status-open {
+  background: rgba(0, 212, 170, 0.15);
+  color: var(--accent-teal);
+  border: 1px solid rgba(0, 212, 170, 0.3);
+}
+
+.draft-status-badge.status-live {
+  background: rgba(255, 107, 53, 0.15);
+  color: var(--accent-orange);
+  border: 1px solid rgba(255, 107, 53, 0.3);
+  animation: pulse-badge 2s ease-in-out infinite;
+}
+
+@keyframes pulse-badge {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.draft-status-badge.status-completed {
+  background: rgba(138, 138, 154, 0.15);
+  color: var(--text-secondary);
+  border: 1px solid rgba(138, 138, 154, 0.3);
+}
+
+.draft-card-category {
+  display: inline-block;
+  background: rgba(255, 107, 53, 0.1);
+  color: var(--accent-orange);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  align-self: flex-start;
+}
+
+.draft-card-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.4rem;
+  letter-spacing: 0.03em;
+  color: var(--text-primary);
+  line-height: 1.2;
+  margin: 0;
+}
+
+.draft-card-description {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.draft-card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 0.8rem;
+  color: var(--text-primary);
+}
+
+.draft-card-host {
+  color: var(--text-muted);
+}
+
+/* ----- Create page ----- */
+
+.draft-settings-row {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.draft-settings-row .form-group {
+  flex: 1;
+}
+
+.draft-number-input {
+  width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  color: var(--text-primary);
+  font-family: 'Outfit', sans-serif;
+  font-size: 1rem;
+  transition: border-color 0.15s ease;
+}
+
+.draft-number-input:focus {
+  outline: none;
+  border-color: var(--accent-teal);
+}
+
+/* ----- Lobby ----- */
+
+.draft-lobby-section {
+  margin: 2rem 0;
+}
+
+.draft-lobby-section h2 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.5rem;
+  letter-spacing: 0.04em;
+  margin-bottom: 1rem;
+}
+
+.draft-lobby-empty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.draft-participant-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.draft-participant {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+}
+
+.draft-participant-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent-orange);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.draft-participant-name {
+  flex: 1;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.draft-host-tag {
+  font-size: 0.7rem;
+  background: rgba(255, 107, 53, 0.15);
+  color: var(--accent-orange);
+  padding: 0.15rem 0.5rem;
+  border-radius: 8px;
+  margin-left: 0.5rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.draft-kick-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 107, 53, 0.3);
+  color: var(--accent-orange);
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-family: 'Outfit', sans-serif;
+  transition: all 0.15s ease;
+}
+
+.draft-kick-btn:hover {
+  background: rgba(255, 107, 53, 0.1);
+}
+
+.draft-lobby-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+
+/* ----- Live draft ----- */
+
+.draft-live-container {
+  max-width: 1200px;
+}
+
+.draft-live-header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.draft-live-header h1 {
+  margin-bottom: 1rem;
+}
+
+.draft-current-pick {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  background: var(--bg-card);
+  border: 2px solid var(--border-subtle);
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.draft-current-pick.draft-my-turn {
+  border-color: var(--accent-orange);
+  background: rgba(255, 107, 53, 0.06);
+  box-shadow: 0 0 30px rgba(255, 107, 53, 0.1);
+}
+
+.draft-pick-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.draft-pick-label {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.6rem;
+  letter-spacing: 0.04em;
+  color: var(--text-primary);
+}
+
+.draft-my-turn .draft-pick-label {
+  color: var(--accent-orange);
+}
+
+.draft-pick-round {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.draft-timer {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2.5rem;
+  color: var(--text-secondary);
+  min-width: 3rem;
+  text-align: center;
+  letter-spacing: 0.03em;
+}
+
+.draft-timer-urgent {
+  color: var(--accent-orange);
+  animation: pulse-timer 1s ease-in-out infinite;
+}
+
+@keyframes pulse-timer {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.draft-pick-input-row {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.draft-pick-input {
+  flex: 1;
+  background: var(--bg-card);
+  border: 2px solid var(--accent-orange);
+  border-radius: 10px;
+  padding: 0.9rem 1.25rem;
+  color: var(--text-primary);
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.draft-pick-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-orange-glow);
+}
+
+.draft-pick-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* ----- Draft board (grid / table) ----- */
+
+.draft-board {
+  margin: 2rem 0;
+  overflow-x: auto;
+}
+
+.draft-board h2 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.5rem;
+  letter-spacing: 0.04em;
+  margin-bottom: 1rem;
+}
+
+.draft-board-grid {
+  display: grid;
+  gap: 0;
+  min-width: max-content;
+}
+
+.draft-board-header {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+  font-size: 0.9rem;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.draft-board-header.draft-board-active {
+  background: rgba(255, 107, 53, 0.1);
+  border-color: var(--accent-orange);
+  color: var(--accent-orange);
+}
+
+.draft-board-order {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-top: 0.2rem;
+}
+
+.draft-board-cell {
+  background: var(--bg-dark);
+  border: 1px solid var(--border-subtle);
+  padding: 0.6rem 0.75rem;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  text-align: center;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.draft-board-cell.draft-board-skipped {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.draft-board-pending {
+  color: var(--text-muted);
+}
+
+/* ----- Scoring ----- */
+
+.draft-scoring {
+  margin-top: 1rem;
+}
+
+.draft-scoring h2 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.5rem;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.3rem;
+}
+
+.draft-scoring-participant {
+  margin-bottom: 1.5rem;
+}
+
+.draft-scoring-participant h3 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.2rem;
+  letter-spacing: 0.03em;
+  color: var(--accent-orange);
+  margin-bottom: 0.5rem;
+}
+
+.draft-scoring-picks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.draft-scoring-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+}
+
+.draft-scoring-round {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1rem;
+  color: var(--text-muted);
+  min-width: 2rem;
+}
+
+.draft-scoring-selection {
+  flex: 1;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.draft-score-input {
+  width: 70px;
+  background: var(--bg-dark);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 0.4rem 0.5rem;
+  color: var(--text-primary);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.95rem;
+  text-align: center;
+  transition: border-color 0.15s ease;
+}
+
+.draft-score-input:focus {
+  outline: none;
+  border-color: var(--accent-teal);
+}
+
+.draft-score-input:disabled {
+  opacity: 0.3;
+}
+
+/* ----- Mobile ----- */
+
+@media (max-width: 768px) {
+  .draft-browse-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .draft-settings-row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .draft-pick-input-row {
+    flex-direction: column;
+  }
+
+  .draft-current-pick {
+    flex-direction: column;
+    gap: 0.75rem;
+    text-align: center;
+  }
+
+  .draft-board {
+    margin: 1rem -1rem;
+    padding: 0 1rem;
+  }
+
+  .draft-browse-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .draft-scoring-row {
+    flex-wrap: wrap;
+  }
+}
