@@ -542,7 +542,7 @@ const Header = ({ onNavigate, currentView }) => {
             </button>
           )}
           
-          {currentView !== 'home' && currentView !== 'weekly' && currentView !== 'champions' && currentView !== 'pools' && currentView !== 'prediction-pools' && currentView !== 'rankings' && currentView !== 'my-rankings' && currentView !== 'privacy' && currentView !== 'terms' && !currentView.startsWith('pool-') && !currentView.startsWith('prediction-pool-') && !currentView.startsWith('ranking-') && currentView !== 'drafts' && currentView !== 'my-drafts' && !currentView.startsWith('draft-')
+          {currentView !== 'home' && currentView !== 'weekly' && currentView !== 'champions' && currentView !== 'pools' && currentView !== 'prediction-pools' && currentView !== 'rankings' && currentView !== 'my-rankings' && currentView !== 'privacy' && currentView !== 'terms' && !currentView.startsWith('pool-') && !currentView.startsWith('prediction-pool-') && !currentView.startsWith('ranking-') && currentView !== 'drafts' && currentView !== 'my-drafts' && !currentView.startsWith('draft-') && (
             <button className="back-btn" onClick={() => onNavigate('home')}>
               ← Back
             </button>
