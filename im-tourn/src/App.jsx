@@ -64,6 +64,12 @@ import {
   PrivacyPolicyPage,
   TermsOfServicePage
 } from './components/LegalPages';
+import {
+  DraftsBrowsePage,
+  CreateDraftPage,
+  DraftLobbyPage,
+  MyDraftsPage
+} from './components/DraftPages';
 import './App.css';
 
 // Admin user IDs (add your Firebase user ID here)
@@ -515,6 +521,12 @@ const Header = ({ onNavigate, currentView }) => {
           >
             Rankings
           </button>
+          <button
+            className={`nav-link ${currentView === 'drafts' || currentView === 'create-draft' || currentView.startsWith('draft-') ? 'active' : ''}`}
+            onClick={() => onNavigate('drafts')}
+          >
+            Drafts
+          </button>
           <button 
             className={`nav-link ${currentView === 'champions' ? 'active' : ''}`}
             onClick={() => onNavigate('champions')}
@@ -530,7 +542,7 @@ const Header = ({ onNavigate, currentView }) => {
             </button>
           )}
           
-          {currentView !== 'home' && currentView !== 'weekly' && currentView !== 'champions' && currentView !== 'pools' && currentView !== 'prediction-pools' && currentView !== 'rankings' && currentView !== 'my-rankings' && currentView !== 'privacy' && currentView !== 'terms' && !currentView.startsWith('pool-') && !currentView.startsWith('prediction-pool-') && !currentView.startsWith('ranking-') && (
+          {currentView !== 'home' && currentView !== 'weekly' && currentView !== 'champions' && currentView !== 'pools' && currentView !== 'prediction-pools' && currentView !== 'rankings' && currentView !== 'my-rankings' && currentView !== 'privacy' && currentView !== 'terms' && !currentView.startsWith('pool-') && !currentView.startsWith('prediction-pool-') && !currentView.startsWith('ranking-') && currentView !== 'drafts' && currentView !== 'my-drafts' && !currentView.startsWith('draft-')
             <button className="back-btn" onClick={() => onNavigate('home')}>
               ← Back
             </button>
@@ -552,6 +564,9 @@ const Header = ({ onNavigate, currentView }) => {
                   </button>
                   <button onClick={() => { onNavigate('my-rankings'); setShowUserMenu(false); }}>
                     My Rankings
+                  </button>
+                  <button onClick={() => { onNavigate('my-drafts'); setShowUserMenu(false); }}>
+                    My Drafts
                   </button>
                   {isAdmin && (
                     <button onClick={() => { onNavigate('admin'); setShowUserMenu(false); }}>
@@ -4753,6 +4768,10 @@ function AppContent() {
         {view === 'my-rankings' && <MyRankingsPage onNavigate={setView} />}
         {view.startsWith('ranking-vote-') && <RankingVotePage rankingId={view.replace('ranking-vote-', '')} onNavigate={setView} />}
         {view.startsWith('ranking-') && !view.startsWith('ranking-vote-') && view !== 'rankings' && <RankingDetailPage rankingId={view.replace('ranking-', '')} onNavigate={setView} />}
+        {view === 'drafts' && <DraftsBrowsePage onNavigate={setView} />}
+        {view === 'create-draft' && <CreateDraftPage onNavigate={setView} />}
+        {view === 'my-drafts' && <MyDraftsPage onNavigate={setView} />}
+        {view.startsWith('draft-') && view !== 'drafts' && <DraftLobbyPage draftId={view.replace('draft-', '')} onNavigate={setView} />}
         {view === 'privacy' && <PrivacyPolicyPage />}
         {view === 'terms' && <TermsOfServicePage />}
         {view === 'admin' && <AdminPage />}
