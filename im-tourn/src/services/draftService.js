@@ -151,7 +151,7 @@ export async function createDraft(draftData) {
     timerSeconds: draftData.timerSeconds || 0, // 0 = no limit
     joinCode,
     status: 'open', // open | drafting | completed
-    participants: '[]',
+    participants: JSON.stringify([{ userId: draftData.hostId, displayName: draftData.hostDisplayName }]),
     draftOrder: '[]',
     currentPickIndex: 0,
     currentPickDeadline: null,
