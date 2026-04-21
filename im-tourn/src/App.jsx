@@ -70,6 +70,9 @@ import {
   DraftLobbyPage,
   MyDraftsPage
 } from './components/DraftPages';
+import { useMemo } from 'react';  // if useMemo isn't already imported alongside useState etc.
+import { analyzePool, shouldShowWinningPaths } from './lib/elimination';
+import { StatusBadge, WhatNeedsToHappen } from './components/EliminationStatus';
 import './App.css';
 
 // Admin user IDs (add your Firebase user ID here)
@@ -2677,6 +2680,22 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
               <span className="lb-score">Score</span>
               <span className="lb-action"></span>
             </div>
+
+            const eliminationAnalysis = useMemo(
+              () => {
+                if (!pool || !entries || entries.length === 0) return null;
+                // Only analyze once the pool is actually in-progress or completed;
+                // while 'open' or 'locked' and no results yet, everyone is trivially alive.
+                if (pool.status === 'open' || pool.status === 'locked') return null;
+                return analyzePool(pool, entries);
+              },
+              [pool, entries]
+            );
+            
+            const showWinningPaths = useMemo(
+              () => eliminationAnalysis ? shouldShowWinningPaths(pool, eliminationAnalysis, entries) : false,
+              [pool, eliminationAnalysis, entries]
+            );
             {entries.map((participantEntry, index) => (
               <div 
                 key={participantEntry.id} 
@@ -2687,6 +2706,12 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
                 </span>
                 <span className="lb-name">
                   {participantEntry.userDisplayName}
+                  {entryStatus && (
+                    <>
+                      {' '}
+                      <StatusBadge status={entryStatus} />
+                    </>
+                  )}
                 </span>
                 <span className="lb-champion">
                   {participantEntry.champion?.name || (participantEntry.submittedAt ? 'N/A' : 'Not submitted')}
@@ -2724,6 +2749,11 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
                     </button>
                   )}
                 </span>
+                {showWinningPaths && entryStatus?.status === 'alive' && (
+                  <div className="leaderboard-row-expansion">
+                    <WhatNeedsToHappen status={entryStatus} pool={pool} />
+                  </div>
+                )}
               </div>
             ))}
             {entries.length === 0 && (
