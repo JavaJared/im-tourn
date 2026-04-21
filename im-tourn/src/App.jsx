@@ -2425,6 +2425,20 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
     setEditingDescription(true);
   };
 
+  const eliminationAnalysis = useMemo(() => {
+    if (!pool || !entries || entries.length === 0) return null;
+    if (pool.status === 'open' || pool.status === 'locked') return null;
+    const results = pool.results || pool.bracketMatchups;
+    const firstRoundDecided = (results?.[0] || []).some(m => m?.winner);
+    if (!firstRoundDecided) return null;
+    return analyzePool(pool, entries);
+  }, [pool, entries]);
+  
+  const showWinningPaths = useMemo(
+    () => eliminationAnalysis ? shouldShowWinningPaths(pool, eliminationAnalysis, entries) : false,
+    [pool, eliminationAnalysis, entries]
+  );
+
   return (
     <div className="home-container">
       <div className="pool-header">
@@ -2680,82 +2694,69 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
               <span className="lb-score">Score</span>
               <span className="lb-action"></span>
             </div>
-
-            const eliminationAnalysis = useMemo(
-              () => {
-                if (!pool || !entries || entries.length === 0) return null;
-                // Only analyze once the pool is actually in-progress or completed;
-                // while 'open' or 'locked' and no results yet, everyone is trivially alive.
-                if (pool.status === 'open' || pool.status === 'locked') return null;
-                return analyzePool(pool, entries);
-              },
-              [pool, entries]
-            );
-            
-            const showWinningPaths = useMemo(
-              () => eliminationAnalysis ? shouldShowWinningPaths(pool, eliminationAnalysis, entries) : false,
-              [pool, eliminationAnalysis, entries]
-            );
-            {entries.map((participantEntry, index) => (
-              <div 
-                key={participantEntry.id} 
-                className={`leaderboard-row ${participantEntry.userId === currentUser?.uid ? 'current-user' : ''}`}
-              >
-                <span className="lb-rank">
-                  {index === 0 && entries.length > 1 ? '👑' : `#${index + 1}`}
-                </span>
-                <span className="lb-name">
-                  {participantEntry.userDisplayName}
-                  {entryStatus && (
-                    <>
-                      {' '}
-                      <StatusBadge status={entryStatus} />
-                    </>
-                  )}
-                </span>
-                <span className="lb-champion">
-                  {participantEntry.champion?.name || (participantEntry.submittedAt ? 'N/A' : 'Not submitted')}
-                </span>
-                {pool.enableSleepers && (
-                  <span className="lb-sleepers">
-                    {participantEntry.sleeper1 || participantEntry.sleeper2 ? (
-                      <div className="sleeper-picks-display">
-                        {participantEntry.sleeper1 && (
-                          <span className={`sleeper-pick-tag ${participantEntry.sleeper1Hit ? 'hit' : ''}`} title="Sleeper 1">
-                            {participantEntry.sleeper1.name}
-                            {participantEntry.sleeper1Hit && ' ✓'}
-                          </span>
-                        )}
-                        {participantEntry.sleeper2 && (
-                          <span className={`sleeper-pick-tag ${participantEntry.sleeper2Hit ? 'hit' : ''}`} title="Sleeper 2">
-                            {participantEntry.sleeper2.name}
-                            {participantEntry.sleeper2Hit && ' ✓'}
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="no-sleepers">None</span>
+            {entries.map((participantEntry, index) => {
+              const entryStatus = eliminationAnalysis?.byUserId[participantEntry.userId];
+              return (
+                <div 
+                  key={participantEntry.id} 
+                  className={`leaderboard-row ${participantEntry.userId === currentUser?.uid ? 'current-user' : ''}`}
+                >
+                  <span className="lb-rank">
+                    {index === 0 && entries.length > 1 ? '👑' : `#${index + 1}`}
+                  </span>
+                  <span className="lb-name">
+                    {participantEntry.userDisplayName}
+                    {entryStatus && (
+                      <>
+                        {' '}
+                        <StatusBadge status={entryStatus} />
+                      </>
                     )}
                   </span>
-                )}
-                <span className="lb-score">{participantEntry.score}</span>
-                <span className="lb-action">
-                  {participantEntry.submittedAt && (
-                    <button 
-                      className="view-bracket-btn"
-                      onClick={() => setViewingEntry(participantEntry)}
-                    >
-                      View
-                    </button>
+                  <span className="lb-champion">
+                    {participantEntry.champion?.name || (participantEntry.submittedAt ? 'N/A' : 'Not submitted')}
+                  </span>
+                  {pool.enableSleepers && (
+                    <span className="lb-sleepers">
+                      {participantEntry.sleeper1 || participantEntry.sleeper2 ? (
+                        <div className="sleeper-picks-display">
+                          {participantEntry.sleeper1 && (
+                            <span className={`sleeper-pick-tag ${participantEntry.sleeper1Hit ? 'hit' : ''}`} title="Sleeper 1">
+                              {participantEntry.sleeper1.name}
+                              {participantEntry.sleeper1Hit && ' ✓'}
+                            </span>
+                          )}
+                          {participantEntry.sleeper2 && (
+                            <span className={`sleeper-pick-tag ${participantEntry.sleeper2Hit ? 'hit' : ''}`} title="Sleeper 2">
+                              {participantEntry.sleeper2.name}
+                              {participantEntry.sleeper2Hit && ' ✓'}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="no-sleepers">None</span>
+                      )}
+                    </span>
                   )}
-                </span>
-                {showWinningPaths && entryStatus?.status === 'alive' && (
-                  <div className="leaderboard-row-expansion">
-                    <WhatNeedsToHappen status={entryStatus} pool={pool} />
-                  </div>
-                )}
-              </div>
-            ))}
+                  <span className="lb-score">{participantEntry.score}</span>
+                  <span className="lb-action">
+                    {participantEntry.submittedAt && (
+                      <button 
+                        className="view-bracket-btn"
+                        onClick={() => setViewingEntry(participantEntry)}
+                      >
+                        View
+                      </button>
+                    )}
+                  </span>
+                  {showWinningPaths && entryStatus?.status === 'alive' && (
+                    <div className="leaderboard-row-expansion">
+                      <WhatNeedsToHappen status={entryStatus} pool={pool} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
             {entries.length === 0 && (
               <div className="leaderboard-empty">
                 No participants yet
