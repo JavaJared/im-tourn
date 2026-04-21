@@ -2053,6 +2053,20 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
 
   const isHost = currentUser && pool?.hostId === currentUser.uid;
 
+  const eliminationAnalysis = useMemo(() => {
+    if (!pool || !entries || entries.length === 0) return null;
+    if (pool.status === 'open' || pool.status === 'locked') return null;
+    const results = pool.results || pool.bracketMatchups;
+    const firstRoundDecided = (results?.[0] || []).some(m => m?.winner);
+    if (!firstRoundDecided) return null;
+    return analyzePool(pool, entries);
+  }, [pool, entries]);
+  
+  const showWinningPaths = useMemo(
+    () => eliminationAnalysis ? shouldShowWinningPaths(pool, eliminationAnalysis, entries) : false,
+    [pool, eliminationAnalysis, entries]
+  );
+
   useEffect(() => {
     loadPoolData();
   }, [poolId, currentUser]);
@@ -2424,20 +2438,6 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
     setDescriptionDraft(pool.description || '');
     setEditingDescription(true);
   };
-
-  const eliminationAnalysis = useMemo(() => {
-    if (!pool || !entries || entries.length === 0) return null;
-    if (pool.status === 'open' || pool.status === 'locked') return null;
-    const results = pool.results || pool.bracketMatchups;
-    const firstRoundDecided = (results?.[0] || []).some(m => m?.winner);
-    if (!firstRoundDecided) return null;
-    return analyzePool(pool, entries);
-  }, [pool, entries]);
-  
-  const showWinningPaths = useMemo(
-    () => eliminationAnalysis ? shouldShowWinningPaths(pool, eliminationAnalysis, entries) : false,
-    [pool, eliminationAnalysis, entries]
-  );
 
   return (
     <div className="home-container">
