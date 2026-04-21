@@ -7,9 +7,6 @@
 //                            and a per-matchup "root for" view. Should only
 //                            be rendered when shouldShowWinningPaths() is true
 //                            AND the entry is alive.
-//
-// The heavy computation happens once at the leaderboard level via
-// analyzePool() and is passed down; these components only do rendering.
 
 import React, { useState } from 'react';
 import { summarizeWinningScenarios } from '../lib/elimination';
@@ -58,37 +55,55 @@ export function WhatNeedsToHappen({ status, pool }) {
   return (
     <div className="wnth-container">
       <button
+        type="button"
         className="wnth-toggle"
         onClick={() => setExpanded((v) => !v)}
         aria-expanded={expanded}
       >
         <span className="wnth-toggle-icon">{expanded ? '▼' : '▶'}</span>
-        What needs to happen?{' '}
+        <span className="wnth-toggle-text">What needs to happen?</span>
         <span className="wnth-toggle-count">
-          ({summary.totalScenarios} winning path{summary.totalScenarios === 1 ? '' : 's'}
-          {status.scenariosTruncated ? '+' : ''})
+          {summary.totalScenarios} path{summary.totalScenarios === 1 ? '' : 's'}
+          {status.scenariosTruncated ? '+' : ''}
         </span>
       </button>
 
       {expanded && (
         <div className="wnth-panel">
           {summary.required.length > 0 && (
-            <div className="wnth-section">
-              <h5 className="wnth-section-title">Must happen</h5>
+            <section className="wnth-section wnth-required">
+              <header className="wnth-section-header">
+                <span className="wnth-section-icon" aria-hidden="true">⚡</span>
+                <h5 className="wnth-section-title">Must happen</h5>
+                <span className="wnth-section-sub">
+                  Required in every winning path
+                </span>
+              </header>
               <ul className="wnth-required-list">
                 {summary.required.map((req) => (
-                  <li key={req.matchupKey}>
-                    <span className="wnth-round">{roundLabel(req.round, pool)}:</span>{' '}
-                    <strong>{req.teamName}</strong> must win
+                  <li key={req.matchupKey} className="wnth-required-item">
+                    <span className="wnth-required-round">
+                      {roundLabel(req.round, pool)}
+                    </span>
+                    <span className="wnth-required-body">
+                      <strong className="wnth-required-team">{req.teamName}</strong>
+                      <span className="wnth-required-verb"> must win</span>
+                    </span>
                   </li>
                 ))}
               </ul>
-            </div>
+            </section>
           )}
 
           {summary.rootFor.length > 0 && (
-            <div className="wnth-section">
-              <h5 className="wnth-section-title">Root for</h5>
+            <section className="wnth-section wnth-rootfor">
+              <header className="wnth-section-header">
+                <span className="wnth-section-icon" aria-hidden="true">📣</span>
+                <h5 className="wnth-section-title">Root for</h5>
+                <span className="wnth-section-sub">
+                  % of your winning paths that need this outcome
+                </span>
+              </header>
               <div className="wnth-rootfor-grid">
                 {summary.rootFor.map((rf) => {
                   const totalForMatchup = rf.perOutcome.reduce(
@@ -96,7 +111,7 @@ export function WhatNeedsToHappen({ status, pool }) {
                     0
                   );
                   return (
-                    <div key={rf.matchupKey} className="wnth-rootfor-row">
+                    <div key={rf.matchupKey} className="wnth-rootfor-matchup">
                       <div className="wnth-rootfor-round">
                         {roundLabel(rf.round, pool)}
                       </div>
@@ -105,10 +120,11 @@ export function WhatNeedsToHappen({ status, pool }) {
                           const pct = Math.round(
                             (opt.scenarioCount / totalForMatchup) * 100
                           );
+                          const intensity = pctIntensity(pct);
                           return (
                             <div
                               key={opt.seed}
-                              className="wnth-rootfor-option"
+                              className={`wnth-rootfor-option ${intensity}`}
                               title={`${opt.scenarioCount} of ${totalForMatchup} winning paths`}
                             >
                               <span className="wnth-team">{opt.teamName}</span>
@@ -127,7 +143,7 @@ export function WhatNeedsToHappen({ status, pool }) {
                   );
                 })}
               </div>
-            </div>
+            </section>
           )}
 
           {summary.required.length === 0 && summary.rootFor.length === 0 && (
@@ -138,7 +154,7 @@ export function WhatNeedsToHappen({ status, pool }) {
 
           {status.scenariosTruncated && (
             <p className="wnth-truncated-note">
-              Analysis capped — showing a sample of winning paths.
+              Showing a sample of winning paths — actual total may be higher.
             </p>
           )}
         </div>
@@ -154,8 +170,13 @@ export function WhatNeedsToHappen({ status, pool }) {
 function roundLabel(roundIndex, pool) {
   const totalRounds = pool.bracketMatchups.length;
   const fromEnd = totalRounds - 1 - roundIndex;
-  // Friendly labels based on distance from the final
   const labels = ['Final', 'Semifinals', 'Quarterfinals', 'Round of 16', 'Round of 32', 'Round of 64'];
   if (fromEnd < labels.length) return labels[fromEnd];
   return `Round ${roundIndex + 1}`;
+}
+
+function pctIntensity(pct) {
+  if (pct >= 67) return 'intensity-strong';
+  if (pct >= 34) return 'intensity-medium';
+  return 'intensity-weak';
 }
