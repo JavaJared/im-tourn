@@ -47,34 +47,23 @@
  * @param {Array}  entries - pool entries (with parsed predictions/sleepers)
  * @param {Object} [options]
  * @param {number} [options.maxScenariosPerEntry=5000] - cap on scenarios
- *        stored per alive entry to keep memory bounded. Does not affect the
- *        alive/eliminated/clinched determination itself.
- * @returns {Object} {
- *   byUserId: { [userId]: EntryStatus },
- *   analysisComplete: boolean,   // false if any entry's search was truncated
- *   undecidedMatchupCount: number
- * }
- *
- * EntryStatus = {
- *   status: 'alive' | 'eliminated' | 'clinched',
- *   currentScore: number,
- *   maxPossibleScore: number,
- *   minPossibleScore: number,
- *   winningScenarios: Scenario[] | null,  // null if eliminated
- *   scenariosTruncated: boolean,
- * }
- *
- * Scenario = {
- *   // Map of matchup key "r{round}-m{index}" -> seed of the winning entry.
- *   // Only includes matchups that were decided inside this scenario; does
- *   // not repeat matchups whose results were already set by the host.
- *   outcomes: { [matchupKey: string]: number },  // seed
- *   finalScore: number,
- *   minOpponentScore: number,  // useful for margin displays
- * }
+ *        stored per alive entry to keep memory bounded.
+ * @param {number} [options.maxUndecidedForFullSearch=14] - if there are more
+ *        undecided matchups than this, skip the full scenario search and
+ *        rely only on cheap max/min bounds. This is the critical guard
+ *        against combinatorial blowup: with N undecided matches the search
+ *        space is up to 2^N, so anything above ~14 becomes too slow for an
+ *        interactive UI even with the per-call deadline below.
+ * @param {number} [options.deadlineMs=2000] - wall-clock budget for the
+ *        whole analysis. If exceeded, remaining entries fall back to the
+ *        cheap bounds verdict and analysisComplete is set to false.
+ * @returns {Object} See doc above.
  */
 export function analyzePool(pool, entries, options = {}) {
   const maxScenariosPerEntry = options.maxScenariosPerEntry ?? 5000;
+  const maxUndecidedForFullSearch = options.maxUndecidedForFullSearch ?? 14;
+  const deadlineMs = options.deadlineMs ?? 2000;
+  const deadline = Date.now() + deadlineMs;
 
   const submittedEntries = entries.filter((e) => e.predictions);
   if (submittedEntries.length === 0) {
@@ -110,10 +99,29 @@ export function analyzePool(pool, entries, options = {}) {
   // and collect winning scenarios if alive.
   let analysisComplete = true;
   const byUserId = {};
+
+  // Hard guard: if too many matchups are undecided, the search space is
+  // intractable (2^N grows fast). Use cheap bounds only and mark the analysis
+  // as incomplete. The bounds-based verdict is still correct for entries that
+  // can be trivially eliminated; everyone else is reported as 'alive' without
+  // enumerating winning scenarios (which would be useless for UI anyway).
+  const tooManyUndecided = undecided.length > maxUndecidedForFullSearch;
+
   for (const ctx of entryContexts) {
-    // Fast path: max possible score can't beat the best guaranteed floor
-    // of another entry => eliminated, no search needed.
-    if (ctx.maxPossibleScore < globalMaxOfMins) {
+    // Cheap pre-pass: max possible score can't beat the current score of any
+    // other entry (i.e. they're already ahead of this entry's ceiling) =>
+    // eliminated. Use currentScore (not minPossibleScore) as the floor here:
+    // an opponent's currentScore is guaranteed to stay >= it, so if our max
+    // < their current, we can't catch up.
+    let trivallyEliminated = false;
+    for (const other of entryContexts) {
+      if (other.entry.userId === ctx.entry.userId) continue;
+      if (ctx.maxPossibleScore < other.currentScore) {
+        trivallyEliminated = true;
+        break;
+      }
+    }
+    if (trivallyEliminated) {
       byUserId[ctx.entry.userId] = {
         status: 'eliminated',
         currentScore: ctx.currentScore,
@@ -153,6 +161,24 @@ export function analyzePool(pool, entries, options = {}) {
       }
     }
 
+    // Skip the full search if the tree is too large OR we're out of time.
+    // Report as 'alive' without scenarios: the bounds confirm we *could* win
+    // (we passed the trivial-elimination check above), but we can't enumerate
+    // the paths. Mark analysisComplete=false so the UI can hide the
+    // "What needs to happen" panel.
+    if (tooManyUndecided || Date.now() > deadline) {
+      analysisComplete = false;
+      byUserId[ctx.entry.userId] = {
+        status: 'alive',
+        currentScore: ctx.currentScore,
+        maxPossibleScore: ctx.maxPossibleScore,
+        minPossibleScore: ctx.minPossibleScore,
+        winningScenarios: [],  // empty: signals "alive but no scenarios computed"
+        scenariosTruncated: true,
+      };
+      continue;
+    }
+
     // Full search: enumerate possible tournament completions and test.
     const searchResult = searchWinningScenarios(
       ctx,
@@ -162,7 +188,8 @@ export function analyzePool(pool, entries, options = {}) {
       possibleMatchupOutcomes,
       undecided,
       pool,
-      maxScenariosPerEntry
+      maxScenariosPerEntry,
+      deadline
     );
 
     if (searchResult.truncated) analysisComplete = false;
@@ -606,7 +633,8 @@ function searchWinningScenarios(
   possibleOutcomes,
   undecided,
   pool,
-  maxScenarios
+  maxScenarios,
+  deadline
 ) {
   // Sort undecided by round ascending so earlier rounds get decided first.
   const ordered = [...undecided].sort(
@@ -623,12 +651,23 @@ function searchWinningScenarios(
   const working = cloneResults(baseResults);
   const outcomeStack = {}; // matchupKey -> winning seed, for the current path
 
+  // Periodically check the wall-clock deadline to avoid runaway searches.
+  // Checking every iteration is too expensive; check every Nth terminal.
+  let timeCheckCounter = 0;
+
   const recurse = (idx) => {
     if (truncated) return;
 
     if (idx === ordered.length) {
       // Terminal: compute every entry's final score.
       totalScenariosExplored += 1;
+
+      // Deadline check (every 256 leaves to avoid Date.now() overhead).
+      if ((++timeCheckCounter & 0xff) === 0 && deadline && Date.now() > deadline) {
+        truncated = true;
+        return;
+      }
+
       const scoresByUserId = computeFinalScoresAllEntries(
         allCtxs,
         working,
