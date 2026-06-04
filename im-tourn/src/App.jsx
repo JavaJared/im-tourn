@@ -2048,6 +2048,97 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
   // Description editing state
   const [editingDescription, setEditingDescription] = useState(false);
   const [descriptionDraft, setDescriptionDraft] = useState('');
+
+  // Match score editing state. Local input value keyed by "r{round}-m{match}-{slot}"
+  // so we can show what the host is typing without waiting for the debounced save.
+  const [scoreDrafts, setScoreDrafts] = useState({});
+  const scoreSaveTimers = useRef({});  // matchupKey -> timeout ID
+
+  // Helper: parse a raw input value into a valid score or null.
+  // Empty/whitespace -> null. Non-integer / negative -> null. Otherwise integer.
+  const parseScoreInput = (raw) => {
+    if (raw == null) return null;
+    const trimmed = String(raw).trim();
+    if (trimmed === '') return null;
+    const n = Number(trimmed);
+    if (!Number.isFinite(n) || n < 0) return null;
+    return Math.floor(n);
+  };
+
+  // Persist a score change. Used by both the debounced typing path and the
+  // immediate blur path. Reads the latest pool.results so concurrent edits
+  // to different matches don't clobber each other.
+  const persistScore = async (roundIndex, matchIndex, slot, rawValue) => {
+    if (!isHost || !pool?.results) return;
+    const newResults = JSON.parse(JSON.stringify(pool.results));
+    const match = newResults[roundIndex]?.[matchIndex];
+    if (!match) return;
+    const parsed = parseScoreInput(rawValue);
+    if (slot === 1) match.score1 = parsed;
+    else match.score2 = parsed;
+    try {
+      await updatePoolResults(poolId, currentUser.uid, newResults);
+      await loadPoolData();
+    } catch (error) {
+      console.error('Failed to save score:', error);
+    }
+  };
+
+  // Called on every keystroke. Updates the local draft immediately for a
+  // responsive UI, and schedules a debounced save 300ms after the host
+  // stops typing.
+  const handleScoreChange = (roundIndex, matchIndex, slot, rawValue) => {
+    const key = `r${roundIndex}-m${matchIndex}-${slot}`;
+    setScoreDrafts((prev) => ({ ...prev, [key]: rawValue }));
+
+    if (scoreSaveTimers.current[key]) {
+      clearTimeout(scoreSaveTimers.current[key]);
+    }
+    scoreSaveTimers.current[key] = setTimeout(() => {
+      delete scoreSaveTimers.current[key];
+      persistScore(roundIndex, matchIndex, slot, rawValue);
+      // Clear the draft once persisted — pool reload will provide truth.
+      setScoreDrafts((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    }, 300);
+  };
+
+  // Called on blur. Flush the pending debounce immediately so leaving the
+  // field guarantees a save.
+  const handleScoreBlur = (roundIndex, matchIndex, slot, rawValue) => {
+    const key = `r${roundIndex}-m${matchIndex}-${slot}`;
+    if (scoreSaveTimers.current[key]) {
+      clearTimeout(scoreSaveTimers.current[key]);
+      delete scoreSaveTimers.current[key];
+    }
+    persistScore(roundIndex, matchIndex, slot, rawValue);
+    setScoreDrafts((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  // Reads the value that should be shown in the input. Prefers the local
+  // draft (so typing is immediate), falls back to the persisted score.
+  const getScoreInputValue = (roundIndex, matchIndex, slot) => {
+    const key = `r${roundIndex}-m${matchIndex}-${slot}`;
+    if (key in scoreDrafts) return scoreDrafts[key];
+    const match = pool?.results?.[roundIndex]?.[matchIndex];
+    if (!match) return '';
+    const score = slot === 1 ? match.score1 : match.score2;
+    return score == null ? '' : String(score);
+  };
+
+  useEffect(() => {
+    return () => {
+      Object.values(scoreSaveTimers.current).forEach(clearTimeout);
+      scoreSaveTimers.current = {};
+    };
+  }, []);
   
   const { currentUser } = useAuth();
 
@@ -2619,57 +2710,85 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
                     const canAnalyze = !canSelect && entries.length > 1;
                     
                     return (
-                      <div key={`${roundIndex}-${matchIndex}`} className={`pool-matchup ${matchStatus}`}>
-                        <div 
-                          className={`pool-entry ${match.winner === 1 ? 'winner' : ''} ${canSelect ? 'selectable' : ''} ${canAnalyze && match.entry1 ? 'analyzable' : ''}`}
-                          onClick={(e) => {
-                            if (canSelect) {
-                              if (pool.status === 'open' && !entry?.submittedAt) {
-                                handlePredictionSelect(roundIndex, matchIndex, 1);
-                              } else if (activeTab === 'results' && isHost) {
-                                handleResultSelect(roundIndex, matchIndex, 1);
-                              }
-                            } else if (canAnalyze && match.entry1) {
-                              handleParticipantClick(match.entry1, e);
+                    <div key={`${roundIndex}-${matchIndex}`} className={`pool-matchup ${matchStatus}`}>
+                      {[1, 2].map((slot) => {
+                        const entryData = slot === 1 ? match.entry1 : match.entry2;
+                        const isWinner = match.winner === slot;
+                        const showScoreInput =
+                          activeTab === 'results' && isHost && !viewingEntry && entryData;
+
+                        // Score is sourced from pool.results (the actual played
+                        // outcome), not from displayMatchups (which may be a
+                        // participant's predictions). Match the score to this
+                        // entry by seed so it works even when the predictions
+                        // disagree about which team advanced.
+                        let persistedScore = null;
+                        if (entryData && pool?.results) {
+                          const actualMatch = pool.results[roundIndex]?.[matchIndex];
+                          if (actualMatch) {
+                            if (actualMatch.entry1?.seed === entryData.seed) {
+                              persistedScore = actualMatch.score1 ?? null;
+                            } else if (actualMatch.entry2?.seed === entryData.seed) {
+                              persistedScore = actualMatch.score2 ?? null;
                             }
-                          }}
-                        >
-                          {match.entry1 ? (
-                            <>
-                              <span className="pool-seed">{match.entry1.seed}</span>
-                              <span className="pool-entry-name">{match.entry1.name}</span>
-                            </>
-                          ) : (
-                            <span className="pool-entry-name tbd">TBD</span>
-                          )}
-                        </div>
-                        <div 
-                          className={`pool-entry ${match.winner === 2 ? 'winner' : ''} ${canSelect ? 'selectable' : ''} ${canAnalyze && match.entry2 ? 'analyzable' : ''}`}
-                          onClick={(e) => {
-                            if (canSelect) {
-                              if (pool.status === 'open' && !entry?.submittedAt) {
-                                handlePredictionSelect(roundIndex, matchIndex, 2);
-                              } else if (activeTab === 'results' && isHost) {
-                                handleResultSelect(roundIndex, matchIndex, 2);
+                          }
+                        }
+                        const showScoreDisplay =
+                          !showScoreInput && entryData && persistedScore != null;
+
+                        return (
+                          <div
+                            key={slot}
+                            className={`pool-entry ${isWinner ? 'winner' : ''} ${canSelect ? 'selectable' : ''} ${canAnalyze && entryData ? 'analyzable' : ''} ${showScoreInput ? 'host-mode' : ''}`}
+                            onClick={(e) => {
+                              // Don't fire winner-toggle when the click came from inside the score input
+                              if (e.target.classList.contains('pool-score-input')) return;
+                              if (canSelect) {
+                                if (pool.status === 'open' && !entry?.submittedAt) {
+                                  handlePredictionSelect(roundIndex, matchIndex, slot);
+                                } else if (activeTab === 'results' && isHost) {
+                                  handleResultSelect(roundIndex, matchIndex, slot);
+                                }
+                              } else if (canAnalyze && entryData) {
+                                handleParticipantClick(entryData, e);
                               }
-                            } else if (canAnalyze && match.entry2) {
-                              handleParticipantClick(match.entry2, e);
-                            }
-                          }}
-                        >
-                          {match.entry2 ? (
-                            <>
-                              <span className="pool-seed">{match.entry2.seed}</span>
-                              <span className="pool-entry-name">{match.entry2.name}</span>
-                            </>
-                          ) : (
-                            <span className="pool-entry-name tbd">TBD</span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                            }}
+                          >
+                            {entryData ? (
+                              <>
+                                <span className="pool-seed">{entryData.seed}</span>
+                                <span className="pool-entry-name">{entryData.name}</span>
+                                {showScoreInput && (
+                                  <input
+                                    type="number"
+                                    inputMode="numeric"
+                                    min="0"
+                                    step="1"
+                                    className="pool-score-input"
+                                    placeholder="—"
+                                    value={getScoreInputValue(roundIndex, matchIndex, slot)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onChange={(e) =>
+                                      handleScoreChange(roundIndex, matchIndex, slot, e.target.value)
+                                    }
+                                    onBlur={(e) =>
+                                      handleScoreBlur(roundIndex, matchIndex, slot, e.target.value)
+                                    }
+                                    aria-label={`${entryData.name} score`}
+                                  />
+                                )}
+                                {showScoreDisplay && (
+                                  <span className="pool-score">{persistedScore}</span>
+                                )}
+                              </>
+                            ) : (
+                              <span className="pool-entry-name tbd">TBD</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
               </div>
             ))}
           </div>
@@ -3680,9 +3799,9 @@ const PredictionPoolDetailPage = ({ poolId, onNavigate }) => {
             </div>
           )}
           
-          {canSetResults && (
+          {activeTab === 'results' && isHost && !viewingEntry && (
             <div className="host-instructions">
-              <p>Click on options to set the actual winners for each category.</p>
+              <p>Click on entries to set the actual results as games are played. Optionally enter scores in the input boxes.</p>
             </div>
           )}
 
