@@ -6274,3 +6274,62 @@ body {
   color: #94a3b8;
   font-style: italic;
 }
+
+/* ======================================================================
+   Match score inputs & display (host-set results)
+   ====================================================================== */
+
+/* When in host-results mode, the pool-entry grid expands to fit a score
+   input column on the right. */
+.pool-entry.host-mode {
+  grid-template-columns: 22px 1fr 56px;
+}
+
+.pool-score-input {
+  background: var(--bg-dark);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 4px 6px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-family: inherit;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  width: 100%;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  /* Hide native number-input arrows */
+  -moz-appearance: textfield;
+  position: relative;
+  z-index: 1;  /* sits above the row's click target */
+}
+.pool-score-input::-webkit-inner-spin-button,
+.pool-score-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.pool-score-input:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+.pool-score-input:focus {
+  outline: none;
+  border-color: var(--accent-orange);
+  background: rgba(255, 107, 53, 0.05);
+}
+.pool-entry.winner .pool-score-input {
+  color: var(--accent-teal);
+  font-weight: 600;
+}
+
+/* Read-only score display (everyone except host setting results) */
+.pool-score {
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+  min-width: 1.6em;
+  text-align: right;
+  margin-left: 8px;
+  color: var(--text-muted);
+}
+.pool-entry.winner .pool-score {
+  color: var(--accent-teal);
+  font-weight: 700;
+}
