@@ -2789,7 +2789,6 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
                       })}
                     </div>
                   );
-              </div>
             ))}
           </div>
         </div>
