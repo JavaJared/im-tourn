@@ -2094,27 +2094,28 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
     if (scoreSaveTimers.current[key]) {
       clearTimeout(scoreSaveTimers.current[key]);
     }
+    // Schedule a debounced save. We do NOT clear the draft after saving —
+    // the draft is cleared only on blur (or unmount). Keeping it around
+    // means the displayed value stays stable through the Firestore
+    // round-trip, so the input doesn't blink between "what I typed" and
+    // "what came back from the server".
     scoreSaveTimers.current[key] = setTimeout(() => {
       delete scoreSaveTimers.current[key];
       persistScore(roundIndex, matchIndex, slot, rawValue);
-      // Clear the draft once persisted — pool reload will provide truth.
-      setScoreDrafts((prev) => {
-        const next = { ...prev };
-        delete next[key];
-        return next;
-      });
     }, 300);
   };
 
-  // Called on blur. Flush the pending debounce immediately so leaving the
-  // field guarantees a save.
-  const handleScoreBlur = (roundIndex, matchIndex, slot, rawValue) => {
+  // Called on blur. Flush any pending debounce so leaving the field
+  // guarantees a save. We await the save before clearing the draft so the
+  // input never momentarily shows the stale persisted value during the
+  // save round-trip.
+  const handleScoreBlur = async (roundIndex, matchIndex, slot, rawValue) => {
     const key = `r${roundIndex}-m${matchIndex}-${slot}`;
     if (scoreSaveTimers.current[key]) {
       clearTimeout(scoreSaveTimers.current[key]);
       delete scoreSaveTimers.current[key];
     }
-    persistScore(roundIndex, matchIndex, slot, rawValue);
+    await persistScore(roundIndex, matchIndex, slot, rawValue);
     setScoreDrafts((prev) => {
       const next = { ...prev };
       delete next[key];
