@@ -6282,25 +6282,28 @@ body {
 /* When in host-results mode, the pool-entry grid expands to fit a score
    input column on the right. */
 .pool-entry.host-mode {
-  grid-template-columns: 22px 1fr 56px;
+  /* Shrink the score column so the name area dominates and stays clickable */
+  grid-template-columns: 22px 1fr 38px;
 }
 
 .pool-score-input {
   background: var(--bg-dark);
   border: 1px solid var(--border-subtle);
   border-radius: 4px;
-  padding: 4px 6px;
+  padding: 2px 4px;
   color: var(--text-primary);
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   font-family: inherit;
   text-align: center;
   font-variant-numeric: tabular-nums;
   width: 100%;
+  max-width: 38px;
+  height: 22px;
   transition: border-color 0.15s ease, background 0.15s ease;
-  /* Hide native number-input arrows */
   -moz-appearance: textfield;
+  /* Keep the input above its row visually but DON'T let it expand the click target */
   position: relative;
-  z-index: 1;  /* sits above the row's click target */
+  z-index: 1;
 }
 .pool-score-input::-webkit-inner-spin-button,
 .pool-score-input::-webkit-outer-spin-button {
