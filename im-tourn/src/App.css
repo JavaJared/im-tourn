@@ -6336,3 +6336,69 @@ body {
   color: var(--accent-teal);
   font-weight: 700;
 }
+
+/* ======================================================================
+   Prediction-vs-actual display
+   When the user's predicted team didn't actually play in a matchup, the
+   row expands to show the actual team as primary and the prediction as
+   a small secondary line.
+   ====================================================================== */
+
+.pool-entry.has-mismatch {
+  grid-template-columns: 22px 1fr auto;
+  grid-template-rows: auto auto;
+  gap: 1px 10px;
+  padding: 7px 12px;
+}
+
+.pool-entry.has-mismatch .pool-seed {
+  grid-row: 1 / 2;
+}
+.pool-entry.has-mismatch .actual-row {
+  grid-column: 2 / 3;
+  grid-row: 1 / 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+}
+.pool-entry.has-mismatch .pool-score,
+.pool-entry.has-mismatch .pool-score-input {
+  grid-column: 3 / 4;
+  grid-row: 1 / 2;
+}
+.pool-entry.has-mismatch .predicted-row {
+  grid-column: 2 / 4;
+  grid-row: 2 / 3;
+  font-size: 0.72rem;
+  color: var(--text-muted, #5a5a6a);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.predicted-label {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.65rem;
+  color: var(--text-muted, #5a5a6a);
+  opacity: 0.85;
+}
+
+.predicted-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.predicted-name.you-got-it {
+  color: #ef4444;  /* same red used elsewhere for incorrect signals */
+}
+
+/* Subtle red left-edge tint for rows where the user's prediction was off */
+.pool-entry.user-was-wrong {
+  border-left: 2px solid rgba(239, 68, 68, 0.5);
+  padding-left: 10px;
+}
