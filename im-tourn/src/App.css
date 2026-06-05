@@ -2873,20 +2873,23 @@ body {
   border-radius: 12px;
   padding: 1.5rem;
   /* Break out of the 1400px home-container to claim more horizontal
-     space for the bracket. The negative-margin trick extends visually
-     beyond the parent without changing the parent's layout. */
-  margin-left: calc(-1 * max(0px, (100vw - 100%) / 2 - 32px));
-  margin-right: calc(-1 * max(0px, (100vw - 100%) / 2 - 32px));
-  max-width: calc(100vw - 64px);
+     space, but cap at 75% of the viewport so we don't sprawl edge to
+     edge on wide screens. The negative margin matches the breakout
+     width on each side. */
+  width: 75vw;
+  max-width: 75vw;
+  margin-left: calc(50% - 37.5vw);
+  margin-right: calc(50% - 37.5vw);
 }
 
-/* On narrow viewports, the trick has no effect (the math results in 0)
-   so the container fits naturally inside the page padding. */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
+  /* On narrower viewports, give up the breakout and let the container
+     fill its parent normally. */
   .pool-bracket-container {
+    width: auto;
+    max-width: 100%;
     margin-left: 0;
     margin-right: 0;
-    max-width: 100%;
   }
 }
 
@@ -2935,6 +2938,7 @@ body {
   overflow-x: auto;
   min-height: 400px;
   padding: 1rem 0;
+  justify-content: center;  /* centers rounds when there's extra space */
 }
 
 .pool-round {
