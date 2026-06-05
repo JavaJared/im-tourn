@@ -2828,7 +2828,7 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
                         return (
                           <div
                             key={slot}
-                            className={`pool-entry ${displayIsWinner ? 'winner' : ''} ${canSelect ? 'selectable' : ''} ${canAnalyze && entryData ? 'analyzable' : ''} ${showScoreInput ? 'host-mode' : ''} ${hasMismatch ? 'has-mismatch user-was-wrong' : ''}`}
+                            className={`pool-entry ${displayIsWinner ? 'winner' : ''} ${canSelect ? 'selectable' : ''} ${canAnalyze && entryData ? 'analyzable' : ''} ${showScoreInput ? 'host-mode' : ''} ${hasMismatch ? 'has-mismatch' : ''}`}
                             onClick={(e) => {
                               if (e.target.classList.contains('pool-score-input')) return;
                               if (canSelect) {
@@ -2875,7 +2875,7 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
                                     <span className="predicted-row">
                                       <span className="predicted-label">You picked:</span>
                                       <span className="predicted-name you-got-it">
-                                        {entryData.name} ({entryData.seed})
+                                        {entryData.name}
                                       </span>
                                     </span>
                                   </>
