@@ -2872,6 +2872,22 @@ body {
   border: 1px solid var(--border-subtle);
   border-radius: 12px;
   padding: 1.5rem;
+  /* Break out of the 1400px home-container to claim more horizontal
+     space for the bracket. The negative-margin trick extends visually
+     beyond the parent without changing the parent's layout. */
+  margin-left: calc(-1 * max(0px, (100vw - 100%) / 2 - 32px));
+  margin-right: calc(-1 * max(0px, (100vw - 100%) / 2 - 32px));
+  max-width: calc(100vw - 64px);
+}
+
+/* On narrow viewports, the trick has no effect (the math results in 0)
+   so the container fits naturally inside the page padding. */
+@media (max-width: 768px) {
+  .pool-bracket-container {
+    margin-left: 0;
+    margin-right: 0;
+    max-width: 100%;
+  }
 }
 
 .prediction-instructions,
@@ -6341,7 +6357,8 @@ body {
    Prediction-vs-actual display
    When the user's predicted team didn't actually play in a matchup, the
    row expands to show the actual team as primary and the prediction as
-   a small secondary line.
+   a small secondary line beneath it. Score stays vertically centered
+   on the right across both lines.
    ====================================================================== */
 
 .pool-entry.has-mismatch {
@@ -6352,40 +6369,43 @@ body {
 }
 
 .pool-entry.has-mismatch .pool-seed {
-  grid-row: 1 / 2;
+  grid-column: 1 / 2;
+  grid-row: 1 / 3;
+  align-self: center;
 }
-.pool-entry.has-mismatch .actual-row {
+
+.pool-entry.has-mismatch .pool-entry-name {
   grid-column: 2 / 3;
   grid-row: 1 / 2;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  overflow: hidden;
 }
-.pool-entry.has-mismatch .pool-score,
-.pool-entry.has-mismatch .pool-score-input {
-  grid-column: 3 / 4;
-  grid-row: 1 / 2;
-}
+
 .pool-entry.has-mismatch .predicted-row {
-  grid-column: 2 / 4;
+  grid-column: 2 / 3;
   grid-row: 2 / 3;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   color: var(--text-muted, #5a5a6a);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.pool-entry.has-mismatch .pool-score,
+.pool-entry.has-mismatch .pool-score-input {
+  grid-column: 3 / 4;
+  grid-row: 1 / 3;
+  align-self: center;
+}
+
 .predicted-label {
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   color: var(--text-muted, #5a5a6a);
   opacity: 0.85;
+  flex-shrink: 0;
 }
 
 .predicted-name {
@@ -6394,11 +6414,5 @@ body {
   white-space: nowrap;
 }
 .predicted-name.you-got-it {
-  color: #ef4444;  /* same red used elsewhere for incorrect signals */
-}
-
-/* Subtle red left-edge tint for rows where the user's prediction was off */
-.pool-entry.user-was-wrong {
-  border-left: 2px solid rgba(239, 68, 68, 0.5);
-  padding-left: 10px;
+  color: #ef4444;
 }
