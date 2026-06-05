@@ -6356,16 +6356,24 @@ body {
 /* ======================================================================
    Prediction-vs-actual display
    When the user's predicted team didn't actually play in a matchup, the
-   row expands to show the actual team as primary and the prediction as
-   a small secondary line beneath it. Score stays vertically centered
-   on the right across both lines.
+   row switches to a 2-row grid: actual team name on top, "You picked..."
+   on the bottom, score vertically centered on the right.
+
+   NOTE: the parent .pool-entry uses display: flex. We override to grid
+   ONLY for the mismatch variant. The !important on display is needed
+   because the original .pool-entry rule and this one have equal
+   specificity, and CSS doesn't merge `display: flex` and grid template
+   properties — grid templates require the parent to be display: grid.
    ====================================================================== */
 
 .pool-entry.has-mismatch {
+  display: grid !important;
   grid-template-columns: 22px 1fr auto;
   grid-template-rows: auto auto;
-  gap: 1px 10px;
-  padding: 7px 12px;
+  column-gap: 0.4rem;     /* matches the original .pool-entry `gap: 0.4rem` */
+  row-gap: 1px;
+  padding: 0.6rem 0.5rem; /* matches original .pool-entry padding exactly */
+  align-items: center;
 }
 
 .pool-entry.has-mismatch .pool-seed {
@@ -6377,13 +6385,14 @@ body {
 .pool-entry.has-mismatch .pool-entry-name {
   grid-column: 2 / 3;
   grid-row: 1 / 2;
+  flex: none;             /* override .pool-entry-name's flex: 1 */
 }
 
 .pool-entry.has-mismatch .predicted-row {
   grid-column: 2 / 3;
   grid-row: 2 / 3;
   font-size: 0.7rem;
-  color: var(--text-muted, #5a5a6a);
+  color: var(--text-muted);
   display: flex;
   align-items: center;
   gap: 5px;
@@ -6403,7 +6412,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-size: 0.62rem;
-  color: var(--text-muted, #5a5a6a);
+  color: var(--text-muted);
   opacity: 0.85;
   flex-shrink: 0;
 }
@@ -6413,6 +6422,7 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
 .predicted-name.you-got-it {
   color: #ef4444;
 }
