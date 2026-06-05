@@ -2050,9 +2050,18 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
   const [descriptionDraft, setDescriptionDraft] = useState('');
 
   // Match score editing state. Local input value keyed by "r{round}-m{match}-{slot}"
-  // so we can show what the host is typing without waiting for the debounced save.
+  // for responsive UI display while a save is pending.
   const [scoreDrafts, setScoreDrafts] = useState({});
-  const scoreSaveTimers = useRef({});  // matchupKey -> timeout ID
+
+  // Pending writes accumulator. Maps matchup+slot key to the parsed value
+  // that should be persisted. All pending writes are flushed together in a
+  // single Firestore update, eliminating the race where two concurrent
+  // saves overwrite each other.
+  const pendingScoreWrites = useRef({});
+  const scoreFlushTimer = useRef(null);
+  // Tracks the in-flight flush promise so blur handlers can await it and
+  // know exactly when it's safe to clear their drafts.
+  const inflightFlush = useRef(null);
 
   // Helper: parse a raw input value into a valid score or null.
   // Empty/whitespace -> null. Non-integer / negative -> null. Otherwise integer.
@@ -2065,57 +2074,91 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
     return Math.floor(n);
   };
 
-  // Persist a score change. Used by both the debounced typing path and the
-  // immediate blur path. Reads the latest pool.results so concurrent edits
-  // to different matches don't clobber each other.
-  const persistScore = async (roundIndex, matchIndex, slot, rawValue) => {
-    if (!isHost || !pool?.results) return;
-    const newResults = JSON.parse(JSON.stringify(pool.results));
-    const match = newResults[roundIndex]?.[matchIndex];
-    if (!match) return;
-    const parsed = parseScoreInput(rawValue);
-    if (slot === 1) match.score1 = parsed;
-    else match.score2 = parsed;
+  // Flush all accumulated pending score writes in a single Firestore update.
+  // Reads pool.results fresh from the database so we don't operate on a
+  // stale closure-captured copy, and applies all pending changes at once.
+  const flushPendingScores = async () => {
+    if (!isHost) {
+      pendingScoreWrites.current = {};
+      return;
+    }
+    const pending = pendingScoreWrites.current;
+    if (Object.keys(pending).length === 0) return;
+
+    // Snapshot the pending writes and clear the accumulator BEFORE the
+    // async work so any new edits arriving during the flush start a new
+    // pending batch instead of getting lost on accumulator clear.
+    pendingScoreWrites.current = {};
+
     try {
+      // Read fresh from Firestore. Avoids stale-closure issues if the host
+      // had React state from before a previous reload.
+      const freshPool = await getPoolById(poolId);
+      if (!freshPool?.results) return;
+      const newResults = JSON.parse(JSON.stringify(freshPool.results));
+
+      // Apply every pending change to the fresh results copy.
+      for (const key of Object.keys(pending)) {
+        const m = key.match(/^r(\d+)-m(\d+)-([12])$/);
+        if (!m) continue;
+        const r = Number(m[1]);
+        const mi = Number(m[2]);
+        const slot = Number(m[3]);
+        const match = newResults[r]?.[mi];
+        if (!match) continue;
+        if (slot === 1) match.score1 = pending[key];
+        else match.score2 = pending[key];
+      }
+
       await updatePoolResults(poolId, currentUser.uid, newResults);
       await loadPoolData();
     } catch (error) {
-      console.error('Failed to save score:', error);
+      console.error('Failed to flush score writes:', error);
+      // Re-queue the changes on failure so they're not silently dropped.
+      for (const key of Object.keys(pending)) {
+        if (!(key in pendingScoreWrites.current)) {
+          pendingScoreWrites.current[key] = pending[key];
+        }
+      }
     }
   };
 
-  // Called on every keystroke. Updates the local draft immediately for a
-  // responsive UI, and schedules a debounced save 300ms after the host
-  // stops typing.
-  const handleScoreChange = (roundIndex, matchIndex, slot, rawValue) => {
-    const key = `r${roundIndex}-m${matchIndex}-${slot}`;
-    setScoreDrafts((prev) => ({ ...prev, [key]: rawValue }));
-
-    if (scoreSaveTimers.current[key]) {
-      clearTimeout(scoreSaveTimers.current[key]);
-    }
-    // Schedule a debounced save. We do NOT clear the draft after saving —
-    // the draft is cleared only on blur (or unmount). Keeping it around
-    // means the displayed value stays stable through the Firestore
-    // round-trip, so the input doesn't blink between "what I typed" and
-    // "what came back from the server".
-    scoreSaveTimers.current[key] = setTimeout(() => {
-      delete scoreSaveTimers.current[key];
-      persistScore(roundIndex, matchIndex, slot, rawValue);
+  // Schedule a flush ~300ms in the future, replacing any pending schedule.
+  const scheduleFlush = () => {
+    if (scoreFlushTimer.current) clearTimeout(scoreFlushTimer.current);
+    scoreFlushTimer.current = setTimeout(() => {
+      scoreFlushTimer.current = null;
+      // Track this flush so blur can await it.
+      inflightFlush.current = flushPendingScores().finally(() => {
+        inflightFlush.current = null;
+      });
     }, 300);
   };
 
-  // Called on blur. Flush any pending debounce so leaving the field
-  // guarantees a save. We await the save before clearing the draft so the
-  // input never momentarily shows the stale persisted value during the
-  // save round-trip.
+  const handleScoreChange = (roundIndex, matchIndex, slot, rawValue) => {
+    const key = `r${roundIndex}-m${matchIndex}-${slot}`;
+    // Update the local draft for immediate visual feedback.
+    setScoreDrafts((prev) => ({ ...prev, [key]: rawValue }));
+    // Queue the parsed value into the pending writes accumulator.
+    pendingScoreWrites.current[key] = parseScoreInput(rawValue);
+    scheduleFlush();
+  };
+
   const handleScoreBlur = async (roundIndex, matchIndex, slot, rawValue) => {
     const key = `r${roundIndex}-m${matchIndex}-${slot}`;
-    if (scoreSaveTimers.current[key]) {
-      clearTimeout(scoreSaveTimers.current[key]);
-      delete scoreSaveTimers.current[key];
+    // Ensure this blur's value is in the accumulator.
+    pendingScoreWrites.current[key] = parseScoreInput(rawValue);
+    // Cancel any pending scheduled flush and run one immediately.
+    if (scoreFlushTimer.current) {
+      clearTimeout(scoreFlushTimer.current);
+      scoreFlushTimer.current = null;
     }
-    await persistScore(roundIndex, matchIndex, slot, rawValue);
+    const flushPromise = flushPendingScores();
+    inflightFlush.current = flushPromise;
+    await flushPromise;
+    inflightFlush.current = null;
+    // Only clear this input's draft now that the save has completed and
+    // the reload has updated pool.results.
     setScoreDrafts((prev) => {
       const next = { ...prev };
       delete next[key];
@@ -2123,8 +2166,6 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
     });
   };
 
-  // Reads the value that should be shown in the input. Prefers the local
-  // draft (so typing is immediate), falls back to the persisted score.
   const getScoreInputValue = (roundIndex, matchIndex, slot) => {
     const key = `r${roundIndex}-m${matchIndex}-${slot}`;
     if (key in scoreDrafts) return scoreDrafts[key];
@@ -2134,11 +2175,21 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
     return score == null ? '' : String(score);
   };
 
+  // Cleanup: flush any pending writes on unmount so we don't lose edits
+  // when the host navigates away mid-typing.
   useEffect(() => {
     return () => {
-      Object.values(scoreSaveTimers.current).forEach(clearTimeout);
-      scoreSaveTimers.current = {};
+      if (scoreFlushTimer.current) {
+        clearTimeout(scoreFlushTimer.current);
+        scoreFlushTimer.current = null;
+      }
+      // Best-effort flush. We can't await in cleanup, but the write will
+      // still go through if the browser doesn't close immediately.
+      if (Object.keys(pendingScoreWrites.current).length > 0) {
+        flushPendingScores();
+      }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
   const { currentUser } = useAuth();
@@ -2713,36 +2764,72 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
                     return (
                     <div key={`${roundIndex}-${matchIndex}`} className={`pool-matchup ${matchStatus}`}>
                       {[1, 2].map((slot) => {
+                        // entryData is the team in this slot of the bracket
+                        // currently being displayed (which is the user's
+                        // predictions, the host's results, or another
+                        // participant's predictions depending on context).
                         const entryData = slot === 1 ? match.entry1 : match.entry2;
                         const isWinner = match.winner === slot;
                         const showScoreInput =
                           activeTab === 'results' && isHost && !viewingEntry && entryData;
 
-                        // Score is sourced from pool.results (the actual played
-                        // outcome), not from displayMatchups (which may be a
-                        // participant's predictions). Match the score to this
-                        // entry by seed so it works even when the predictions
-                        // disagree about which team advanced.
-                        let persistedScore = null;
-                        if (entryData && pool?.results) {
-                          const actualMatch = pool.results[roundIndex]?.[matchIndex];
-                          if (actualMatch) {
-                            if (actualMatch.entry1?.seed === entryData.seed) {
-                              persistedScore = actualMatch.score1 ?? null;
-                            } else if (actualMatch.entry2?.seed === entryData.seed) {
-                              persistedScore = actualMatch.score2 ?? null;
-                            }
-                          }
-                        }
+                        // Look up what ACTUALLY happened in this matchup.
+                        // Sourced from pool.results (the actual played
+                        // outcome). Note: this is independent of which
+                        // bracket the user is viewing — we always want to
+                        // compare against the real results.
+                        const actualMatch = pool?.results?.[roundIndex]?.[matchIndex];
+                        const actualEntry = actualMatch
+                          ? (slot === 1 ? actualMatch.entry1 : actualMatch.entry2)
+                          : null;
+                        const actualScore = actualMatch
+                          ? (slot === 1 ? actualMatch.score1 : actualMatch.score2) ?? null
+                          : null;
+
+                        // Determine if the user's prediction for this slot
+                        // differs from what actually played. Only meaningful
+                        // when:
+                        //   - we're showing the user's predictions (not results)
+                        //   - the matchup actually has a real team in this
+                        //     slot (i.e. previous round was decided)
+                        //   - the predicted team and actual team have
+                        //     different seeds.
+                        // We're "showing predictions" if either we're
+                        // viewing another participant's bracket OR the
+                        // user is looking at their own bracket tab after
+                        // having submitted.
+                        const isShowingPredictions =
+                          viewingEntry || (entry?.submittedAt && activeTab === 'bracket');
+                        const hasMismatch =
+                          isShowingPredictions &&
+                          entryData &&
+                          actualEntry &&
+                          entryData.seed !== actualEntry.seed;
+
+                        // When there's a mismatch, the primary line shows
+                        // the team that ACTUALLY played; the secondary line
+                        // shows what the user predicted.
+                        const displayEntry = hasMismatch ? actualEntry : entryData;
+                        const displayScore = hasMismatch
+                          ? actualScore
+                          : (actualEntry && entryData.seed === actualEntry.seed ? actualScore : null);
+
+                        // Compute the winner flag against the displayed
+                        // team. Important: when a mismatch shows the
+                        // actual team, "isWinner" still maps to whether
+                        // that team won in the matchup.
+                        const displayIsWinner = hasMismatch
+                          ? actualMatch?.winner === slot
+                          : isWinner;
+
                         const showScoreDisplay =
-                          !showScoreInput && entryData && persistedScore != null;
+                          !showScoreInput && displayEntry && displayScore != null;
 
                         return (
                           <div
                             key={slot}
-                            className={`pool-entry ${isWinner ? 'winner' : ''} ${canSelect ? 'selectable' : ''} ${canAnalyze && entryData ? 'analyzable' : ''} ${showScoreInput ? 'host-mode' : ''}`}
+                            className={`pool-entry ${displayIsWinner ? 'winner' : ''} ${canSelect ? 'selectable' : ''} ${canAnalyze && entryData ? 'analyzable' : ''} ${showScoreInput ? 'host-mode' : ''} ${hasMismatch ? 'has-mismatch user-was-wrong' : ''}`}
                             onClick={(e) => {
-                              // Don't fire winner-toggle when the click came from inside the score input
                               if (e.target.classList.contains('pool-score-input')) return;
                               if (canSelect) {
                                 if (pool.status === 'open' && !entry?.submittedAt) {
@@ -2750,36 +2837,74 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
                                 } else if (activeTab === 'results' && isHost) {
                                   handleResultSelect(roundIndex, matchIndex, slot);
                                 }
-                              } else if (canAnalyze && entryData) {
-                                handleParticipantClick(entryData, e);
+                              } else if (canAnalyze && displayEntry) {
+                                handleParticipantClick(displayEntry, e);
                               }
                             }}
                           >
-                            {entryData ? (
+                            {displayEntry ? (
                               <>
-                                <span className="pool-seed">{entryData.seed}</span>
-                                <span className="pool-entry-name">{entryData.name}</span>
-                                {showScoreInput && (
-                                  <input
-                                    type="number"
-                                    inputMode="numeric"
-                                    min="0"
-                                    step="1"
-                                    className="pool-score-input"
-                                    placeholder="—"
-                                    value={getScoreInputValue(roundIndex, matchIndex, slot)}
-                                    onClick={(e) => e.stopPropagation()}
-                                    onChange={(e) =>
-                                      handleScoreChange(roundIndex, matchIndex, slot, e.target.value)
-                                    }
-                                    onBlur={(e) =>
-                                      handleScoreBlur(roundIndex, matchIndex, slot, e.target.value)
-                                    }
-                                    aria-label={`${entryData.name} score`}
-                                  />
-                                )}
-                                {showScoreDisplay && (
-                                  <span className="pool-score">{persistedScore}</span>
+                                <span className="pool-seed">{displayEntry.seed}</span>
+                                {hasMismatch ? (
+                                  <>
+                                    <span className="actual-row">
+                                      <span className="pool-entry-name">{displayEntry.name}</span>
+                                    </span>
+                                    {showScoreInput && (
+                                      <input
+                                        type="number"
+                                        inputMode="numeric"
+                                        min="0"
+                                        step="1"
+                                        className="pool-score-input"
+                                        placeholder="—"
+                                        value={getScoreInputValue(roundIndex, matchIndex, slot)}
+                                        onClick={(e) => e.stopPropagation()}
+                                        onChange={(e) =>
+                                          handleScoreChange(roundIndex, matchIndex, slot, e.target.value)
+                                        }
+                                        onBlur={(e) =>
+                                          handleScoreBlur(roundIndex, matchIndex, slot, e.target.value)
+                                        }
+                                        aria-label={`${displayEntry.name} score`}
+                                      />
+                                    )}
+                                    {showScoreDisplay && (
+                                      <span className="pool-score">{displayScore}</span>
+                                    )}
+                                    <span className="predicted-row">
+                                      <span className="predicted-label">You picked:</span>
+                                      <span className="predicted-name you-got-it">
+                                        {entryData.name} ({entryData.seed})
+                                      </span>
+                                    </span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="pool-entry-name">{displayEntry.name}</span>
+                                    {showScoreInput && (
+                                      <input
+                                        type="number"
+                                        inputMode="numeric"
+                                        min="0"
+                                        step="1"
+                                        className="pool-score-input"
+                                        placeholder="—"
+                                        value={getScoreInputValue(roundIndex, matchIndex, slot)}
+                                        onClick={(e) => e.stopPropagation()}
+                                        onChange={(e) =>
+                                          handleScoreChange(roundIndex, matchIndex, slot, e.target.value)
+                                        }
+                                        onBlur={(e) =>
+                                          handleScoreBlur(roundIndex, matchIndex, slot, e.target.value)
+                                        }
+                                        aria-label={`${displayEntry.name} score`}
+                                      />
+                                    )}
+                                    {showScoreDisplay && (
+                                      <span className="pool-score">{displayScore}</span>
+                                    )}
+                                  </>
                                 )}
                               </>
                             ) : (
