@@ -2454,31 +2454,89 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
 
   const handleResultSelect = async (roundIndex, matchIndex, winner) => {
     if (!isHost || pool.status !== 'in_progress') return;
-    
+
     const newResults = JSON.parse(JSON.stringify(pool.results));
-    newResults[roundIndex][matchIndex].winner = winner;
-    
-    // Propagate winner to next round
-    const winnerEntry = winner === 1 
-      ? newResults[roundIndex][matchIndex].entry1 
-      : newResults[roundIndex][matchIndex].entry2;
-    
-    if (roundIndex < newResults.length - 1) {
-      const nextMatchIndex = Math.floor(matchIndex / 2);
-      const isFirstEntry = matchIndex % 2 === 0;
-      
-      if (isFirstEntry) {
-        newResults[roundIndex + 1][nextMatchIndex].entry1 = winnerEntry;
-      } else {
-        newResults[roundIndex + 1][nextMatchIndex].entry2 = winnerEntry;
+    const currentWinner = newResults[roundIndex][matchIndex].winner;
+
+    // If the host is clicking the team that's already marked as winner,
+    // un-select it. Otherwise, set the clicked team as the new winner.
+    if (currentWinner === winner) {
+      // UN-SELECT path: clear this winner and cascade through any
+      // downstream matches whose entries depended on it.
+      cascadeClear(newResults, roundIndex, matchIndex);
+    } else {
+      // SET path: same as before — set the winner and propagate to the
+      // next round. But also cascade-clear first if there was a previous
+      // *different* winner, because flipping the winner means the team
+      // that previously advanced is no longer advancing and any
+      // downstream winners using them must also be cleared.
+      if (currentWinner != null && currentWinner !== winner) {
+        cascadeClear(newResults, roundIndex, matchIndex);
+      }
+      newResults[roundIndex][matchIndex].winner = winner;
+
+      // Propagate winner to next round.
+      const winnerEntry =
+        winner === 1
+          ? newResults[roundIndex][matchIndex].entry1
+          : newResults[roundIndex][matchIndex].entry2;
+
+      if (roundIndex < newResults.length - 1) {
+        const nextMatchIndex = Math.floor(matchIndex / 2);
+        const isFirstEntry = matchIndex % 2 === 0;
+        if (isFirstEntry) {
+          newResults[roundIndex + 1][nextMatchIndex].entry1 = winnerEntry;
+        } else {
+          newResults[roundIndex + 1][nextMatchIndex].entry2 = winnerEntry;
+        }
       }
     }
-    
+
     try {
       await updatePoolResults(poolId, currentUser.uid, newResults);
       await loadPoolData();
     } catch (error) {
       alert(error.message);
+    }
+  };
+
+  // Recursively clear a match's winner and every downstream match whose
+  // entries depended on this one. Walks forward through the bracket tree
+  // from the cleared match: round+1 always gets its corresponding slot
+  // nulled out, and if that round+1 match also had a winner set, the
+  // function recurses to clear that too.
+  const cascadeClear = (results, roundIndex, matchIndex) => {
+    // Clear this match's winner.
+    results[roundIndex][matchIndex].winner = null;
+
+    // If there's no next round, we're done (this was the final).
+    if (roundIndex >= results.length - 1) return;
+
+    const nextRoundIndex = roundIndex + 1;
+    const nextMatchIndex = Math.floor(matchIndex / 2);
+    const isFirstEntry = matchIndex % 2 === 0;
+    const nextMatch = results[nextRoundIndex][nextMatchIndex];
+
+    // Whether the next round's match had a winner set BEFORE we touch
+    // it — we need to know this before nulling the slot, so we can
+    // decide whether to recurse.
+    const nextHadWinner = nextMatch.winner != null;
+
+    // Null out the slot in the next round that this match was feeding.
+    if (isFirstEntry) {
+      nextMatch.entry1 = null;
+    } else {
+      nextMatch.entry2 = null;
+    }
+
+    // If the next round's match had a determined winner, that winner
+    // depended on these entries — cascade clear it too. (We always
+    // recurse if there was a winner, even if it was the *other* team
+    // in the matchup. Reason: with one entry now null, the "winner"
+    // is no longer a real comparison, so the bracket is inconsistent
+    // until we clear it. The host can re-set winners as needed.)
+    if (nextHadWinner) {
+      cascadeClear(results, nextRoundIndex, nextMatchIndex);
     }
   };
 
