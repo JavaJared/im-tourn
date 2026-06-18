@@ -7,6 +7,7 @@ import {
   locate, slotDisplay, feederId, countNamed, validateForPublish,
 } from '../lib/customBracket';
 import { subscribeToBracket, persistStructure, publishBracket } from '../services/customBracketService';
+import { defaultRoundPoints } from '../lib/customScoring';
 
 /* ---------- layout (UI only) ---------- */
 const COLW = 248, ROWH = 150, CARDW = 190, CARDH = 126, PADX = 60, PADTOP = 96, PADBOT = 56;
@@ -52,6 +53,8 @@ export default function CustomBracketBuilder({ bracketId, onExit }) {
   const [save, setSave] = useState('idle'); // idle | saving | saved | error
   const [toast, setToast] = useState(null);
   const [showErrors, setShowErrors] = useState(false);
+  const [scoringOpen, setScoringOpen] = useState(false);
+  const [roundPoints, setRoundPoints] = useState([]);
 
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -105,11 +108,17 @@ export default function CustomBracketBuilder({ bracketId, onExit }) {
     const pid = stored.type === SLOT.NAMED ? stored.participantId : newPid();
     apply((s) => setSlotName(s, id, slot, pid, trimmed));
   };
-  const onPublish = async () => {
+  const openScoring = () => {
     const cur = stateRef.current; if (!cur) return;
     if (!validateForPublish(cur).valid) { setShowErrors(true); return; }
-    setSave('saving');
-    try { await publishBracket(bracketId, cur); setSave('saved'); flash('Published'); onExit?.('published'); }
+    setRoundPoints(defaultRoundPoints(cur.rounds.length));
+    setScoringOpen(true);
+  };
+  const setRP = (i, v) => setRoundPoints((rp) => rp.map((x, idx) => (idx === i ? Math.max(0, parseInt(v, 10) || 0) : x)));
+  const confirmPublish = async () => {
+    const cur = stateRef.current; if (!cur) return;
+    setSave('saving'); setScoringOpen(false);
+    try { await publishBracket(bracketId, cur, roundPoints); setSave('saved'); flash('Published'); onExit?.('published'); }
     catch (e) {
       setSave('error');
       if (e?.errors) { setShowErrors(true); flash('Not ready to publish yet'); }
@@ -143,7 +152,7 @@ export default function CustomBracketBuilder({ bracketId, onExit }) {
           <span style={{ ...S.savePill, opacity: save === 'idle' ? 0 : 1, color: save === 'error' ? 'var(--orange)' : 'var(--teal)' }}>
             {save === 'saving' ? 'Saving…' : save === 'error' ? 'Save failed' : (<><Check size={12} strokeWidth={3} /> Saved</>)}
           </span>
-          <button style={{ ...S.publish, ...(validation.valid ? S.publishOn : {}) }} onClick={onPublish}><Trophy size={14} strokeWidth={2.5} /> Publish</button>
+          <button style={{ ...S.publish, ...(validation.valid ? S.publishOn : {}) }} onClick={openScoring}><Trophy size={14} strokeWidth={2.5} /> Publish</button>
         </div>
       </header>
 
@@ -201,6 +210,28 @@ export default function CustomBracketBuilder({ bracketId, onExit }) {
             <ul style={S.errList}>{validation.errors.map((e, i) => <li key={i} style={S.errItem}>{e}</li>)}</ul>
           )}
         </footer>
+      )}
+
+      {scoringOpen && (
+        <div style={S.overlay} onMouseDown={(e) => e.stopPropagation()}>
+          <div style={S.sheet}>
+            <div style={S.sheetTitle}>Round scoring</div>
+            <p style={S.sheetSub}>Points for each correct pick. Later rounds usually count for more.</p>
+            <div style={S.rpList}>
+              {roundPoints.map((pt, i) => (
+                <div key={i} style={S.rpRow}>
+                  <span style={S.rpLabel}>{i === roundPoints.length - 1 && roundPoints.length > 1 ? 'Final' : `Round ${i + 1}`}</span>
+                  <input type="number" min="0" value={pt} onChange={(e) => setRP(i, e.target.value)} style={S.rpInput} />
+                  <span style={S.rpUnit}>pts</span>
+                </div>
+              ))}
+            </div>
+            <div style={S.sheetActions}>
+              <button style={S.cancelBtn} onClick={() => setScoringOpen(false)}>Cancel</button>
+              <button style={S.confirmBtn} onClick={confirmPublish}><Trophy size={14} strokeWidth={2.5} /> Publish bracket</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {toast && <div style={S.toast}>{toast}</div>}
@@ -309,5 +340,17 @@ const S = {
   notReady: { alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--orange)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 500 },
   errList: { margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexWrap: 'wrap', gap: '4px 18px', animation: 'pop .15s ease' },
   errItem: { fontSize: 12.5, color: 'var(--muted)' },
+  overlay: { position: 'absolute', inset: 0, background: 'rgba(6,8,12,.66)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 40, animation: 'pop .12s ease' },
+  sheet: { width: 340, maxWidth: '88%', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 14, padding: 20, boxShadow: '0 20px 50px rgba(0,0,0,.55)' },
+  sheetTitle: { fontFamily: "'Bebas Neue',sans-serif", fontSize: 22, letterSpacing: 1, color: 'var(--text)' },
+  sheetSub: { fontSize: 13, color: 'var(--muted)', margin: '4px 0 14px', lineHeight: 1.4 },
+  rpList: { display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 240, overflow: 'auto' },
+  rpRow: { display: 'flex', alignItems: 'center', gap: 10 },
+  rpLabel: { flex: 1, fontSize: 14 },
+  rpInput: { width: 60, height: 32, textAlign: 'center', background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--line)', borderRadius: 8, fontSize: 14, fontFamily: 'inherit' },
+  rpUnit: { fontSize: 12, color: 'var(--muted)', width: 24 },
+  sheetActions: { display: 'flex', gap: 10, marginTop: 18 },
+  cancelBtn: { flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--text)', background: 'var(--surface2)', border: '1px solid var(--line)', borderRadius: 9, padding: '10px 0', cursor: 'pointer' },
+  confirmBtn: { flex: 2, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#0c0e13', background: 'var(--teal)', border: '1px solid var(--teal)', borderRadius: 9, padding: '10px 0', cursor: 'pointer' },
   toast: { position: 'absolute', bottom: 70, left: '50%', transform: 'translateX(-50%)', background: 'var(--orange)', color: '#0c0e13', fontSize: 13, fontWeight: 600, padding: '9px 16px', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,.4)', animation: 'pop .15s ease', zIndex: 20 },
 };
