@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Plus, X, Lock, Trophy, AlertTriangle, Trash2, Check, Loader2 } from 'lucide-react';
+import { Plus, X, Lock, Trophy, AlertTriangle, Trash2, Check, Loader2 } from './customBracketIcons';
 import {
   SLOT, MAX_PARTICIPANTS,
   addFirst, beside, after, before, removeBox,
