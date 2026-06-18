@@ -6,7 +6,7 @@
  * so the published/locked freeze rule can allow them while freezing structure.
  *
  * Doc shape:
- *   rounds:   [[boxId, ...], ...]            // structure
+ *   rounds:   [{ ids: [boxId, ...] }, ...]    // structure (no nested arrays — Firestore-safe)
  *   boxes:    { [id]: { slotA, slotB } }     // stored editable slots
  *   results:  { [id]: winnerId }             // live play
  *   scores:   { [id]: { a, b } }             // live play
@@ -32,7 +32,7 @@ export function serialize(state) {
   }
   return {
     version: DOC_VERSION,
-    rounds: state.rounds.map((r) => [...r]),
+    rounds: state.rounds.map((r) => ({ ids: [...r] })),
     boxes, results, scores, participants,
     participantCount: countNamed(state),
     roundCount: state.rounds.length,
@@ -51,5 +51,6 @@ export function deserialize(data) {
     };
     const n = matchNumber(id); if (n > maxId) maxId = n;
   }
-  return { rounds: (data.rounds || []).map((r) => [...r]), boxes, _nextId: maxId + 1, _lastCreated: [] };
+  const rounds = (data.rounds || []).map((r) => (Array.isArray(r) ? [...r] : [...((r && r.ids) || [])]));
+  return { rounds, boxes, _nextId: maxId + 1, _lastCreated: [] };
 }
