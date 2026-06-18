@@ -1,419 +1,177 @@
 /**
  * customBracket.js
  *
- * Pure, framework-free engine for building, editing, and validating custom
- * single-elimination brackets of arbitrary (freeform) depth.
+ * Pure, framework-free engine for free-form bracket building with positional
+ * advancement. The author places matchups into rounds; winners flow into the
+ * next round purely by position. Nothing is enforced until validateForPublish().
  *
- * Design contract (matches the agreed I'm Tourn model):
- *   - A bracket is a converging tree of matches. Each match has two slots.
- *   - A slot is one of: OPEN (editable, empty), NAMED (a participant),
- *     BYE (intentionally empty), or FEED (filled by the winner of an
- *     upstream match — read-only).
- *   - Structure grows two ways only:
- *       before  -> add an earlier match that feeds an OPEN slot
- *       beside  -> pair the current root with a new sibling, creating the
- *                  parent that joins them (a new final). Root-only.
- *     There is intentionally no "after"; pairing handles all forward growth.
- *   - Identity is by id (participantId / matchId), never by position.
- *   - Forbidden combination: FEED opposite BYE (a "pass-through" nobody plays).
- *     Also forbidden at publish: BYE opposite BYE, and any OPEN slot.
- *   - Round = distance from the final (root = tier 0). The deepest branch
- *     sets the number of tiers; that drives headers and host scoring.
+ * Model:
+ *   - `rounds` is an array of rounds; each round is an ordered array of box ids.
+ *     rounds[0] is Round 1 (earliest), the last round is the final.
+ *   - A box has two slots. A slot is OPEN / NAMED / BYE when the author fills it,
+ *     or FEED (display-only) when a box sits beneath it in the previous round.
+ *   - Positional feed: box at round r, position p is fed by round r-1 positions
+ *     2p (slot A) and 2p+1 (slot B). A slot is editable iff no feeder sits there.
+ *   - Identity is by id; advancement is by position. Byes cover odd counts and
+ *     double as the asymmetric-depth tool (a bye enters a round later).
  *
- * Every exported mutator is pure: it deep-clones the input state and returns
- * a new state. `_lastCreated` lists ids created by the most recent op.
+ * Every mutator is pure: it deep-clones and returns new state. `_lastCreated`
+ * lists ids made by the most recent op.
  */
 
-export const SLOT = Object.freeze({
-  OPEN: 'open',
-  NAMED: 'named',
-  BYE: 'bye',
-  FEED: 'feed',
-});
-
+export const SLOT = Object.freeze({ OPEN: 'open', NAMED: 'named', BYE: 'bye', FEED: 'feed' });
 export const MAX_PARTICIPANTS = 100;
 
-const clone = (s) =>
-  typeof structuredClone === 'function'
-    ? structuredClone(s)
-    : JSON.parse(JSON.stringify(s));
+const clone = (s) => (typeof structuredClone === 'function' ? structuredClone(s) : JSON.parse(JSON.stringify(s)));
+const storedSlot = (box, slot) => (slot === 'A' ? box.slotA : box.slotB);
+function newId(s) { const id = `m${s._nextId}`; s._nextId += 1; return id; }
+function blankBox(id) { return { id, slotA: { type: SLOT.OPEN }, slotB: { type: SLOT.OPEN }, result: null, score: null }; }
 
-const slotKey = (slot) => (slot === 'A' ? 'slotA' : 'slotB');
-const otherSlot = (slot) => (slot === 'A' ? 'B' : 'A');
-const getSlot = (match, slot) => match[slotKey(slot)];
-const setSlot = (match, slot, value) => {
-  match[slotKey(slot)] = value;
-};
-const openSlot = () => ({ type: SLOT.OPEN });
+export function createBracket() { return { rounds: [], boxes: {}, _nextId: 1, _lastCreated: [] }; }
 
-function getMatch(state, id) {
-  const m = state.matches[id];
-  if (!m) throw new Error(`Match not found: ${id}`);
-  return m;
+/** { boxId: { r, p } } for every box. */
+export function locate(state) {
+  const map = {};
+  state.rounds.forEach((rd, r) => rd.forEach((id, p) => { map[id] = { r, p }; }));
+  return map;
 }
 
-function newMatchId(state) {
-  const id = `m${state._nextMatchId}`;
-  state._nextMatchId += 1;
-  return id;
+/** The box (if any) feeding round r, position p, side which (0=A, 1=B). */
+export function feederId(state, r, p, which) {
+  if (r <= 0) return null;
+  const prev = state.rounds[r - 1];
+  const idx = 2 * p + which;
+  return prev && idx < prev.length ? prev[idx] : null;
 }
 
-function blankMatch(id) {
-  return {
-    id,
-    slotA: openSlot(),
-    slotB: openSlot(),
-    feedsInto: null, // { matchId, slot } | null  (null = root)
-    result: null, // { winnerId } | null
-    score: null, // { a, b } | null  (host match-score feature; never auto-cleared)
-  };
+/** Resolved slot for display: a positional feeder wins; else the stored value. */
+export function slotDisplay(state, loc, boxId, slot) {
+  const { r, p } = loc[boxId];
+  const fid = feederId(state, r, p, slot === 'A' ? 0 : 1);
+  if (fid) return { type: SLOT.FEED, sourceBoxId: fid };
+  return storedSlot(state.boxes[boxId], slot);
 }
+export const isEditable = (state, loc, boxId, slot) => slotDisplay(state, loc, boxId, slot).type !== SLOT.FEED;
 
-/* ------------------------------------------------------------------ *
- * Construction
- * ------------------------------------------------------------------ */
-
-/** A blank canvas: no matches yet. */
-export function createBracket() {
-  return { matches: {}, rootId: null, _nextMatchId: 1, _lastCreated: [] };
-}
-
-/** The first "Add a Matchup" on an empty canvas. Becomes the root. */
-export function addInitialMatch(state) {
-  if (Object.keys(state.matches).length > 0) {
-    throw new Error('Bracket already has matches; use before/beside');
-  }
+/* ---------------- building ---------------- */
+function addAt(state, r, pos) {
   const next = clone(state);
-  const id = newMatchId(next);
-  next.matches[id] = blankMatch(id);
-  next.rootId = id;
-  next._lastCreated = [id];
+  if (r > next.rounds.length) throw new Error('Cannot skip a round');
+  if (r === next.rounds.length) next.rounds.push([]);
+  const id = newId(next); next.boxes[id] = blankBox(id);
+  const round = next.rounds[r];
+  const at = pos == null ? round.length : Math.max(0, Math.min(pos, round.length));
+  round.splice(at, 0, id); next._lastCreated = [id];
+  return next;
+}
+export function addFirst(state) { return addAt(state, 0, null); }
+export function beside(state, boxId) { const l = locate(state)[boxId]; return addAt(state, l.r, l.p + 1); }
+export function after(state, boxId) { const l = locate(state)[boxId]; return addAt(state, l.r + 1, null); }
+export function before(state, boxId) {
+  const l = locate(state)[boxId];
+  if (l.r === 0) {
+    const next = clone(state); next.rounds.unshift([]);
+    const id = newId(next); next.boxes[id] = blankBox(id); next.rounds[0].push(id);
+    next._lastCreated = [id]; return next;
+  }
+  return addAt(state, l.r - 1, null);
+}
+export function removeBox(state, boxId) {
+  const next = clone(state); const l = locate(next)[boxId]; if (!l) return next;
+  next.rounds[l.r].splice(l.p, 1); delete next.boxes[boxId];
+  if (next.rounds[l.r].length === 0) next.rounds.splice(l.r, 1);
+  next._lastCreated = []; return next;
+}
+
+/* ---------------- slot editing ---------------- */
+export function setSlotName(state, boxId, slot, participantId, name) {
+  const next = clone(state); const loc = locate(next);
+  if (!isEditable(next, loc, boxId, slot)) throw new Error('That slot is filled by a winner');
+  const cur = storedSlot(next.boxes[boxId], slot);
+  if (cur.type !== SLOT.NAMED && countNamed(next) + 1 > MAX_PARTICIPANTS) throw new Error(`Exceeds the ${MAX_PARTICIPANTS} player cap`);
+  const v = { type: SLOT.NAMED, participantId, name };
+  if (slot === 'A') next.boxes[boxId].slotA = v; else next.boxes[boxId].slotB = v;
+  return next;
+}
+export function setSlotBye(state, boxId, slot) {
+  const next = clone(state); const loc = locate(next);
+  if (!isEditable(next, loc, boxId, slot)) throw new Error('That slot is filled by a winner');
+  if (slotDisplay(next, loc, boxId, slot === 'A' ? 'B' : 'A').type === SLOT.BYE) throw new Error('A matchup cannot have two byes');
+  const v = { type: SLOT.BYE };
+  if (slot === 'A') next.boxes[boxId].slotA = v; else next.boxes[boxId].slotB = v;
+  return next;
+}
+export function clearSlot(state, boxId, slot) {
+  const next = clone(state); const v = { type: SLOT.OPEN };
+  if (slot === 'A') next.boxes[boxId].slotA = v; else next.boxes[boxId].slotB = v;
   return next;
 }
 
-/**
- * Add an earlier-round match that feeds an OPEN slot of `matchId`.
- * If `slot` is omitted, the single open slot is targeted automatically;
- * if both are open, the top slot (A) is chosen.
- */
-export function addBefore(state, matchId, slot = null) {
-  const next = clone(state);
-  const match = getMatch(next, matchId);
-
-  let target = slot;
-  if (!target) {
-    if (getSlot(match, 'A').type === SLOT.OPEN) target = 'A';
-    else if (getSlot(match, 'B').type === SLOT.OPEN) target = 'B';
-    else throw new Error('No open slot to add a match before');
-  }
-  if (getSlot(match, target).type !== SLOT.OPEN) {
-    throw new Error(`Slot ${target} of ${matchId} is not open`);
-  }
-  if (getSlot(match, otherSlot(target)).type === SLOT.BYE) {
-    throw new Error('Cannot feed a slot opposite a bye (pass-through)');
-  }
-
-  const childId = newMatchId(next);
-  const child = blankMatch(childId);
-  child.feedsInto = { matchId, slot: target };
-  next.matches[childId] = child;
-  setSlot(match, target, { type: SLOT.FEED, sourceMatchId: childId });
-  match.result = null; // an open slot held no decided result anyway
-  next._lastCreated = [childId];
-  return next;
+/* ---------------- results (play) + cascade ---------------- */
+export function resolveParticipant(state, loc, boxId, slot) {
+  const d = slotDisplay(state, loc, boxId, slot);
+  if (d.type === SLOT.NAMED) return d.participantId;
+  if (d.type === SLOT.BYE) return null;
+  if (d.type === SLOT.OPEN) return undefined;
+  return matchWinner(state, loc, d.sourceBoxId);
 }
-
-/**
- * Pair `matchId` (which must be the current root) with a new blank sibling,
- * creating the parent that joins them. The parent becomes the new root /
- * final. The sibling starts as a blank leaf and can be named or expanded
- * with `before`.
- */
-export function addBeside(state, matchId) {
-  const next = clone(state);
-  const match = getMatch(next, matchId);
-  if (match.feedsInto !== null) {
-    throw new Error('Beside is only available on the root (the current final)');
-  }
-  const sibId = newMatchId(next);
-  const parentId = newMatchId(next);
-
-  const sib = blankMatch(sibId);
-  sib.feedsInto = { matchId: parentId, slot: 'B' };
-
-  const parent = blankMatch(parentId);
-  parent.slotA = { type: SLOT.FEED, sourceMatchId: matchId };
-  parent.slotB = { type: SLOT.FEED, sourceMatchId: sibId };
-
-  match.feedsInto = { matchId: parentId, slot: 'A' };
-
-  next.matches[sibId] = sib;
-  next.matches[parentId] = parent;
-  next.rootId = parentId;
-  next._lastCreated = [parentId, sibId];
-  return next;
-}
-
-/** Remove a match and its entire upstream subtree; reopen the slot it fed. */
-export function removeMatch(state, matchId) {
-  const next = clone(state);
-  const match = getMatch(next, matchId);
-
-  const toDelete = [];
-  (function collect(id) {
-    const m = next.matches[id];
-    toDelete.push(id);
-    for (const s of ['A', 'B']) {
-      const slotVal = getSlot(m, s);
-      if (slotVal.type === SLOT.FEED) collect(slotVal.sourceMatchId);
-    }
-  })(matchId);
-
-  if (match.feedsInto) {
-    const parent = next.matches[match.feedsInto.matchId];
-    setSlot(parent, match.feedsInto.slot, openSlot());
-    parent.result = null;
-    clearResultsDownstream(next, parent.id, false);
-  } else {
-    next.rootId = null;
-  }
-
-  for (const id of toDelete) delete next.matches[id];
-  if (Object.keys(next.matches).length === 0) next.rootId = null;
-  next._lastCreated = [];
-  return next;
-}
-
-/* ------------------------------------------------------------------ *
- * Slot editing
- * ------------------------------------------------------------------ */
-
-export function setSlotName(state, matchId, slot, participantId, name) {
-  const next = clone(state);
-  const match = getMatch(next, matchId);
-  const cur = getSlot(match, slot);
-  if (cur.type === SLOT.FEED) {
-    throw new Error('Cannot name a slot fed by another match');
-  }
-  if (cur.type !== SLOT.NAMED && countNamed(next) + 1 > MAX_PARTICIPANTS) {
-    throw new Error(`Exceeds the ${MAX_PARTICIPANTS} participant cap`);
-  }
-  setSlot(match, slot, { type: SLOT.NAMED, participantId, name });
-  match.result = null;
-  clearResultsDownstream(next, matchId, false);
-  return next;
-}
-
-export function setSlotBye(state, matchId, slot) {
-  const next = clone(state);
-  const match = getMatch(next, matchId);
-  if (getSlot(match, slot).type === SLOT.FEED) {
-    throw new Error('A fed slot cannot become a bye');
-  }
-  const sib = getSlot(match, otherSlot(slot));
-  if (sib.type === SLOT.FEED) {
-    throw new Error('A bye cannot sit opposite a fed slot (pass-through)');
-  }
-  if (sib.type === SLOT.BYE) {
-    throw new Error('A match cannot have two byes');
-  }
-  setSlot(match, slot, { type: SLOT.BYE });
-  match.result = null;
-  clearResultsDownstream(next, matchId, false);
-  return next;
-}
-
-export function clearSlot(state, matchId, slot) {
-  const next = clone(state);
-  const match = getMatch(next, matchId);
-  if (getSlot(match, slot).type === SLOT.FEED) {
-    throw new Error('Remove the upstream match instead of clearing a fed slot');
-  }
-  setSlot(match, slot, openSlot());
-  match.result = null;
-  clearResultsDownstream(next, matchId, false);
-  return next;
-}
-
-/* ------------------------------------------------------------------ *
- * Results + cascade-clear (scores are always preserved)
- * ------------------------------------------------------------------ */
-
-/** Resolve who occupies a slot: participantId | null (bye) | undefined (undecided). */
-export function resolveParticipant(state, match, slot) {
-  const s = getSlot(match, slot);
-  if (s.type === SLOT.NAMED) return s.participantId;
-  if (s.type === SLOT.BYE) return null;
-  if (s.type === SLOT.OPEN) return undefined;
-  const src = state.matches[s.sourceMatchId];
-  return src ? matchWinner(state, src) : undefined;
-}
-
-/** The decided winner of a match: explicit result, or auto-advance past a bye. */
-export function matchWinner(state, match) {
-  if (match.result) return match.result.winnerId;
-  const a = resolveParticipant(state, match, 'A');
-  const b = resolveParticipant(state, match, 'B');
-  const aBye = getSlot(match, 'A').type === SLOT.BYE;
-  const bBye = getSlot(match, 'B').type === SLOT.BYE;
-  if (aBye && b != null) return b;
-  if (bBye && a != null) return a;
+export function matchWinner(state, loc, boxId) {
+  const box = state.boxes[boxId];
+  if (box.result) return box.result.winnerId;
+  const a = resolveParticipant(state, loc, boxId, 'A');
+  const b = resolveParticipant(state, loc, boxId, 'B');
+  if (slotDisplay(state, loc, boxId, 'A').type === SLOT.BYE && b != null) return b;
+  if (slotDisplay(state, loc, boxId, 'B').type === SLOT.BYE && a != null) return a;
   return undefined;
 }
-
-/** Clear every result strictly downstream of `matchId` (to the root). Scores kept. */
-function clearResultsDownstream(state, matchId, inclusive) {
-  let id = inclusive
-    ? matchId
-    : state.matches[matchId].feedsInto?.matchId ?? null;
-  while (id) {
-    const m = state.matches[id];
-    m.result = null; // m.score intentionally preserved
-    id = m.feedsInto ? m.feedsInto.matchId : null;
-  }
+function parentId(state, loc, boxId) {
+  const { r, p } = loc[boxId]; const round = state.rounds[r + 1]; const pp = Math.floor(p / 2);
+  return round && pp < round.length ? round[pp] : null;
 }
-
-export function setResult(state, matchId, winnerId) {
-  const next = clone(state);
-  const match = getMatch(next, matchId);
-
-  if (getSlot(match, 'A').type === SLOT.BYE || getSlot(match, 'B').type === SLOT.BYE) {
-    throw new Error('This match auto-advances past a bye; no winner to set');
-  }
-  const a = resolveParticipant(next, match, 'A');
-  const b = resolveParticipant(next, match, 'B');
-  if (a === undefined || b === undefined) {
-    throw new Error('Both participants must be decided before setting a winner');
-  }
-  if (winnerId !== a && winnerId !== b) {
-    throw new Error('Winner must be one of the two participants');
-  }
-
-  // Clicking the current winner again clears it (un-select).
-  if (match.result && match.result.winnerId === winnerId) {
-    match.result = null;
-  } else {
-    match.result = { winnerId };
-  }
-  clearResultsDownstream(next, matchId, false);
+function clearResultsDownstream(state, loc, boxId) {
+  let cur = parentId(state, loc, boxId);
+  while (cur) { state.boxes[cur].result = null; cur = parentId(state, loc, cur); }
+}
+export function setResult(state, boxId, winnerId) {
+  const next = clone(state); const loc = locate(next);
+  if (slotDisplay(next, loc, boxId, 'A').type === SLOT.BYE || slotDisplay(next, loc, boxId, 'B').type === SLOT.BYE) throw new Error('This matchup auto-advances past a bye');
+  const a = resolveParticipant(next, loc, boxId, 'A');
+  const b = resolveParticipant(next, loc, boxId, 'B');
+  if (a === undefined || b === undefined) throw new Error('Both participants must be decided first');
+  if (winnerId !== a && winnerId !== b) throw new Error('Winner must be one of the two participants');
+  const box = next.boxes[boxId];
+  if (box.result && box.result.winnerId === winnerId) box.result = null; else box.result = { winnerId };
+  clearResultsDownstream(next, loc, boxId);
   return next;
 }
-
-export function clearResult(state, matchId) {
-  const next = clone(state);
-  getMatch(next, matchId).result = null;
-  clearResultsDownstream(next, matchId, false);
-  return next;
+export function clearResult(state, boxId) {
+  const next = clone(state); const loc = locate(next);
+  next.boxes[boxId].result = null; clearResultsDownstream(next, loc, boxId); return next;
 }
+export function setScore(state, boxId, a, b) { const next = clone(state); next.boxes[boxId].score = { a, b }; return next; }
 
-export function setScore(state, matchId, a, b) {
-  const next = clone(state);
-  getMatch(next, matchId).score = { a, b };
-  return next;
-}
-
-/* ------------------------------------------------------------------ *
- * Derivation, queries, validation
- * ------------------------------------------------------------------ */
-
-/** Distance-from-final tier for every match (root = 0). */
-export function deriveTiers(state) {
-  const tiers = {};
-  if (!state.rootId) return { tiers, maxTier: -1 };
-  const queue = [[state.rootId, 0]];
-  let maxTier = 0;
-  while (queue.length) {
-    const [id, t] = queue.shift();
-    tiers[id] = t;
-    if (t > maxTier) maxTier = t;
-    const m = state.matches[id];
-    for (const s of ['A', 'B']) {
-      const slotVal = getSlot(m, s);
-      if (slotVal.type === SLOT.FEED) queue.push([slotVal.sourceMatchId, t + 1]);
-    }
-  }
-  return { tiers, maxTier };
-}
-
+/* ---------------- queries + validation ---------------- */
 export function countNamed(state) {
-  let n = 0;
-  for (const id in state.matches) {
-    const m = state.matches[id];
-    for (const s of ['A', 'B']) if (getSlot(m, s).type === SLOT.NAMED) n += 1;
-  }
+  const loc = locate(state); let n = 0;
+  for (const id of Object.keys(state.boxes)) for (const slot of ['A', 'B']) if (slotDisplay(state, loc, id, slot).type === SLOT.NAMED) n += 1;
   return n;
 }
-
-export const getRoot = (state) => (state.rootId ? state.matches[state.rootId] : null);
-
-export function isLeaf(state, matchId) {
-  const m = state.matches[matchId];
-  return !!m && getSlot(m, 'A').type !== SLOT.FEED && getSlot(m, 'B').type !== SLOT.FEED;
-}
-
-export function canAddBefore(state, matchId) {
-  const m = state.matches[matchId];
-  if (!m) return false;
-  for (const s of ['A', 'B']) {
-    if (getSlot(m, s).type === SLOT.OPEN && getSlot(m, otherSlot(s)).type !== SLOT.BYE) {
-      return true;
-    }
-  }
-  return false;
-}
-
-export function canAddBeside(state, matchId) {
-  const m = state.matches[matchId];
-  return !!m && m.feedsInto === null;
-}
-
-/** Returns { valid, errors[] } against publish rules. */
 export function validateForPublish(state) {
-  const errors = [];
-  const ids = Object.keys(state.matches);
-  if (ids.length === 0) return { valid: false, errors: ['Bracket is empty'] };
-
-  const roots = ids.filter((id) => state.matches[id].feedsInto === null);
-  if (roots.length !== 1) errors.push(`Expected exactly one final, found ${roots.length}`);
-
-  if (state.rootId) {
-    const seen = new Set();
-    (function walk(id) {
-      if (seen.has(id)) return;
-      seen.add(id);
-      const m = state.matches[id];
-      for (const s of ['A', 'B']) {
-        const slotVal = getSlot(m, s);
-        if (slotVal.type === SLOT.FEED) walk(slotVal.sourceMatchId);
-      }
-    })(state.rootId);
-    if (seen.size !== ids.length) errors.push('Some matches are disconnected from the final');
+  const errors = []; const rounds = state.rounds;
+  if (!rounds.length || !Object.keys(state.boxes).length) return { valid: false, errors: ['Add at least one matchup to get started'] };
+  const last = rounds.length - 1;
+  if (rounds[last].length !== 1) errors.push('The final round must have exactly one matchup');
+  for (let r = 1; r < rounds.length; r += 1) {
+    const need = Math.ceil(rounds[r - 1].length / 2);
+    if (rounds[r].length !== need) errors.push(`Round ${r + 1} should have ${need} matchup${need > 1 ? 's' : ''} to line up with Round ${r}`);
   }
-
-  for (const id of ids) {
-    const m = state.matches[id];
-    for (const s of ['A', 'B']) {
-      const slotVal = getSlot(m, s);
-      if (slotVal.type === SLOT.OPEN) errors.push(`Match ${id} has an empty slot`);
-      if (slotVal.type === SLOT.FEED) {
-        const src = state.matches[slotVal.sourceMatchId];
-        if (!src) errors.push(`Match ${id} feeds from a missing match`);
-        else if (!(src.feedsInto && src.feedsInto.matchId === id && src.feedsInto.slot === s)) {
-          errors.push(`Broken feed link between ${id} and ${slotVal.sourceMatchId}`);
-        }
-      }
-    }
-    const aBye = getSlot(m, 'A').type === SLOT.BYE;
-    const bBye = getSlot(m, 'B').type === SLOT.BYE;
-    if (aBye && bBye) errors.push(`Match ${id} has two byes`);
-    if ((aBye && getSlot(m, 'B').type === SLOT.FEED) || (bBye && getSlot(m, 'A').type === SLOT.FEED)) {
-      errors.push(`Match ${id} is a pass-through (bye vs feed)`);
-    }
+  const loc = locate(state);
+  for (const id of Object.keys(state.boxes)) for (const slot of ['A', 'B']) {
+    if (slotDisplay(state, loc, id, slot).type === SLOT.OPEN) errors.push(`A matchup in Round ${loc[id].r + 1} has an empty slot`);
   }
-
   const n = countNamed(state);
-  if (n < 2) errors.push('Need at least 2 named participants');
-  if (n > MAX_PARTICIPANTS) errors.push(`Exceeds the ${MAX_PARTICIPANTS} participant cap`);
-
+  if (n < 2) errors.push('Add at least 2 players');
+  if (n > MAX_PARTICIPANTS) errors.push(`Exceeds the ${MAX_PARTICIPANTS} player cap`);
   return { valid: errors.length === 0, errors: [...new Set(errors)] };
 }
+
