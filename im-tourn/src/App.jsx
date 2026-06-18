@@ -74,6 +74,8 @@ import { useMemo } from 'react';  // if useMemo isn't already imported alongside
 import { analyzePool, shouldShowWinningPaths } from './lib/elimination';
 import { StatusBadge, WhatNeedsToHappen } from './components/EliminationStatus';
 import './App.css';
+import CustomBracketPage from './components/CustomBracketPage';
+import { createCustomBracket, getUserCustomBrackets, getPublicCustomBrackets, deleteBracket as deleteCustomBracket } from './services/customBracketService';
 
 // Admin user IDs (add your Firebase user ID here)
 const ADMIN_USER_IDS = ['VBbDwj6gkVgW7gBcs3vTmt0ulLF2'];
@@ -82,6 +84,9 @@ const CATEGORIES = [
   'Movies', 'TV Shows', 'Books', 'Sports Teams', 'Video Games',
   'Music Artists', 'Food & Drinks', 'Anime', 'Superheroes', 'Historical Figures', 'Other'
 ];
+
+const CUSTOM_STATUS_LABEL = { draft: 'Draft', published: 'Predictions open', locked: 'Live', complete: 'Complete' };
+const CUSTOM_BADGE_STYLE = { display: 'inline-block', marginLeft: 8, padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: 'rgba(43,212,192,0.15)', color: '#2bd4c0', verticalAlign: 'middle' };
 
 const generateMatchups = (entries) => {
   const size = entries.length;
@@ -904,14 +909,14 @@ const HomePage = ({ onFillOut, onNavigate }) => {
   }, []);
 
   const loadBrackets = async () => {
-    try {
-      const data = await getAllBrackets();
-      setBrackets(data);
-    } catch (error) {
-      console.error('Error loading brackets:', error);
-    }
-    setLoading(false);
-  };
+  try {
+    const [data, customData] = await Promise.all([getAllBrackets(), getPublicCustomBrackets()]);
+    setBrackets([...data, ...customData]);
+  } catch (error) {
+    console.error('Error loading brackets:', error);
+  }
+  setLoading(false);
+};
 
   // Get unique categories from brackets
   const categories = [...new Set(brackets.map(b => b.category))].sort();
@@ -1050,30 +1055,40 @@ const HomePage = ({ onFillOut, onNavigate }) => {
       ) : (
         <div className="brackets-grid">
           {filteredBrackets.map(bracket => (
-            <div key={bracket.id} className="bracket-card">
-              <span className="bracket-category">{bracket.category}</span>
-              <h3 className="bracket-title">{bracket.title}</h3>
-              {bracket.description && <p className="bracket-description">{bracket.description}</p>}
-              <div className="bracket-meta">
-                <div className="bracket-info">
-                  <span className="bracket-size"><span>{bracket.size}</span> entries</span>
-                  <span className="bracket-author">by {bracket.userDisplayName}</span>
-                </div>
-                <div className="bracket-buttons">
-                  <button 
-                    className="view-submissions-btn" 
-                    onClick={() => {
-                      setSelectedBracketForSubmissions(bracket);
-                      setShowSubmissionsModal(true);
-                    }}
-                  >
-                    Submissions
-                  </button>
-                  <button className="fill-btn" onClick={() => onFillOut(bracket)}>Fill Out →</button>
-                </div>
-              </div>
-            </div>
-          ))}
+  bracket.isCustom ? (
+    <div key={bracket.id} className="bracket-card" onClick={() => onNavigate(`custom-bracket-${bracket.id}`)} style={{ cursor: 'pointer' }}>
+      <span className="bracket-category">{bracket.category}</span>
+      <span style={CUSTOM_BADGE_STYLE}>Custom</span>
+      <h3 className="bracket-title">{bracket.title}</h3>
+      {bracket.description && <p className="bracket-description">{bracket.description}</p>}
+      <div className="bracket-meta">
+        <div className="bracket-info">
+          <span className="bracket-size"><span>{bracket.size}</span> players</span>
+          <span className="bracket-author">by {bracket.userDisplayName}</span>
+        </div>
+        <div className="bracket-buttons">
+          <button className="fill-btn" onClick={(e) => { e.stopPropagation(); onNavigate(`custom-bracket-${bracket.id}`); }}>View →</button>
+        </div>
+      </div>
+    </div>
+  ) : (
+    <div key={bracket.id} className="bracket-card">
+      <span className="bracket-category">{bracket.category}</span>
+      <h3 className="bracket-title">{bracket.title}</h3>
+      {bracket.description && <p className="bracket-description">{bracket.description}</p>}
+      <div className="bracket-meta">
+        <div className="bracket-info">
+          <span className="bracket-size"><span>{bracket.size}</span> entries</span>
+          <span className="bracket-author">by {bracket.userDisplayName}</span>
+        </div>
+        <div className="bracket-buttons">
+          <button className="view-submissions-btn" onClick={() => { setSelectedBracketForSubmissions(bracket); setShowSubmissionsModal(true); }}>Submissions</button>
+          <button className="fill-btn" onClick={() => onFillOut(bracket)}>Fill Out →</button>
+        </div>
+      </div>
+    </div>
+  )
+))}
         </div>
       )}
 
@@ -1092,6 +1107,7 @@ const HomePage = ({ onFillOut, onNavigate }) => {
 // My Brackets Page
 const MyBracketsPage = ({ onFillOut, onNavigate }) => {
   const [brackets, setBrackets] = useState([]);
+  const [customBrackets, setCustomBrackets] = useState([]);
   const [loading, setLoading] = useState(true);
   const { currentUser } = useAuth();
 
@@ -1102,14 +1118,25 @@ const MyBracketsPage = ({ onFillOut, onNavigate }) => {
   }, [currentUser]);
 
   const loadUserBrackets = async () => {
-    try {
-      const data = await getUserBrackets(currentUser.uid);
-      setBrackets(data);
-    } catch (error) {
-      console.error('Error loading brackets:', error);
-    }
-    setLoading(false);
-  };
+  try {
+    const [data, customData] = await Promise.all([
+      getUserBrackets(currentUser.uid),
+      getUserCustomBrackets(currentUser.uid),
+    ]);
+    setBrackets(data);
+    setCustomBrackets(customData);
+  } catch (error) {
+    console.error('Error loading brackets:', error);
+  }
+  setLoading(false);
+};
+
+const handleDeleteCustom = async (id) => {
+  if (window.confirm('Delete this custom bracket?')) {
+    try { await deleteCustomBracket(id); setCustomBrackets(customBrackets.filter(b => b.id !== id)); }
+    catch (error) { console.error('Error deleting custom bracket:', error); }
+  }
+};
 
   const handleDelete = async (bracketId) => {
     if (window.confirm('Are you sure you want to delete this bracket?')) {
@@ -1134,7 +1161,7 @@ const MyBracketsPage = ({ onFillOut, onNavigate }) => {
           <div className="spinner"></div>
           <p>Loading your brackets...</p>
         </div>
-      ) : brackets.length === 0 ? (
+      ) : brackets.length === 0 && customBrackets.length === 0 ? (
         <div className="empty-state">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2z"/>
@@ -1161,6 +1188,21 @@ const MyBracketsPage = ({ onFillOut, onNavigate }) => {
               </div>
             </div>
           ))}
+          {customBrackets.map(cb => (
+  <div key={cb.id} className="bracket-card" onClick={() => onNavigate(`custom-bracket-${cb.id}`)} style={{ cursor: 'pointer' }}>
+    <span className="bracket-category">{cb.category}</span>
+    <span style={CUSTOM_BADGE_STYLE}>Custom</span>
+    <h3 className="bracket-title">{cb.title}</h3>
+    {cb.description && <p className="bracket-description">{cb.description}</p>}
+    <div className="bracket-meta">
+      <span className="bracket-size"><span>{cb.size}</span> players • {CUSTOM_STATUS_LABEL[cb.status]}</span>
+      <div className="bracket-actions">
+        <button className="fill-btn" onClick={(e) => { e.stopPropagation(); onNavigate(`custom-bracket-${cb.id}`); }}>Open</button>
+        <button className="delete-btn" onClick={(e) => { e.stopPropagation(); handleDeleteCustom(cb.id); }}>Delete</button>
+      </div>
+    </div>
+  </div>
+))}
         </div>
       )}
     </div>
@@ -4425,6 +4467,22 @@ const CreatePage = ({ onPublish, onNavigate }) => {
     setSize(newSize);
     setEntries(Array(newSize).fill('').map((_, i) => ({ id: i, name: '' })));
   };
+
+  const startCustom = async () => {
+  if (!title.trim() || !currentUser) return;
+  try {
+    const id = await createCustomBracket({
+      hostId: currentUser.uid,
+      hostName: currentUser.displayName || null,
+      title: title.trim(),
+      description,
+      category: category || null,
+    });
+    onNavigate(`custom-bracket-${id}`);
+  } catch (e) {
+    alert(`Failed to start custom bracket.\n${e.message || 'Please try again.'}`);
+  }
+};
   
   const handleEntryChange = (index, value) => {
     const newEntries = [...entries];
@@ -4510,6 +4568,18 @@ const CreatePage = ({ onPublish, onNavigate }) => {
             ))}
           </div>
         </div>
+
+        <div className="form-group">
+  <label className="form-label">Or build a custom bracket</label>
+  <div onClick={startCustom} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.03)', cursor: title.trim() ? 'pointer' : 'not-allowed', opacity: title.trim() ? 1 : 0.5 }}>
+    <div style={{ flex: 1 }}>
+      <div style={{ fontWeight: 600, fontSize: 15 }}>Custom bracket</div>
+      <div style={{ fontSize: 13, opacity: 0.7 }}>Free-form rounds, byes, any shape · up to 100 players</div>
+    </div>
+    <span style={{ fontSize: 18, opacity: 0.6 }}>→</span>
+  </div>
+  {!title.trim() && <p style={{ fontSize: 12, opacity: 0.6, marginTop: 6 }}>Add a bracket title above to start a custom bracket.</p>}
+</div>
         
         {size && (
           <div className="entries-section">
@@ -5111,6 +5181,9 @@ function AppContent() {
         {view === 'privacy' && <PrivacyPolicyPage />}
         {view === 'terms' && <TermsOfServicePage />}
         {view === 'admin' && <AdminPage />}
+        {view.startsWith('custom-bracket-') && (
+  <CustomBracketPage bracketId={view.replace('custom-bracket-', '')} currentUserId={currentUser?.uid} onNavigate={setView} />
+)}
       </main>
       
       <Footer onOpenFeedback={() => setShowFeedbackModal(true)} onNavigate={setView} />
