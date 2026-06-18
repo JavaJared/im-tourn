@@ -13,7 +13,7 @@
  * are never echoed back over the author's input.
  */
 import { collection, doc, setDoc, updateDoc, getDoc, getDocs, deleteDoc, onSnapshot, serverTimestamp, deleteField, query, where, orderBy } from 'firebase/firestore';
-import { db } from './firebase';
+import { db } from '../firebase';
 import { serialize, deserialize } from '../lib/customBracketCodec';
 import { validateForPublish } from '../lib/customBracket';
 import { defaultRoundPoints } from '../lib/customScoring';
