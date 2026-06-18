@@ -7,7 +7,6 @@ import {
   locate, slotDisplay, feederId, countNamed, validateForPublish,
 } from '../lib/customBracket';
 import { subscribeToBracket, persistStructure, publishBracket } from '../services/customBracketService';
-import { defaultRoundPoints } from '../lib/customScoring';
 
 /* ---------- layout (UI only) ---------- */
 const COLW = 248, ROWH = 150, CARDW = 190, CARDH = 126, PADX = 60, PADTOP = 96, PADBOT = 56;
@@ -53,8 +52,6 @@ export default function CustomBracketBuilder({ bracketId, onExit }) {
   const [save, setSave] = useState('idle'); // idle | saving | saved | error
   const [toast, setToast] = useState(null);
   const [showErrors, setShowErrors] = useState(false);
-  const [scoringOpen, setScoringOpen] = useState(false);
-  const [roundPoints, setRoundPoints] = useState([]);
 
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -108,17 +105,11 @@ export default function CustomBracketBuilder({ bracketId, onExit }) {
     const pid = stored.type === SLOT.NAMED ? stored.participantId : newPid();
     apply((s) => setSlotName(s, id, slot, pid, trimmed));
   };
-  const openScoring = () => {
+  const onPublish = async () => {
     const cur = stateRef.current; if (!cur) return;
     if (!validateForPublish(cur).valid) { setShowErrors(true); return; }
-    setRoundPoints(defaultRoundPoints(cur.rounds.length));
-    setScoringOpen(true);
-  };
-  const setRP = (i, v) => setRoundPoints((rp) => rp.map((x, idx) => (idx === i ? Math.max(0, parseInt(v, 10) || 0) : x)));
-  const confirmPublish = async () => {
-    const cur = stateRef.current; if (!cur) return;
-    setSave('saving'); setScoringOpen(false);
-    try { await publishBracket(bracketId, cur, roundPoints); setSave('saved'); flash('Published'); onExit?.('published'); }
+    setSave('saving');
+    try { await publishBracket(bracketId, cur); setSave('saved'); flash('Published'); onExit?.('published'); }
     catch (e) {
       setSave('error');
       if (e?.errors) { setShowErrors(true); flash('Not ready to publish yet'); }
@@ -152,7 +143,7 @@ export default function CustomBracketBuilder({ bracketId, onExit }) {
           <span style={{ ...S.savePill, opacity: save === 'idle' ? 0 : 1, color: save === 'error' ? 'var(--orange)' : 'var(--teal)' }}>
             {save === 'saving' ? 'Saving…' : save === 'error' ? 'Save failed' : (<><Check size={12} strokeWidth={3} /> Saved</>)}
           </span>
-          <button style={{ ...S.publish, ...(validation.valid ? S.publishOn : {}) }} onClick={openScoring}><Trophy size={14} strokeWidth={2.5} /> Publish</button>
+          <button style={{ ...S.publish, ...(validation.valid ? S.publishOn : {}) }} onClick={onPublish}><Trophy size={14} strokeWidth={2.5} /> Publish</button>
         </div>
       </header>
 
@@ -210,28 +201,6 @@ export default function CustomBracketBuilder({ bracketId, onExit }) {
             <ul style={S.errList}>{validation.errors.map((e, i) => <li key={i} style={S.errItem}>{e}</li>)}</ul>
           )}
         </footer>
-      )}
-
-      {scoringOpen && (
-        <div style={S.overlay} onMouseDown={(e) => e.stopPropagation()}>
-          <div style={S.sheet}>
-            <div style={S.sheetTitle}>Round scoring</div>
-            <p style={S.sheetSub}>Points for each correct pick. Later rounds usually count for more.</p>
-            <div style={S.rpList}>
-              {roundPoints.map((pt, i) => (
-                <div key={i} style={S.rpRow}>
-                  <span style={S.rpLabel}>{i === roundPoints.length - 1 && roundPoints.length > 1 ? 'Final' : `Round ${i + 1}`}</span>
-                  <input type="number" min="0" value={pt} onChange={(e) => setRP(i, e.target.value)} style={S.rpInput} />
-                  <span style={S.rpUnit}>pts</span>
-                </div>
-              ))}
-            </div>
-            <div style={S.sheetActions}>
-              <button style={S.cancelBtn} onClick={() => setScoringOpen(false)}>Cancel</button>
-              <button style={S.confirmBtn} onClick={confirmPublish}><Trophy size={14} strokeWidth={2.5} /> Publish bracket</button>
-            </div>
-          </div>
-        </div>
       )}
 
       {toast && <div style={S.toast}>{toast}</div>}
