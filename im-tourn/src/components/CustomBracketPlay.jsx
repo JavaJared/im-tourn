@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Check, Trophy, Lock, Clock, AlertTriangle, Loader2, RotateCcw, Radio } from 'lucide-react';
+import { Check, Trophy, Lock, Clock, AlertTriangle, Loader2, RotateCcw, Radio } from './customBracketIcons';
 import { SLOT, locate, slotDisplay, feederId, resolveParticipant, setResult, setScore, getChampion } from '../lib/customBracket';
 import { subscribeToBracket, persistLiveDiff, lockBracket, completeBracket, reopenBracket } from '../services/customBracketService';
 
