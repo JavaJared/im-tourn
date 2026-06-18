@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Loader2, Trophy, Users } from 'lucide-react';
+import { Loader2, Trophy, Users } from './customBracketIcons';
 import { defaultRoundPoints, buildLeaderboard } from '../lib/customScoring';
 import { subscribeToBracket, subscribeToEntries } from '../services/customBracketService';
 
