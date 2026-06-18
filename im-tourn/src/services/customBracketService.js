@@ -85,3 +85,6 @@ export async function setBracketStatus(bracketId, status) { await updateDoc(ref(
 export const lockBracket = (id) => setBracketStatus(id, 'locked');
 export const completeBracket = (id) => setBracketStatus(id, 'complete');
 export async function deleteBracket(bracketId) { await deleteDoc(ref(bracketId)); }
+
+/** Reopen a completed bracket for result corrections (complete -> locked). */
+export const reopenBracket = (id) => setBracketStatus(id, 'locked');
