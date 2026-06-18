@@ -1,106 +1,55 @@
 /**
  * customBracketCodec.js
  *
- * Pure (Firebase-free) translation between the engine `state` and the
- * persisted Firestore document. Kept separate from the service so the
- * doc-shape logic is unit-testable without touching Firebase.
+ * Pure translation between engine state and the Firestore document for the
+ * positional model. Results and scores are split into their own top-level maps
+ * so the published/locked freeze rule can allow them while freezing structure.
  *
  * Doc shape:
- *   matches:  { [id]: { slotA, slotB, feedsInto } }   // structure only
- *   results:  { [id]: winnerId }                        // live play
- *   scores:   { [id]: { a, b } }                        // live play
- *   participants: { [pid]: { name } }                   // denormalized
- *   rootMatchId, participantCount                       // denormalized
- *
- * `tier` and `_nextMatchId` are intentionally NOT persisted: tiers are
- * recomputed on read (they go stale the instant the structure changes),
- * and the id counter is re-derived from the existing ids on load.
+ *   rounds:   [[boxId, ...], ...]            // structure
+ *   boxes:    { [id]: { slotA, slotB } }     // stored editable slots
+ *   results:  { [id]: winnerId }             // live play
+ *   scores:   { [id]: { a, b } }             // live play
+ *   participants: { [pid]: { name } }, participantCount, roundCount  // denormalized
  */
+import { SLOT, locate, slotDisplay, countNamed } from './customBracket.js';
 
-export const DOC_VERSION = 1;
+export const DOC_VERSION = 2;
+const matchNumber = (id) => { const m = /^m(\d+)$/.exec(id); return m ? parseInt(m[1], 10) : 0; };
 
-const matchNumber = (id) => {
-  const m = /^m(\d+)$/.exec(id);
-  return m ? parseInt(m[1], 10) : 0;
-};
-
-/** Engine state -> plain object ready to merge into the Firestore document. */
 export function serialize(state) {
-  const matches = {};
-  const results = {};
-  const scores = {};
-  const participants = {};
-  let namedSlots = 0;
-
-  for (const id of Object.keys(state.matches)) {
-    const m = state.matches[id];
-    matches[id] = {
-      slotA: m.slotA,
-      slotB: m.slotB,
-      feedsInto: m.feedsInto ?? null,
-    };
-    if (m.result && m.result.winnerId != null) {
-      results[id] = m.result.winnerId;
-    }
-    if (m.score && m.score.a != null && m.score.b != null) {
-      scores[id] = { a: m.score.a, b: m.score.b };
-    }
-    for (const key of ['slotA', 'slotB']) {
-      const s = m[key];
-      if (s.type === 'named') {
-        participants[s.participantId] = { name: s.name ?? '' };
-        namedSlots += 1;
-      }
+  const boxes = {}, results = {}, scores = {}, participants = {};
+  const loc = locate(state);
+  for (const id of Object.keys(state.boxes)) {
+    const b = state.boxes[id];
+    boxes[id] = { slotA: b.slotA, slotB: b.slotB };
+    if (b.result && b.result.winnerId != null) results[id] = b.result.winnerId;
+    if (b.score && b.score.a != null && b.score.b != null) scores[id] = { a: b.score.a, b: b.score.b };
+    for (const slot of ['A', 'B']) {
+      const d = slotDisplay(state, loc, id, slot);
+      if (d.type === SLOT.NAMED) participants[d.participantId] = { name: d.name ?? '' };
     }
   }
-
   return {
     version: DOC_VERSION,
-    matches,
-    results,
-    scores,
-    participants,
-    rootMatchId: state.rootId ?? null,
-    participantCount: namedSlots,
+    rounds: state.rounds.map((r) => [...r]),
+    boxes, results, scores, participants,
+    participantCount: countNamed(state),
+    roundCount: state.rounds.length,
   };
 }
 
-/** Firestore document data -> engine state. */
 export function deserialize(data) {
-  const matchesIn = data.matches || {};
-  const results = data.results || {};
-  const scores = data.scores || {};
-  const matches = {};
-  let maxId = 0;
-
-  for (const id of Object.keys(matchesIn)) {
-    const m = matchesIn[id];
-    matches[id] = {
-      id,
-      slotA: m.slotA,
-      slotB: m.slotB,
-      feedsInto: m.feedsInto ?? null,
+  const boxesIn = data.boxes || {}, results = data.results || {}, scores = data.scores || {};
+  const boxes = {}; let maxId = 0;
+  for (const id of Object.keys(boxesIn)) {
+    const b = boxesIn[id];
+    boxes[id] = {
+      id, slotA: b.slotA, slotB: b.slotB,
       result: results[id] != null ? { winnerId: results[id] } : null,
       score: scores[id] ? { a: scores[id].a, b: scores[id].b } : null,
     };
-    const n = matchNumber(id);
-    if (n > maxId) maxId = n;
+    const n = matchNumber(id); if (n > maxId) maxId = n;
   }
-
-  let rootId = data.rootMatchId ?? null;
-  if (rootId == null) {
-    for (const id of Object.keys(matches)) {
-      if (matches[id].feedsInto === null) {
-        rootId = id;
-        break;
-      }
-    }
-  }
-
-  return {
-    matches,
-    rootId,
-    _nextMatchId: maxId + 1,
-    _lastCreated: [],
-  };
+  return { rounds: (data.rounds || []).map((r) => [...r]), boxes, _nextId: maxId + 1, _lastCreated: [] };
 }
