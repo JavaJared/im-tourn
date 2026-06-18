@@ -16,7 +16,6 @@ import { collection, doc, setDoc, updateDoc, getDoc, getDocs, deleteDoc, onSnaps
 import { db } from '../firebase';
 import { serialize, deserialize } from '../lib/customBracketCodec';
 import { validateForPublish } from '../lib/customBracket';
-import { defaultRoundPoints } from '../lib/customScoring';
 
 const COLLECTION = 'customBrackets';
 const ref = (id) => doc(db, COLLECTION, id);
@@ -109,22 +108,15 @@ export async function persistLiveDiff(bracketId, prevState, nextState) {
   return true;
 }
 
-export async function publishBracket(bracketId, state, roundPoints = null) {
+export async function publishBracket(bracketId, state) {
   const { valid, errors } = validateForPublish(state);
   if (!valid) { const err = new Error('Bracket is not ready to publish'); err.errors = errors; throw err; }
   const s = serialize(state);
-  const points = roundPoints || defaultRoundPoints(s.roundCount);
   await updateDoc(ref(bracketId), {
-    rounds: s.rounds, boxes: s.boxes, results: s.results, scores: s.scores,
+    rounds: s.rounds, boxes: s.boxes,
     participants: s.participants, participantCount: s.participantCount, roundCount: s.roundCount,
-    roundPoints: points,
     status: 'published', updatedAt: serverTimestamp(),
   });
-}
-
-/** Persist host-chosen round weights while still a draft. */
-export async function persistRoundPoints(bracketId, roundPoints) {
-  await updateDoc(ref(bracketId), { roundPoints, updatedAt: serverTimestamp() });
 }
 
 export async function setBracketStatus(bracketId, status) { await updateDoc(ref(bracketId), { status, updatedAt: serverTimestamp() }); }
@@ -136,35 +128,24 @@ export async function deleteBracket(bracketId) { await deleteDoc(ref(bracketId))
 export const reopenBracket = (id) => setBracketStatus(id, 'locked');
 
 
-/* ---------------- prediction entries ---------------- */
-const entryRef = (bracketId, userId) => doc(db, COLLECTION, bracketId, 'entries', userId);
-const entriesCol = (bracketId) => collection(db, COLLECTION, bracketId, 'entries');
 
-/** Submit a finalized prediction (write-once; one per user, keyed by userId). */
-export async function submitEntry(bracketId, { userId, displayName, picks }) {
-  if (!userId) throw new Error('You must be signed in to enter');
-  await setDoc(entryRef(bracketId, userId), {
-    userId, displayName: displayName || 'Anonymous', picks: picks || {},
-    submitted: true, createdAt: serverTimestamp(),
+/* ---------------- fill-for-fun submissions ---------------- */
+const fillsCol = (bracketId) => collection(db, COLLECTION, bracketId, 'submissions');
+
+/** Save a filled-out bracket (anyone signed in can fill a published bracket for fun). */
+export async function submitCustomFill(bracketId, { userId, displayName, picks, champion }) {
+  if (!userId) throw new Error('Sign in to save your bracket');
+  const newRef = doc(fillsCol(bracketId));
+  await setDoc(newRef, {
+    userId, displayName: displayName || 'Anonymous',
+    picks: picks || {}, champion: champion || null,
+    createdAt: serverTimestamp(),
   });
+  return newRef.id;
 }
 
-/** The current user's entry, or null if they haven't submitted. */
-export async function getEntry(bracketId, userId) {
-  if (!userId) return null;
-  const snap = await getDoc(entryRef(bracketId, userId));
-  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
-}
-
-/** Live subscription to all entries for a bracket (for the leaderboard). */
-export function subscribeToEntries(bracketId, onChange, onError) {
-  return onSnapshot(entriesCol(bracketId), (snap) => {
-    onChange(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-  }, onError);
-}
-
-/** One-shot read of all entries. */
-export async function getEntries(bracketId) {
-  const snap = await getDocs(entriesCol(bracketId));
+/** All fill-out submissions for a bracket (for the host's submissions view). */
+export async function getCustomFills(bracketId) {
+  const snap = await getDocs(fillsCol(bracketId));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
