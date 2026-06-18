@@ -5182,7 +5182,7 @@ function AppContent() {
         {view === 'terms' && <TermsOfServicePage />}
         {view === 'admin' && <AdminPage />}
         {view.startsWith('custom-bracket-') && (
-  <CustomBracketPage bracketId={view.replace('custom-bracket-', '')} currentUserId={currentUser?.uid} onNavigate={setView} />
+  <CustomBracketPage bracketId={view.replace('custom-bracket-', '')} currentUserId={currentUser?.uid} currentUserName={currentUser?.displayName} onNavigate={setView} />
 )}
       </main>
       
