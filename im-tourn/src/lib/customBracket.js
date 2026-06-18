@@ -175,3 +175,10 @@ export function validateForPublish(state) {
   return { valid: errors.length === 0, errors: [...new Set(errors)] };
 }
 
+/** The decided champion (winner of the single final box), or null. */
+export function getChampion(state) {
+  if (!state.rounds.length) return null;
+  const finalRound = state.rounds[state.rounds.length - 1];
+  if (finalRound.length !== 1) return null;
+  return matchWinner(state, locate(state), finalRound[0]) ?? null;
+}
