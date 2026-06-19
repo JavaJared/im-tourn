@@ -214,3 +214,35 @@ export async function recalculateCustomPoolScoresManual(poolId, hostId) {
   await recalcCustom(poolId, pool, pool.customResults || {});
   return true;
 }
+
+/* ---- real-time pool subscriptions (custom pools) ---- */
+function parsePoolDoc(id, data) {
+  return {
+    id, ...data,
+    bracketMatchups: typeof data.bracketMatchups === 'string' ? JSON.parse(data.bracketMatchups) : data.bracketMatchups,
+    results: data.results ? (typeof data.results === 'string' ? JSON.parse(data.results) : data.results) : null,
+    lockDate: data.lockDate?.toDate?.() || null,
+    createdAt: data.createdAt?.toDate?.() || null,
+  };
+}
+function parsePoolEntryDoc(id, data) {
+  return {
+    id, ...data,
+    predictions: data.predictions ? (typeof data.predictions === 'string' ? JSON.parse(data.predictions) : data.predictions) : null,
+    joinedAt: data.joinedAt?.toDate?.() || null,
+    submittedAt: data.submittedAt?.toDate?.() || null,
+  };
+}
+/** Live updates for a custom pool document. */
+export function subscribeToPool(poolId, onChange, onError) {
+  return onSnapshot(doc(db, POOLS, poolId), (snap) => {
+    onChange(snap.exists() ? parsePoolDoc(snap.id, snap.data()) : null);
+  }, onError);
+}
+/** Live updates for every entry in a pool (predictions + scores). */
+export function subscribeToPoolEntries(poolId, onChange, onError) {
+  const q = query(collection(db, POOL_ENTRIES), where('poolId', '==', poolId));
+  return onSnapshot(q, (snap) => {
+    onChange(snap.docs.map((d) => parsePoolEntryDoc(d.id, d.data())).sort((a, b) => (b.score || 0) - (a.score || 0)));
+  }, onError);
+}
