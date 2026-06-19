@@ -57,3 +57,18 @@ export function buildLeaderboard(bracketState, entries, roundPoints) {
     .map((e) => ({ ...e, ...scoreEntry(bracketState, e.picks || {}, roundPoints) }))
     .sort((a, b) => b.total - a.total || b.correct - a.correct || String(a.displayName || '').localeCompare(String(b.displayName || '')));
 }
+
+/**
+ * Rebuild a runnable engine state from a stored pool structure + a results map.
+ * `structure` is { rounds, boxes, nameMap } as carried in pool.bracketMatchups;
+ * `resultsMap` is { boxId: winnerPid } (official results, or a predictor's picks).
+ */
+export function hydrateState(structure, resultsMap = {}) {
+  const src = structure || {};
+  const boxes = {};
+  for (const id of Object.keys(src.boxes || {})) {
+    const b = src.boxes[id];
+    boxes[id] = { id, slotA: b.slotA, slotB: b.slotB, result: resultsMap && resultsMap[id] != null ? { winnerId: resultsMap[id] } : null, score: null };
+  }
+  return { rounds: (src.rounds || []).map((r) => [...r]), boxes, _nextId: 1, _lastCreated: [] };
+}
