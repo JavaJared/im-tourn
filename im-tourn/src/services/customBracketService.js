@@ -149,3 +149,68 @@ export async function getCustomFills(bracketId) {
   const snap = await getDocs(fillsCol(bracketId));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
+
+/* ---------------- custom-bracket pools ---------------- */
+// Custom brackets can back a bracket pool. The generic pool functions in
+// bracketService (createBracketPool, getPoolById, joinBracketPool,
+// submitPoolPredictions, lockPool, completePool, getPoolEntries) are reused
+// as-is. Only the seed-specific steps need custom equivalents: initializing
+// results, recording the host's official picks, and round-weighted scoring.
+import { getPoolById, getPoolEntries } from './bracketService';
+import { hydrateState, scoreEntry } from '../lib/customScoring';
+
+const POOLS = 'bracketPools';
+const POOL_ENTRIES = 'poolEntries';
+
+/** Snapshot a published custom bracket's structure for storage on a pool. */
+export async function getCustomStructureForPool(bracketId) {
+  const state = await getBracketOnce(bracketId);
+  if (!state) throw new Error('Bracket not found');
+  const boxes = {};
+  const nameMap = {};
+  for (const id of Object.keys(state.boxes)) {
+    const b = state.boxes[id];
+    boxes[id] = { slotA: b.slotA, slotB: b.slotB };
+    for (const k of ['slotA', 'slotB']) { const s = b[k]; if (s.type === 'named') nameMap[s.participantId] = s.name; }
+  }
+  return { rounds: state.rounds.map((r) => [...r]), boxes, nameMap, roundCount: state.rounds.length };
+}
+
+/** Start a custom pool (host begins recording results). */
+export async function startCustomPool(poolId, hostId) {
+  const pool = await getPoolById(poolId);
+  if (!pool) throw new Error('Pool not found');
+  if (pool.hostId !== hostId) throw new Error('Only the host can start this pool');
+  await updateDoc(doc(db, POOLS, poolId), { status: 'in_progress', customResults: {}, updatedAt: serverTimestamp() });
+  return true;
+}
+
+async function recalcCustom(poolId, pool, resultsMap) {
+  const state = hydrateState(pool.bracketMatchups, resultsMap || {});
+  const roundPoints = pool.roundPoints || [];
+  const entries = await getPoolEntries(poolId);
+  await Promise.all(entries.map(async (entry) => {
+    if (!entry.predictions) return;
+    const { total } = scoreEntry(state, entry.predictions, roundPoints);
+    await updateDoc(doc(db, POOL_ENTRIES, `${poolId}_${entry.userId}`), { score: total });
+  }));
+}
+
+/** Record the host's official results map { boxId: winnerPid } and rescore. */
+export async function updateCustomPoolResults(poolId, hostId, resultsMap) {
+  const pool = await getPoolById(poolId);
+  if (!pool) throw new Error('Pool not found');
+  if (pool.hostId !== hostId) throw new Error('Only the host can update results');
+  await updateDoc(doc(db, POOLS, poolId), { customResults: resultsMap || {}, updatedAt: serverTimestamp() });
+  await recalcCustom(poolId, pool, resultsMap || {});
+  return true;
+}
+
+/** Re-run scoring for every entry against the stored results. */
+export async function recalculateCustomPoolScoresManual(poolId, hostId) {
+  const pool = await getPoolById(poolId);
+  if (!pool) throw new Error('Pool not found');
+  if (pool.hostId !== hostId) throw new Error('Only the host can recalculate scores');
+  await recalcCustom(poolId, pool, pool.customResults || {});
+  return true;
+}
