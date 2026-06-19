@@ -139,7 +139,9 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
   const leaderboard = useMemo(() => {
     if (!pool) return [];
     const official = hydrateState(pool.bracketMatchups, pool.customResults || {});
-    return buildLeaderboard(official, entries.filter((e) => e.predictions), roundPoints);
+    // Pool entries carry their picks under `predictions`; buildLeaderboard reads `picks`.
+    const scored = entries.filter((e) => e.predictions).map((e) => ({ ...e, picks: e.predictions, displayName: e.userDisplayName }));
+    return buildLeaderboard(official, scored, roundPoints);
   }, [pool, entries, roundPoints]);
 
   if (loading) return <Shell onBack={() => onNavigate('pools')}><div style={S.center}><Loader2 size={20} className="spin" /> Loading pool…</div></Shell>;
