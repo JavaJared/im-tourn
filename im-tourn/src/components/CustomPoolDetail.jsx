@@ -121,7 +121,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
   const run = async (fn, ok) => { setBusy(true); try { await fn(); if (ok) flash(ok); await load(); } catch (e) { flash(e?.message || 'Something went wrong'); } setBusy(false); };
 
   // predictor picks
-  const canPredict = !isHost && joined && status === 'open';
+  const canPredict = joined && status === 'open';
   const pickPred = (boxId, pid) => { if (!canPredict || !predState) return; try { setPredState(setResult(predState, boxId, pid)); } catch (e) { flash(e.message); } };
   const submitPredictions = () => {
     if (!predState || !isEntryComplete(predState)) return;
@@ -159,7 +159,6 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
             <button style={S.ghost} disabled={busy} onClick={() => run(() => recalculateCustomPoolScoresManual(poolId, currentUserId), 'Scores recalculated')}><RotateCcw size={14} /> Recalc</button>
             <button style={S.primary} disabled={busy} onClick={() => run(() => completePool(poolId, currentUserId), 'Pool completed')}><Check size={14} strokeWidth={3} /> Complete</button>
           </>}
-          {!isHost && !joined && status === 'open' && <button style={S.primary} disabled={busy} onClick={() => run(() => joinBracketPool(poolId, currentUserId, currentUserName || 'Anonymous'), 'Joined — make your picks')}><Users size={14} /> Join pool</button>}
         </div>
       </header>
 
@@ -173,14 +172,21 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
 
       <div style={S.scroll}>
         {tab === 'bracket' && (
-          isHost ? <div style={S.note}>You're the host — switch to the Results tab to record official outcomes.</div>
-            : !joined ? <div style={S.note}>{status === 'open' ? 'Join the pool to make your prediction.' : 'This pool is no longer accepting entries.'}</div>
-              : <>
-                {canPredict && !isEntryComplete(predState || {}) && <div style={S.note}>Pick a winner in every matchup, then submit. {submitted ? 'Re-submitting replaces your entry.' : ''}</div>}
-                {canPredict && <div style={S.actionBar}><button style={{ ...S.primary, ...(predState && isEntryComplete(predState) ? {} : S.primaryOff) }} disabled={busy || !(predState && isEntryComplete(predState))} onClick={submitPredictions}><Send size={14} /> {submitted ? 'Update prediction' : 'Submit prediction'}</button></div>}
-                {!canPredict && submitted && <div style={S.note}>Your prediction is in. {status === 'open' ? '' : 'Predictions are locked.'}</div>}
-                {predState && <Board state={predState} nameMap={nameMap} editable={canPredict} onPick={pickPred} />}
-              </>
+          !joined ? (
+            status === 'open'
+              ? <div style={S.joinWrap}>
+                  <div style={S.note}>{isHost ? 'Join your own pool to enter a prediction bracket.' : 'Join the pool to fill out your prediction.'}</div>
+                  <button style={S.primary} disabled={busy} onClick={() => run(() => joinBracketPool(poolId, currentUserId, currentUserName || 'Anonymous'), 'Joined — make your picks')}><Users size={14} /> Join pool</button>
+                </div>
+              : <div style={S.note}>This pool is no longer accepting entries.</div>
+          ) : (
+            <>
+              {canPredict && !isEntryComplete(predState || {}) && <div style={S.note}>Pick a winner in every matchup, then submit.{submitted ? ' Re-submitting replaces your entry.' : ''}</div>}
+              {canPredict && <div style={S.actionBar}><button style={{ ...S.primary, ...(predState && isEntryComplete(predState) ? {} : S.primaryOff) }} disabled={busy || !(predState && isEntryComplete(predState))} onClick={submitPredictions}><Send size={14} /> {submitted ? 'Update prediction' : 'Submit prediction'}</button></div>}
+              {!canPredict && submitted && <div style={S.note}>Your prediction is in.{status === 'open' ? '' : ' Predictions are locked.'}</div>}
+              {predState && <Board state={predState} nameMap={nameMap} editable={canPredict} onPick={pickPred} />}
+            </>
+          )
         )}
         {tab === 'results' && (
           <>
@@ -238,6 +244,7 @@ const S = {
   tab: (active) => ({ flex: 1, padding: '11px 0', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: active ? 'var(--teal)' : 'var(--muted)', background: 'transparent', border: 'none', borderBottom: active ? '2px solid var(--teal)' : '2px solid transparent' }),
   championBar: { display: 'flex', alignItems: 'center', gap: 8, padding: '11px 18px', fontSize: 15, color: 'var(--orange)', background: 'rgba(255,106,61,.08)', borderBottom: '1px solid var(--line)' },
   note: { padding: '10px 18px', fontSize: 13, color: 'var(--muted)' },
+  joinWrap: { padding: '18px', display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'flex-start' },
   actionBar: { padding: '10px 18px', display: 'flex', justifyContent: 'flex-end' },
   scroll: { flex: 1, overflow: 'auto', position: 'relative' },
   svg: { position: 'absolute', inset: 0, pointerEvents: 'none' },
