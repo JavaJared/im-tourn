@@ -24,6 +24,7 @@ export function picksFromState(state) {
 
 /** Has the predictor decided every two-player matchup? (byes auto-advance, no pick needed) */
 export function isEntryComplete(state) {
+  if (!state || !state.rounds || !state.boxes) return false;
   const loc = locate(state);
   for (const id of Object.keys(state.boxes)) {
     const aPlayer = slotDisplay(state, loc, id, 'A').type !== SLOT.BYE && resolveParticipant(state, loc, id, 'A') != null;
