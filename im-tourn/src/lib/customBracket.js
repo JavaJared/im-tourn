@@ -163,7 +163,7 @@ export function validateForPublish(state) {
   if (rounds[last].length !== 1) errors.push('The final round must have exactly one matchup');
   for (let r = 1; r < rounds.length; r += 1) {
     const need = Math.ceil(rounds[r - 1].length / 2);
-    if (rounds[r].length !== need) errors.push(`Round ${r + 1} should have ${need} matchup${need > 1 ? 's' : ''} to line up with Round ${r}`);
+    if (rounds[r].length < need) errors.push(`Round ${r + 1} needs at least ${need} matchup${need > 1 ? 's' : ''} to fit everything advancing from Round ${r}`);
   }
   const loc = locate(state);
   for (const id of Object.keys(state.boxes)) for (const slot of ['A', 'B']) {
