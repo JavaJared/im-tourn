@@ -75,7 +75,8 @@ import { analyzePool, shouldShowWinningPaths } from './lib/elimination';
 import { StatusBadge, WhatNeedsToHappen } from './components/EliminationStatus';
 import './App.css';
 import CustomBracketPage from './components/CustomBracketPage';
-import { createCustomBracket, getUserCustomBrackets, getPublicCustomBrackets, deleteBracket as deleteCustomBracket } from './services/customBracketService';
+import { createCustomBracket, getUserCustomBrackets, getCustomStructureForPool, getPublicCustomBrackets, deleteBracket as deleteCustomBracket } from './services/customBracketService';
+import CustomPoolDetail from './components/CustomPoolDetail';
 
 // Admin user IDs (add your Firebase user ID here)
 const ADMIN_USER_IDS = ['VBbDwj6gkVgW7gBcs3vTmt0ulLF2'];
@@ -1817,14 +1818,17 @@ const CreatePoolPage = ({ onNavigate }) => {
   }, []);
 
   const loadBrackets = async () => {
-    try {
-      const data = await getAllBrackets();
-      setBrackets(data);
-    } catch (error) {
-      console.error('Error loading brackets:', error);
-    }
-    setLoading(false);
-  };
+  try {
+    const [defaults, customs] = await Promise.all([
+      getAllBrackets(),
+      getPublicCustomBrackets(),   // published/locked/complete customs
+    ]);
+    setBrackets([...defaults, ...customs]);
+  } catch (error) {
+    console.error('Error loading brackets:', error);
+  }
+  setLoading(false);
+};
 
   const updateRoundPoints = (index, value) => {
     const newPoints = [...roundPoints];
@@ -1840,6 +1844,29 @@ const CreatePoolPage = ({ onNavigate }) => {
 
     setCreating(true);
     try {
+      // Custom brackets carry their own free-form structure; skip seeded matchup generation.
+if (selectedBracket.isCustom) {
+  const structure = await getCustomStructureForPool(selectedBracket.id);
+  const result = await createBracketPool({
+    name: poolName.trim(),
+    description: poolDescription.trim(),
+    hostId: currentUser.uid,
+    hostDisplayName: currentUser.displayName || 'Anonymous',
+    bracketId: selectedBracket.id,
+    bracketTitle: selectedBracket.title,
+    bracketCategory: selectedBracket.category || 'Custom',
+    bracketType: 'custom',
+    bracketMatchups: structure,   // {rounds, boxes, nameMap, roundCount} — stringified by createBracketPool
+    lockDate: lockDate ? new Date(lockDate) : null,
+    roundPoints: roundPoints.slice(0, structure.roundCount),
+    enableSleepers: false,
+    sleeper1Points: 0,
+    sleeper2Points: 0,
+  });
+  onNavigate(`pool-${result.id}`);
+  setCreating(false);
+  return;
+}
       // Parse the bracket's entries to create the matchup structure
       const entries = typeof selectedBracket.entries === 'string' 
         ? JSON.parse(selectedBracket.entries) 
@@ -1980,7 +2007,7 @@ const CreatePoolPage = ({ onNavigate }) => {
             <label>Points Per Round</label>
             <p className="form-hint">Set how many points a correct pick is worth in each round</p>
             <div className="round-points-grid">
-              {Array.from({ length: Math.log2(selectedBracket.size) }, (_, i) => (
+              {Array.from({ length: selectedBracket.isCustom ? selectedBracket.roundCount : Math.log2(selectedBracket.size) }, (_, i) => (
                 <div key={i} className="round-points-item">
                   <span className="round-label">Round {i + 1}</span>
                   <input
@@ -2682,6 +2709,16 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
     setEditingDescription(true);
   };
 
+  if (pool.bracketType === 'custom') {
+    return (
+      <CustomPoolDetail
+        poolId={poolId}
+        currentUserId={currentUser?.uid}
+        currentUserName={currentUser?.displayName}
+        onNavigate={onNavigate}
+      />
+    );
+  }
   return (
     <div className="home-container">
       <div className="pool-header">
