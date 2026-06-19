@@ -2,8 +2,8 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Check, Clock, Loader2, AlertTriangle, Trophy, Lock, Users, RotateCcw, Send } from './customBracketIcons';
 import { SLOT, locate, slotDisplay, feederId, resolveParticipant, setResult, getChampion } from '../lib/customBracket';
 import { hydrateState, picksFromState, isEntryComplete, buildLeaderboard, defaultRoundPoints } from '../lib/customScoring';
-import { getPoolById, getPoolEntry, getPoolEntries, joinBracketPool, submitPoolPredictions, lockPool, completePool } from '../services/bracketService';
-import { startCustomPool, updateCustomPoolResults, recalculateCustomPoolScoresManual } from '../services/customBracketService';
+import { joinBracketPool, submitPoolPredictions, lockPool, completePool } from '../services/bracketService';
+import { startCustomPool, updateCustomPoolResults, recalculateCustomPoolScoresManual, subscribeToPool, subscribeToPoolEntries } from '../services/customBracketService';
 
 const COLW = 248, ROWH = 150, CARDW = 200, CARDH = 116, PADX = 60, PADTOP = 92, PADBOT = 56;
 function computeLayout(state) {
@@ -86,7 +86,6 @@ const STATUS_LABEL = { open: 'Predictions open', locked: 'Locked', in_progress: 
  * ==================================================================== */
 export default function CustomPoolDetail({ poolId, currentUserId, currentUserName, onNavigate }) {
   const [pool, setPool] = useState(null);
-  const [myEntry, setMyEntry] = useState(null);
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -98,27 +97,49 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
 
   const flash = useCallback((m) => { setToast(m); setTimeout(() => setToast(null), 2600); }, []);
 
-  const load = useCallback(async () => {
-    try {
-      const p = await getPoolById(poolId);
+  // Live subscriptions: the pool doc (status, results, lifecycle) and every
+  // entry (predictions + scores). All viewers see results and standings update
+  // in real time without reloading.
+  useEffect(() => {
+    const unsubPool = subscribeToPool(poolId, (p) => {
       if (!p) { setError('Pool not found.'); setLoading(false); return; }
-      const [me, all] = await Promise.all([currentUserId ? getPoolEntry(poolId, currentUserId) : null, getPoolEntries(poolId)]);
-      setPool(p); setMyEntry(me); setEntries(all); setError(null); setLoading(false);
-      setPredState(hydrateState(p.bracketMatchups, (me && me.predictions) || {}));
-      setResState(hydrateState(p.bracketMatchups, p.customResults || {}));
-    } catch (e) { setError(e?.message || 'Failed to load pool.'); setLoading(false); }
-  }, [poolId, currentUserId]);
+      setPool(p); setError(null); setLoading(false);
+    }, (e) => { setError(e?.message || 'Failed to load pool.'); setLoading(false); });
+    const unsubEntries = subscribeToPoolEntries(poolId, (all) => setEntries(all), () => {});
+    return () => { unsubPool(); unsubEntries(); };
+  }, [poolId]);
 
-  useEffect(() => { load(); }, [load]);
-
+  const myEntry = useMemo(() => entries.find((e) => e.userId === currentUserId) || null, [entries, currentUserId]);
   const isHost = !!(pool && currentUserId && pool.hostId === currentUserId);
   const status = pool?.status;
   const nameMap = pool?.bracketMatchups?.nameMap || {};
   const roundPoints = useMemo(() => (pool?.roundPoints && pool.roundPoints.length ? pool.roundPoints : defaultRoundPoints(pool?.bracketMatchups?.rounds?.length || 0)), [pool]);
   const joined = !!myEntry;
   const submitted = !!(myEntry && myEntry.predictions);
+  const canRecord = isHost && status === 'in_progress';
 
-  const run = async (fn, ok) => { setBusy(true); try { await fn(); if (ok) flash(ok); await load(); } catch (e) { flash(e?.message || 'Something went wrong'); } setBusy(false); };
+  // Initialize the current user's prediction board from their saved entry, but
+  // only when that saved entry actually changes (first load, join, or their own
+  // submit) — keyed on a stable signal so live snapshots of *other* entries
+  // don't wipe in-progress local picks.
+  const structureReady = !!pool?.bracketMatchups;
+  const submittedKey = myEntry?.submittedAt ? +myEntry.submittedAt : (myEntry ? 'joined' : 'none');
+  useEffect(() => {
+    if (!pool?.bracketMatchups) { setPredState(null); return; }
+    setPredState(hydrateState(pool.bracketMatchups, (myEntry && myEntry.predictions) || {}));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [poolId, structureReady, submittedKey]);
+
+  // The official-results board: viewers (and a not-yet-recording host) mirror
+  // pool.customResults live; an actively-recording host keeps resState local and
+  // optimistic so rapid taps aren't clobbered by incoming snapshots.
+  useEffect(() => {
+    if (!pool?.bracketMatchups) { setResState(null); return; }
+    if (canRecord) setResState((prev) => prev || hydrateState(pool.bracketMatchups, pool.customResults || {}));
+    else setResState(hydrateState(pool.bracketMatchups, pool.customResults || {}));
+  }, [pool, canRecord]);
+
+  const run = async (fn, ok) => { setBusy(true); try { await fn(); if (ok) flash(ok); } catch (e) { flash(e?.message || 'Something went wrong'); } setBusy(false); };
 
   // predictor picks
   const canPredict = joined && status === 'open';
@@ -127,8 +148,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
     if (!predState || !isEntryComplete(predState)) return;
     run(() => submitPoolPredictions(poolId, currentUserId, picksFromState(predState), getChampion(predState)), 'Predictions submitted');
   };
-  // host results
-  const canRecord = isHost && status === 'in_progress';
+  // host results — optimistic local update + persist; snapshots keep everyone else live
   const pickResult = (boxId, pid) => {
     if (!canRecord || !resState) return;
     let next; try { next = setResult(resState, boxId, pid); } catch (e) { flash(e.message); return; }
