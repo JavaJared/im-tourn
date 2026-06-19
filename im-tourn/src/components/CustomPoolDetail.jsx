@@ -203,7 +203,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
               : <div style={S.note}>This pool is no longer accepting entries.</div>
           ) : (
             <>
-              {canPredict && !isEntryComplete(predState || {}) && <div style={S.note}>Pick a winner in every matchup, then submit.{submitted ? ' Re-submitting replaces your entry.' : ''}</div>}
+              {canPredict && predState && !isEntryComplete(predState) && <div style={S.note}>Pick a winner in every matchup, then submit.{submitted ? ' Re-submitting replaces your entry.' : ''}</div>}
               {canPredict && <div style={S.actionBar}><button style={{ ...S.primary, ...(predState && isEntryComplete(predState) ? {} : S.primaryOff) }} disabled={busy || !(predState && isEntryComplete(predState))} onClick={submitPredictions}><Send size={14} /> {submitted ? 'Update prediction' : 'Submit prediction'}</button></div>}
               {!canPredict && submitted && <div style={S.note}>Your prediction is in.{status === 'open' ? '' : ' Predictions are locked.'}</div>}
               {predState && <Board state={predState} nameMap={nameMap} editable={canPredict} onPick={pickPred} />}
