@@ -2,8 +2,8 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Check, Clock, Loader2, AlertTriangle, Trophy, Lock, Users, RotateCcw, Send, X, Trash2 } from './customBracketIcons';
 import { SLOT, locate, slotDisplay, feederId, resolveParticipant, matchWinner, setResult, getChampion } from '../lib/customBracket';
 import { hydrateState, picksFromState, isEntryComplete, buildLeaderboard, defaultRoundPoints } from '../lib/customScoring';
-import { joinBracketPool, submitPoolPredictions, lockPool, completePool, updatePoolDescription, deletePool } from '../services/bracketService';
-import { startCustomPool, updateCustomPoolResults, recalculateCustomPoolScoresManual, subscribeToPool, subscribeToPoolEntries } from '../services/customBracketService';
+import { joinBracketPool, submitPoolPredictions, lockPool, completePool, updatePoolDescription, deletePool, getPoolById } from '../services/bracketService';
+import { startCustomPool, updateCustomPoolResults, updateCustomPoolScores, recalculateCustomPoolScoresManual, subscribeToPool, subscribeToPoolEntries } from '../services/customBracketService';
 
 const COLW = 248, ROWH = 150, CARDW = 200, CARDH = 116, PADX = 60, PADTOP = 92, PADBOT = 56;
 function computeLayout(state) {
@@ -33,7 +33,7 @@ function resolveSlot(state, loc, nameMap, boxId, slot) {
   return { kind: 'player', pid, name: (nameMap && nameMap[pid]) || '—' };
 }
 
-function Board({ state, nameMap, editable, onPick, official }) {
+function Board({ state, nameMap, editable, onPick, official, sc }) {
   const loc = useMemo(() => locate(state), [state]);
   const layout = useMemo(() => computeLayout(state), [state]);
   return (
@@ -54,12 +54,12 @@ function Board({ state, nameMap, editable, onPick, official }) {
         <Card key={id} id={id} pos={layout.positions[id]}
           a={resolveSlot(state, loc, nameMap, id, 'A')} b={resolveSlot(state, loc, nameMap, id, 'B')}
           result={state.boxes[id].result} editable={editable} onPick={onPick}
-          official={official ? official[id] : null} />
+          official={official ? official[id] : null} sc={sc} />
       ))}
     </div>
   );
 }
-function Card({ id, pos, a, b, result, editable, onPick, official }) {
+function Card({ id, pos, a, b, result, editable, onPick, official, sc }) {
   if (!pos) return null;
   const decidable = a.kind === 'player' && b.kind === 'player';
   const hasBye = a.kind === 'bye' || b.kind === 'bye';
@@ -68,19 +68,25 @@ function Card({ id, pos, a, b, result, editable, onPick, official }) {
   // When an official winner is known for this box and a pick exists, grade it.
   const graded = official != null && winnerPid != null;
   const pickRight = graded && winnerPid === official;
-  const slot = (sl) => {
+  // Per-matchup scores apply only to real (two-player) matchups.
+  const showScore = sc && decidable;
+  const slot = (sl, side) => {
     if (sl.kind === 'pending') return <div style={{ ...S.slot, ...S.slotPending }}><Clock size={13} /> <span style={S.pend}>Winner of {sl.src.toUpperCase()}</span></div>;
     if (sl.kind === 'bye') return <div style={{ ...S.slot, ...S.slotMuted }}><span style={S.byeTxt}>Bye</span></div>;
     if (sl.kind === 'open') return <div style={{ ...S.slot, ...S.slotMuted }}>—</div>;
     const isW = sl.pid === winnerPid, isL = winnerPid != null && !isW, click = editable && decidable;
     const winStyle = isW ? (graded ? (pickRight ? S.slotWin : S.slotWrong) : S.slotWin) : (isL ? S.slotLose : click ? S.slotPick : S.slotIdle);
+    const scoreVal = showScore ? sc.get(id, side) : '';
     return (
       <div onClick={click ? () => onPick(id, sl.pid) : undefined} style={{ ...S.slot, ...winStyle, cursor: click ? 'pointer' : 'default' }}>
         {isW && (graded && !pickRight ? <X size={14} strokeWidth={3} /> : <Check size={14} strokeWidth={3} />)}<span style={S.name}>{sl.name}</span>
+        {showScore && (sc.editable
+          ? <input className="cb-score" value={scoreVal} inputMode="numeric" placeholder="–" onClick={(e) => e.stopPropagation()} onChange={(e) => sc.change(id, side, e.target.value)} onBlur={(e) => sc.blur(id, side, e.target.value)} />
+          : (scoreVal !== '' && <span style={S.scoreText}>{scoreVal}</span>))}
       </div>
     );
   };
-  return <div style={{ ...S.card, left: pos.x, top: pos.y, width: CARDW }}><div style={S.tag}>{id.toUpperCase()}</div>{slot(a)}<div style={S.vs}>vs</div>{slot(b)}</div>;
+  return <div style={{ ...S.card, left: pos.x, top: pos.y, width: CARDW }}><div style={S.tag}>{id.toUpperCase()}</div>{slot(a, 'a')}<div style={S.vs}>vs</div>{slot(b, 'b')}</div>;
 }
 
 const STATUS_LABEL = { open: 'Predictions open', locked: 'Locked', in_progress: 'In progress', completed: 'Completed' };
@@ -102,6 +108,14 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
   const [viewingEntry, setViewingEntry] = useState(null);   // another participant's bracket being viewed
   const [editingDesc, setEditingDesc] = useState(false);
   const [descDraft, setDescDraft] = useState('');
+  // Per-matchup score entry. scoreDrafts holds in-flight input strings keyed
+  // `${boxId}:${side}` for responsive typing; pendingScoreWrites accumulates the
+  // parsed values so a single coalesced flush persists them all at once (avoids
+  // the stale-closure race where concurrent saves overwrite each other).
+  const [scoreDrafts, setScoreDrafts] = useState({});
+  const pendingScoreWrites = useRef({});
+  const scoreFlushTimer = useRef(null);
+  const inflightFlush = useRef(null);
 
   const flash = useCallback((m) => { setToast(m); setTimeout(() => setToast(null), 2600); }, []);
 
@@ -197,6 +211,75 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
     run(async () => { await deletePool(poolId, currentUserId); onNavigate('pools'); });
   };
 
+  // ---- per-matchup score entry (host) ----------------------------------
+  const parseScoreInput = (raw) => {
+    if (raw == null) return null;
+    const t = String(raw).trim();
+    if (t === '') return null;
+    const n = Number(t);
+    if (!Number.isFinite(n) || n < 0) return null;
+    return Math.floor(n);
+  };
+  // Flush every accumulated score edit in one write. Reads the pool fresh so we
+  // merge onto the latest customScores rather than a stale closure copy.
+  const flushPendingScores = async () => {
+    if (!canRecord) { pendingScoreWrites.current = {}; return; }
+    const pending = pendingScoreWrites.current;
+    if (Object.keys(pending).length === 0) return;
+    pendingScoreWrites.current = {};                 // start a fresh batch before async work
+    try {
+      const fresh = await getPoolById(poolId);
+      const scores = JSON.parse(JSON.stringify(fresh?.customScores || {}));
+      for (const key of Object.keys(pending)) {
+        const i = key.lastIndexOf(':'); if (i < 0) continue;
+        const boxId = key.slice(0, i), side = key.slice(i + 1);
+        if (!scores[boxId]) scores[boxId] = {};
+        scores[boxId][side] = pending[key];
+        if (scores[boxId].a == null && scores[boxId].b == null) delete scores[boxId];
+      }
+      await updateCustomPoolScores(poolId, currentUserId, scores);
+    } catch (e) {
+      // Re-queue on failure so edits aren't silently dropped.
+      for (const key of Object.keys(pending)) if (!(key in pendingScoreWrites.current)) pendingScoreWrites.current[key] = pending[key];
+    }
+  };
+  const scheduleFlush = () => {
+    if (scoreFlushTimer.current) clearTimeout(scoreFlushTimer.current);
+    scoreFlushTimer.current = setTimeout(() => {
+      scoreFlushTimer.current = null;
+      inflightFlush.current = flushPendingScores().finally(() => { inflightFlush.current = null; });
+    }, 300);
+  };
+  const handleScoreChange = (boxId, side, raw) => {
+    const key = `${boxId}:${side}`;
+    setScoreDrafts((prev) => ({ ...prev, [key]: raw }));
+    pendingScoreWrites.current[key] = parseScoreInput(raw);
+    scheduleFlush();
+  };
+  const handleScoreBlur = async (boxId, side, raw) => {
+    const key = `${boxId}:${side}`;
+    pendingScoreWrites.current[key] = parseScoreInput(raw);
+    if (scoreFlushTimer.current) { clearTimeout(scoreFlushTimer.current); scoreFlushTimer.current = null; }
+    const p = flushPendingScores(); inflightFlush.current = p; await p; inflightFlush.current = null;
+    setScoreDrafts((prev) => { const n = { ...prev }; delete n[key]; return n; });   // clear draft once the live snapshot reflects it
+  };
+  const getScoreInputValue = (boxId, side) => {
+    const key = `${boxId}:${side}`;
+    if (key in scoreDrafts) return scoreDrafts[key];
+    const v = pool?.customScores?.[boxId]?.[side];
+    return v == null ? '' : String(v);
+  };
+  useEffect(() => () => {
+    if (scoreFlushTimer.current) { clearTimeout(scoreFlushTimer.current); scoreFlushTimer.current = null; }
+    if (Object.keys(pendingScoreWrites.current).length > 0) flushPendingScores();   // best-effort flush on unmount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // Score panel: editable for the recording host, read-only for everyone once any score exists.
+  const hasScores = !!(pool?.customScores && Object.keys(pool.customScores).length);
+  const scoreUI = canRecord
+    ? { editable: true, get: getScoreInputValue, change: handleScoreChange, blur: handleScoreBlur }
+    : (hasScores ? { editable: false, get: getScoreInputValue } : null);
+
   if (loading) return <Shell onBack={() => onNavigate('pools')}><div style={S.center}><Loader2 size={20} className="spin" /> Loading pool…</div></Shell>;
   if (error) return <Shell onBack={() => onNavigate('pools')}><div style={S.center}><AlertTriangle size={20} /> {error}</div></Shell>;
 
@@ -281,7 +364,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
           <>
             {canRecord && <div style={S.note}>Tap a player to record the official winner. Scores update automatically.</div>}
             {!canRecord && status !== 'in_progress' && status !== 'completed' && <div style={S.note}>Official results appear once the host starts the pool.</div>}
-            {resState && <Board state={resState} nameMap={nameMap} editable={canRecord} onPick={pickResult} />}
+            {resState && <Board state={resState} nameMap={nameMap} editable={canRecord} onPick={pickResult} sc={scoreUI} />}
           </>
         )}
         {tab === 'leaderboard' && (
@@ -320,6 +403,10 @@ const CSS = `
 .cbpd ::-webkit-scrollbar{width:11px;height:11px}.cbpd ::-webkit-scrollbar-thumb{background:#2a3040;border-radius:6px;border:3px solid transparent;background-clip:padding-box}
 .spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
 @keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.cbpd .cb-score{width:30px;flex:none;margin-left:4px;text-align:center;font-size:12px;font-weight:600;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:3px 2px;font-family:inherit;-moz-appearance:textfield}
+.cbpd .cb-score::-webkit-outer-spin-button,.cbpd .cb-score::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.cbpd .cb-score:focus{outline:none;border-color:var(--teal)}
+.cbpd .cb-score::placeholder{color:var(--muted)}
 `;
 const S = {
   root: { '--bg': '#0c0e13', '--surface': '#14171f', '--surface2': '#1b1f2b', '--line': '#2a3040', '--text': '#eef1f7', '--muted': '#828ba1', '--orange': '#ff6a3d', '--teal': '#2bd4c0', position: 'relative', display: 'flex', flexDirection: 'column', height: '100%', minHeight: 600, background: 'var(--bg)', color: 'var(--text)', fontFamily: "'Outfit',system-ui,sans-serif", borderRadius: 14, overflow: 'hidden', border: '1px solid var(--line)' },
@@ -383,4 +470,5 @@ const S = {
   viewName: { flex: 1, fontSize: 14, fontWeight: 600, color: 'var(--text)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   viewScore: { fontSize: 14, fontWeight: 600, color: 'var(--teal)', flexShrink: 0 },
   lbChamp: { display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--orange)', flexShrink: 0, maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  scoreText: { marginLeft: 4, fontSize: 12, fontWeight: 700, color: 'var(--text)', minWidth: 18, textAlign: 'right', flex: 'none' },
 };
