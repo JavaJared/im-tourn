@@ -215,6 +215,18 @@ export async function recalculateCustomPoolScoresManual(poolId, hostId) {
   return true;
 }
 
+/**
+ * Record per-matchup scores. `scoresMap` is { boxId: { a: number|null, b: number|null } }.
+ * Scores are display-only (they never affect points), so this does not rescore.
+ */
+export async function updateCustomPoolScores(poolId, hostId, scoresMap) {
+  const pool = await getPoolById(poolId);
+  if (!pool) throw new Error('Pool not found');
+  if (pool.hostId !== hostId) throw new Error('Only the host can record scores');
+  await updateDoc(doc(db, POOLS, poolId), { customScores: scoresMap || {}, updatedAt: serverTimestamp() });
+  return true;
+}
+
 /* ---- real-time pool subscriptions (custom pools) ---- */
 function parsePoolDoc(id, data) {
   return {
