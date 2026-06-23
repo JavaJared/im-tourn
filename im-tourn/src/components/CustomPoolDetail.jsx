@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Check, Clock, Loader2, AlertTriangle, Trophy, Lock, Users, RotateCcw, Send, X, Trash2 } from './customBracketIcons';
 import { SLOT, locate, slotDisplay, feederId, resolveParticipant, matchWinner, setResult, getChampion } from '../lib/customBracket';
 import { hydrateState, picksFromState, isEntryComplete, buildLeaderboard, defaultRoundPoints } from '../lib/customScoring';
+import { analyzeCustomPool, summarizeWinningScenarios, shouldShowWinningPaths } from '../lib/customElimination';
 import { joinBracketPool, submitPoolPredictions, lockPool, completePool, updatePoolDescription, deletePool, getPoolById } from '../services/bracketService';
 import { startCustomPool, updateCustomPoolResults, updateCustomPoolScores, recalculateCustomPoolScoresManual, subscribeToPool, subscribeToPoolEntries } from '../services/customBracketService';
 
@@ -33,7 +34,7 @@ function resolveSlot(state, loc, nameMap, boxId, slot) {
   return { kind: 'player', pid, name: (nameMap && nameMap[pid]) || '—' };
 }
 
-function Board({ state, nameMap, editable, onPick, official, sc }) {
+function Board({ state, nameMap, editable, onPick, official, sc, highlight }) {
   const loc = useMemo(() => locate(state), [state]);
   const layout = useMemo(() => computeLayout(state), [state]);
   return (
@@ -54,12 +55,12 @@ function Board({ state, nameMap, editable, onPick, official, sc }) {
         <Card key={id} id={id} pos={layout.positions[id]}
           a={resolveSlot(state, loc, nameMap, id, 'A')} b={resolveSlot(state, loc, nameMap, id, 'B')}
           result={state.boxes[id].result} editable={editable} onPick={onPick}
-          official={official ? official[id] : null} sc={sc} />
+          official={official ? official[id] : null} sc={sc} hl={highlight ? highlight.has(id) : false} />
       ))}
     </div>
   );
 }
-function Card({ id, pos, a, b, result, editable, onPick, official, sc }) {
+function Card({ id, pos, a, b, result, editable, onPick, official, sc, hl }) {
   if (!pos) return null;
   const decidable = a.kind === 'player' && b.kind === 'player';
   const hasBye = a.kind === 'bye' || b.kind === 'bye';
@@ -86,7 +87,14 @@ function Card({ id, pos, a, b, result, editable, onPick, official, sc }) {
       </div>
     );
   };
-  return <div style={{ ...S.card, left: pos.x, top: pos.y, width: CARDW }}><div style={S.tag}>{id.toUpperCase()}</div>{slot(a, 'a')}<div style={S.vs}>vs</div>{slot(b, 'b')}</div>;
+  return <div style={{ ...S.card, left: pos.x, top: pos.y, width: CARDW, ...(hl ? S.cardHl : {}) }}><div style={S.tag}>{id.toUpperCase()}</div>{slot(a, 'a')}<div style={S.vs}>vs</div>{slot(b, 'b')}</div>;
+}
+
+function StatusBadge({ status }) {
+  if (!status) return null;
+  if (status === 'clinched') return <span style={{ ...S.badge, ...S.badgeClinch }}><Trophy size={10} /> Clinched</span>;
+  if (status === 'eliminated') return <span style={{ ...S.badge, ...S.badgeOut }}>Out</span>;
+  return <span style={{ ...S.badge, ...S.badgeAlive }}>Alive</span>;
 }
 
 const STATUS_LABEL = { open: 'Predictions open', locked: 'Locked', in_progress: 'In progress', completed: 'Completed' };
@@ -200,6 +208,22 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
     () => (viewingEntry && pool?.bracketMatchups && viewingEntry.predictions) ? hydrateState(pool.bracketMatchups, viewingEntry.predictions) : null,
     [viewingEntry, pool]
   );
+
+  // Elimination analysis (alive / clinched / eliminated) once results are live.
+  const analysis = useMemo(() => {
+    if (!pool?.bracketMatchups || (status !== 'in_progress' && status !== 'completed')) return null;
+    return analyzeCustomPool(pool.bracketMatchups, pool.customResults || {}, entries, roundPoints);
+  }, [pool, entries, roundPoints, status]);
+  const showPaths = useMemo(
+    () => (analysis ? shouldShowWinningPaths(pool.bracketMatchups, pool.customResults || {}, analysis, entries) : false),
+    [analysis, pool, entries]
+  );
+  const viewingStatus = viewingEntry && analysis ? analysis.byUserId[viewingEntry.userId] : null;
+  const viewingSummary = useMemo(
+    () => (viewingStatus && showPaths ? summarizeWinningScenarios(viewingStatus, nameMap) : null),
+    [viewingStatus, showPaths, nameMap]
+  );
+  const highlightBoxes = useMemo(() => (viewingSummary ? new Set(viewingSummary.required.map((r) => r.boxId)) : null), [viewingSummary]);
 
   const copyLink = () => {
     try { navigator.clipboard.writeText(`${window.location.origin}?pool=${pool.joinCode}`); flash('Invite link copied'); }
@@ -335,10 +359,37 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
             <div style={S.viewBanner}>
               <button style={S.backMini} onClick={() => setViewingEntry(null)}>← Back</button>
               <span style={S.viewName}>{(viewingEntry.userDisplayName || viewingEntry.displayName || 'Entry')}’s bracket</span>
+              {viewingStatus && <StatusBadge status={viewingStatus.status} />}
               <span style={S.viewScore}>{viewingEntry.total ?? viewingEntry.score ?? 0} pts</span>
             </div>
+            {viewingStatus && (
+              <div style={S.pathPanel}>
+                {viewingStatus.status === 'clinched' && <div style={S.pathLine}><Trophy size={13} /> Clinched — guaranteed at least a share of 1st place.</div>}
+                {viewingStatus.status === 'eliminated' && <div style={{ ...S.pathLine, color: '#ff8a8a' }}>Eliminated — can no longer reach 1st place.</div>}
+                {viewingStatus.status === 'alive' && (
+                  viewingSummary ? (
+                    <>
+                      <div style={S.pathHead}>What needs to happen{viewingSummary.truncated ? ' (partial)' : ''} · {viewingSummary.totalScenarios} winning {viewingSummary.totalScenarios === 1 ? 'path' : 'paths'}</div>
+                      {viewingSummary.required.length > 0 && (
+                        <div style={S.pathBlock}>
+                          <div style={S.pathSub}>Must happen</div>
+                          {viewingSummary.required.map((r) => <div key={r.boxId} style={S.pathItem}><span style={S.pathBox}>{r.boxId.toUpperCase()}</span> {r.winnerName} must win</div>)}
+                        </div>
+                      )}
+                      {viewingSummary.rootFor.length > 0 && (
+                        <div style={S.pathBlock}>
+                          <div style={S.pathSub}>Root for</div>
+                          {viewingSummary.rootFor.map((r) => <div key={r.boxId} style={S.pathItem}><span style={S.pathBox}>{r.boxId.toUpperCase()}</span> {r.perOutcome.map((o) => o.winnerName).join(' or ')}</div>)}
+                        </div>
+                      )}
+                      {viewingSummary.required.length === 0 && viewingSummary.rootFor.length === 0 && <div style={S.pathLine}>Still alive — multiple paths to 1st.</div>}
+                    </>
+                  ) : <div style={S.pathLine}>Still in contention for 1st.</div>
+                )}
+              </div>
+            )}
             {viewingState
-              ? <Board state={viewingState} nameMap={nameMap} editable={false} onPick={() => {}} official={officialWinners} />
+              ? <Board state={viewingState} nameMap={nameMap} editable={false} onPick={() => {}} official={officialWinners} highlight={highlightBoxes} />
               : <div style={S.note}>This participant hasn’t submitted a bracket yet.</div>}
           </>
         ) : (
@@ -373,10 +424,12 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
             {leaderboard.length === 0 ? <div style={S.note}>No predictions submitted yet.</div> : leaderboard.map((e, i) => {
               const me = currentUserId && e.userId === currentUserId;
               const champ = e.champion != null ? (nameMap[e.champion] || null) : null;
+              const est = analysis?.byUserId?.[e.userId]?.status;
               return (
                 <div key={e.userId || i} onClick={() => e.predictions && setViewingEntry(e)} title={e.predictions ? 'View this bracket' : undefined} style={{ ...S.row, ...(me ? S.rowMe : {}), cursor: e.predictions ? 'pointer' : 'default' }}>
                   <div style={{ ...S.rank, ...(i === 0 ? S.rankTop : {}) }}>{i + 1}</div>
-                  <span style={{ ...S.lbName, ...(me ? { color: 'var(--teal)' } : {}) }}>{e.userDisplayName || e.displayName || 'Anonymous'}{me ? ' (you)' : ''}</span>
+                  <span style={{ ...S.lbName, ...(me ? { color: 'var(--teal)' } : {}), ...(est === 'eliminated' ? { opacity: 0.5 } : {}) }}>{e.userDisplayName || e.displayName || 'Anonymous'}{me ? ' (you)' : ''}</span>
+                  {est && <StatusBadge status={est} />}
                   {champ && <span style={S.lbChamp} title={`Champion pick: ${champ}`}><Trophy size={12} /> {champ}</span>}
                   <span style={S.correct}>{e.correct} correct</span>
                   <span style={S.pts}>{e.total} pts</span>
@@ -471,4 +524,16 @@ const S = {
   viewScore: { fontSize: 14, fontWeight: 600, color: 'var(--teal)', flexShrink: 0 },
   lbChamp: { display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--orange)', flexShrink: 0, maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   scoreText: { marginLeft: 4, fontSize: 12, fontWeight: 700, color: 'var(--text)', minWidth: 18, textAlign: 'right', flex: 'none' },
+  cardHl: { boxShadow: '0 0 0 2px var(--teal), 0 6px 18px rgba(43,212,192,.25)' },
+  badge: { display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .5, padding: '2px 7px', borderRadius: 999, flexShrink: 0 },
+  badgeClinch: { background: 'rgba(43,212,192,.16)', color: 'var(--teal)', border: '1px solid rgba(43,212,192,.4)' },
+  badgeAlive: { background: 'rgba(245,158,66,.14)', color: 'var(--orange)', border: '1px solid rgba(245,158,66,.35)' },
+  badgeOut: { background: 'rgba(255,99,99,.12)', color: '#ff8a8a', border: '1px solid rgba(255,99,99,.35)' },
+  pathPanel: { padding: '12px 18px', borderBottom: '1px solid var(--line)', background: '#101319', display: 'flex', flexDirection: 'column', gap: 10 },
+  pathLine: { display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, color: 'var(--text)', fontWeight: 500 },
+  pathHead: { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .5, color: 'var(--muted)' },
+  pathBlock: { display: 'flex', flexDirection: 'column', gap: 5 },
+  pathSub: { fontSize: 11, fontWeight: 700, color: 'var(--teal)', textTransform: 'uppercase', letterSpacing: .4 },
+  pathItem: { display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)' },
+  pathBox: { fontFamily: "'Bebas Neue',sans-serif", fontSize: 13, letterSpacing: 1, color: 'var(--muted)', minWidth: 30 },
 };
