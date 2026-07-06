@@ -1,94 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Check, Clock, Loader2, AlertTriangle, Trophy, Lock, Users, RotateCcw, Send, X, Trash2 } from './customBracketIcons';
-import { SLOT, locate, slotDisplay, feederId, resolveParticipant, matchWinner, setResult, getChampion } from '../lib/customBracket';
+import { locate, matchWinner, setResult, getChampion } from '../lib/customBracket';
+import BracketBoard from './BracketBoard';
 import { hydrateState, picksFromState, isEntryComplete, buildLeaderboard, defaultRoundPoints } from '../lib/customScoring';
 import { analyzeCustomPool, summarizeWinningScenarios, shouldShowWinningPaths } from '../lib/customElimination';
 import { joinBracketPool, submitPoolPredictions, lockPool, completePool, updatePoolDescription, deletePool, getPoolById } from '../services/bracketService';
 import { startCustomPool, updateCustomPoolResults, updateCustomPoolScores, recalculateCustomPoolScoresManual, subscribeToPool, subscribeToPoolEntries } from '../services/customBracketService';
 
-const COLW = 248, ROWH = 150, CARDW = 200, CARDH = 116, PADX = 60, PADTOP = 92, PADBOT = 56;
-function computeLayout(state) {
-  const positions = {}; const rounds = state.rounds;
-  rounds.forEach((rd, r) => {
-    let cursor = PADTOP;
-    rd.forEach((id, p) => {
-      let y;
-      if (r === 0) y = PADTOP + p * ROWH;
-      else { const ys = []; for (const w of [0, 1]) { const fid = feederId(state, r, p, w); if (fid && positions[fid]) ys.push(positions[fid].y); } y = ys.length ? ys.reduce((a, b) => a + b, 0) / ys.length : cursor; }
-      y = Math.max(y, cursor); positions[id] = { x: PADX + r * COLW, y }; cursor = y + ROWH;
-    });
-  });
-  const ids = Object.keys(positions);
-  const maxX = ids.length ? Math.max(...ids.map((i) => positions[i].x)) + CARDW : 360;
-  const maxY = ids.length ? Math.max(...ids.map((i) => positions[i].y)) + CARDH : 240;
-  const columns = rounds.map((rd, r) => ({ x: PADX + r * COLW, label: (r === rounds.length - 1 && rounds.length > 1) ? 'Final' : `Round ${r + 1}` }));
-  return { positions, columns, width: maxX + PADX, height: maxY + PADBOT };
-}
-function resolveSlot(state, loc, nameMap, boxId, slot) {
-  const d = slotDisplay(state, loc, boxId, slot);
-  if (d.type === SLOT.NAMED) return { kind: 'player', pid: d.participantId, name: d.name };
-  if (d.type === SLOT.BYE) return { kind: 'bye' };
-  if (d.type === SLOT.OPEN) return { kind: 'open' };
-  const pid = resolveParticipant(state, loc, boxId, slot);
-  if (pid == null) return { kind: 'pending', src: d.sourceBoxId };
-  return { kind: 'player', pid, name: (nameMap && nameMap[pid]) || '—' };
-}
-
-function Board({ state, nameMap, editable, onPick, official, sc, highlight }) {
-  const loc = useMemo(() => locate(state), [state]);
-  const layout = useMemo(() => computeLayout(state), [state]);
-  return (
-    <div style={{ position: 'relative', width: layout.width, height: layout.height }}>
-      {state.rounds.length >= 2 && layout.columns.map((c, i) => <div key={i} style={{ ...S.colHead, left: c.x, width: CARDW }}>{c.label}</div>)}
-      <svg style={S.svg} width={layout.width} height={layout.height}>
-        {Object.keys(state.boxes).map((id) => {
-          const { r, p } = loc[id]; const pos = layout.positions[id]; if (!pos) return null;
-          return [0, 1].map((w) => {
-            const fid = feederId(state, r, p, w); if (!fid) return null; const cp = layout.positions[fid]; if (!cp) return null;
-            const decided = resolveParticipant(state, loc, id, w === 0 ? 'A' : 'B') != null;
-            const x1 = cp.x + CARDW, y1 = cp.y + CARDH / 2, x2 = pos.x, y2 = pos.y + CARDH / 2, mx = (x1 + x2) / 2;
-            return <path key={id + w} d={`M ${x1} ${y1} C ${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`} fill="none" stroke={decided ? 'rgba(43,212,192,.5)' : 'rgba(130,139,161,.32)'} strokeWidth="2" />;
-          });
-        })}
-      </svg>
-      {Object.keys(state.boxes).map((id) => (
-        <Card key={id} id={id} pos={layout.positions[id]}
-          a={resolveSlot(state, loc, nameMap, id, 'A')} b={resolveSlot(state, loc, nameMap, id, 'B')}
-          result={state.boxes[id].result} editable={editable} onPick={onPick}
-          official={official ? official[id] : null} sc={sc} hl={highlight ? highlight.has(id) : false} />
-      ))}
-    </div>
-  );
-}
-function Card({ id, pos, a, b, result, editable, onPick, official, sc, hl }) {
-  if (!pos) return null;
-  const decidable = a.kind === 'player' && b.kind === 'player';
-  const hasBye = a.kind === 'bye' || b.kind === 'bye';
-  const autoWinner = hasBye ? (a.kind === 'player' ? a.pid : (b.kind === 'player' ? b.pid : null)) : null;
-  const winnerPid = result?.winnerId ?? autoWinner;
-  // When an official winner is known for this box and a pick exists, grade it.
-  const graded = official != null && winnerPid != null;
-  const pickRight = graded && winnerPid === official;
-  // Per-matchup scores apply only to real (two-player) matchups.
-  const showScore = sc && decidable;
-  const slot = (sl, side) => {
-    if (sl.kind === 'pending') return <div style={{ ...S.slot, ...S.slotPending }}><Clock size={13} /> <span style={S.pend}>Winner of {sl.src.toUpperCase()}</span></div>;
-    if (sl.kind === 'bye') return <div style={{ ...S.slot, ...S.slotMuted }}><span style={S.byeTxt}>Bye</span></div>;
-    if (sl.kind === 'open') return <div style={{ ...S.slot, ...S.slotMuted }}>—</div>;
-    const isW = sl.pid === winnerPid, isL = winnerPid != null && !isW, click = editable && decidable;
-    const winStyle = isW ? (graded ? (pickRight ? S.slotWin : S.slotWrong) : S.slotWin) : (isL ? S.slotLose : click ? S.slotPick : S.slotIdle);
-    const scoreVal = showScore ? sc.get(id, side) : '';
-    return (
-      <div onClick={click ? () => onPick(id, sl.pid) : undefined} style={{ ...S.slot, ...winStyle, cursor: click ? 'pointer' : 'default' }}>
-        {isW && (graded && !pickRight ? <X size={14} strokeWidth={3} /> : <Check size={14} strokeWidth={3} />)}<span style={S.name}>{sl.name}</span>
-        {showScore && (sc.editable
-          ? <input className="cb-score" value={scoreVal} inputMode="numeric" placeholder="–" onClick={(e) => e.stopPropagation()} onChange={(e) => sc.change(id, side, e.target.value)} onBlur={(e) => sc.blur(id, side, e.target.value)} />
-          : (scoreVal !== '' && <span style={S.scoreText}>{scoreVal}</span>))}
-      </div>
-    );
-  };
-  return <div style={{ ...S.card, left: pos.x, top: pos.y, width: CARDW, ...(hl ? S.cardHl : {}) }}><div style={S.tag}>{id.toUpperCase()}</div>{slot(a, 'a')}<div style={S.vs}>vs</div>{slot(b, 'b')}</div>;
-}
 
 function StatusBadge({ status }) {
   if (!status) return null;
@@ -143,6 +61,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
   const isHost = !!(pool && currentUserId && pool.hostId === currentUserId);
   const status = pool?.status;
   const nameMap = pool?.bracketMatchups?.nameMap || {};
+  const seedMap = pool?.bracketMatchups?.seedMap || null;
   const roundPoints = useMemo(() => (pool?.roundPoints && pool.roundPoints.length ? pool.roundPoints : defaultRoundPoints(pool?.bracketMatchups?.rounds?.length || 0)), [pool]);
   const joined = !!myEntry;
   const submitted = !!(myEntry && myEntry.predictions);
@@ -389,7 +308,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
               </div>
             )}
             {viewingState
-              ? <Board state={viewingState} nameMap={nameMap} editable={false} onPick={() => {}} official={officialWinners} highlight={highlightBoxes} />
+              ? <BracketBoard state={viewingState} nameMap={nameMap} seedMap={seedMap} editable={false} onPick={() => {}} official={officialWinners} highlight={highlightBoxes} />
               : <div style={S.note}>This participant hasn’t submitted a bracket yet.</div>}
           </>
         ) : (
@@ -407,7 +326,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
               {canPredict && predState && !isEntryComplete(predState) && <div style={S.note}>Pick a winner in every matchup, then submit.{submitted ? ' Re-submitting replaces your entry.' : ''}</div>}
               {canPredict && <div style={S.actionBar}><button style={{ ...S.primary, ...(predState && isEntryComplete(predState) ? {} : S.primaryOff) }} disabled={busy || !(predState && isEntryComplete(predState))} onClick={submitPredictions}><Send size={14} /> {submitted ? 'Update prediction' : 'Submit prediction'}</button></div>}
               {!canPredict && submitted && <div style={S.note}>Your prediction is in.{status === 'open' ? '' : ' Predictions are locked.'}</div>}
-              {predState && <Board state={predState} nameMap={nameMap} editable={canPredict} onPick={pickPred} official={status === 'open' ? null : officialWinners} />}
+              {predState && <BracketBoard state={predState} nameMap={nameMap} seedMap={seedMap} editable={canPredict} onPick={pickPred} official={status === 'open' ? null : officialWinners} />}
             </>
           )
         )}
@@ -415,7 +334,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
           <>
             {canRecord && <div style={S.note}>Tap a player to record the official winner. Scores update automatically.</div>}
             {!canRecord && status !== 'in_progress' && status !== 'completed' && <div style={S.note}>Official results appear once the host starts the pool.</div>}
-            {resState && <Board state={resState} nameMap={nameMap} editable={canRecord} onPick={pickResult} sc={scoreUI} />}
+            {resState && <BracketBoard state={resState} nameMap={nameMap} seedMap={seedMap} editable={canRecord} onPick={pickResult} sc={scoreUI} />}
           </>
         )}
         {tab === 'leaderboard' && (
