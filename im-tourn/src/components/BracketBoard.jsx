@@ -109,7 +109,7 @@ function Card({ id, pos, a, b, result, editable, onPick, official, sc, hl }) {
       </div>
     );
   };
-  return <div style={{ ...BS.card, left: pos.x, top: pos.y, width: CARDW, ...(hl ? BS.cardHl : {}) }}><div style={BS.tag}>{id.toUpperCase()}</div>{slot(a, 'a')}<div style={BS.vs}>vs</div>{slot(b, 'b')}</div>;
+  return <div style={{ ...BS.card, left: pos.x, top: pos.y, width: CARDW, ...(hl ? BS.cardHl : {}) }}><div style={BS.tag}>{id.toUpperCase()}{sc && result?.winnerId != null && <span style={BS.finalTag}> final</span>}</div>{slot(a, 'a')}<div style={BS.vs}>vs</div>{slot(b, 'b')}</div>;
 }
 
 /* Board-scoped styles. Values match the CustomPoolDetail design system
@@ -133,4 +133,5 @@ const BS = {
   seed: { flex: 'none', minWidth: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10.5, fontWeight: 700, color: 'var(--muted)', background: 'var(--surface2)', border: '1px solid var(--line)', borderRadius: 5, padding: '0 3px' },
   scoreText: { marginLeft: 4, fontSize: 12, fontWeight: 700, color: 'var(--text)', minWidth: 18, textAlign: 'right', flex: 'none' },
   pend: { fontSize: 12 }, byeTxt: { fontStyle: 'italic' },
+  finalTag: { fontFamily: "'Outfit',sans-serif", fontSize: 10, letterSpacing: .5, color: 'var(--orange)', textTransform: 'uppercase', marginLeft: 6 },
 };
