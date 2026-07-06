@@ -1,42 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Check, Trophy, Lock, Clock, AlertTriangle, Loader2, RotateCcw, Radio } from './customBracketIcons';
-import { SLOT, locate, slotDisplay, feederId, resolveParticipant, setResult, setScore, getChampion } from '../lib/customBracket';
+import { Trophy, Lock, AlertTriangle, Loader2, RotateCcw, Radio } from './customBracketIcons';
+import { SLOT, setResult, setScore, getChampion } from '../lib/customBracket';
+import BracketBoard from './BracketBoard';
 import { subscribeToBracket, persistLiveDiff, lockBracket, completeBracket, reopenBracket } from '../services/customBracketService';
 
 /* ---------- layout (shared shape with the builder) ---------- */
-const COLW = 248, ROWH = 150, CARDW = 200, CARDH = 126, PADX = 60, PADTOP = 96, PADBOT = 56;
-function computeLayout(state) {
-  const positions = {}; const rounds = state.rounds;
-  rounds.forEach((rd, r) => {
-    let cursor = PADTOP;
-    rd.forEach((id, p) => {
-      let y;
-      if (r === 0) y = PADTOP + p * ROWH;
-      else {
-        const ys = [];
-        for (const which of [0, 1]) { const fid = feederId(state, r, p, which); if (fid && positions[fid]) ys.push(positions[fid].y); }
-        y = ys.length ? ys.reduce((a, b) => a + b, 0) / ys.length : cursor;
-      }
-      y = Math.max(y, cursor); positions[id] = { x: PADX + r * COLW, y }; cursor = y + ROWH;
-    });
-  });
-  const ids = Object.keys(positions);
-  const maxX = ids.length ? Math.max(...ids.map((i) => positions[i].x)) + CARDW : 360;
-  const maxY = ids.length ? Math.max(...ids.map((i) => positions[i].y)) + CARDH : 240;
-  const columns = rounds.map((rd, r) => ({ x: PADX + r * COLW, label: (r === rounds.length - 1 && rounds.length > 1) ? 'Final' : `Round ${r + 1}` }));
-  return { positions, columns, width: maxX + PADX, height: maxY + PADBOT };
-}
-
-/* Resolve a slot to what should be shown during play. */
-function resolveSlotForPlay(state, loc, nameMap, boxId, slot) {
-  const d = slotDisplay(state, loc, boxId, slot);
-  if (d.type === SLOT.NAMED) return { kind: 'player', pid: d.participantId, name: d.name };
-  if (d.type === SLOT.BYE) return { kind: 'bye' };
-  if (d.type === SLOT.OPEN) return { kind: 'open' };
-  const pid = resolveParticipant(state, loc, boxId, slot); // winner of the feeding box, if any
-  if (pid == null) return { kind: 'pending', src: d.sourceBoxId };
-  return { kind: 'player', pid, name: nameMap[pid] || '—' };
-}
 const parseScore = (v) => { const t = String(v).trim(); if (t === '') return null; const n = Number(t); return Number.isFinite(n) ? Math.trunc(n) : null; };
 
 /* ====================================================================== *
@@ -76,8 +44,6 @@ export default function CustomBracketPlay({ bracketId, currentUserId, onExit }) 
     for (const id of Object.keys(state.boxes)) for (const k of ['slotA', 'slotB']) { const s = state.boxes[id][k]; if (s.type === SLOT.NAMED) m[s.participantId] = s.name; }
     return m;
   }, [state]);
-  const loc = useMemo(() => (state ? locate(state) : {}), [state]);
-  const layout = useMemo(() => (state ? computeLayout(state) : null), [state]);
   const champion = useMemo(() => (state ? getChampion(state) : null), [state]);
 
   const applyLive = (producer) => {
@@ -96,6 +62,34 @@ export default function CustomBracketPlay({ bracketId, currentUserId, onExit }) 
       return setScore(s, boxId, a, b);
     });
   };
+
+  // Adapter between BracketBoard's controlled score inputs and this
+  // component's blur-commit persistence. Drafts hold in-progress typing;
+  // blur clears the draft and writes through onScore ('a'/'b' -> 'A'/'B').
+  const [scoreDrafts, setScoreDrafts] = useState({});
+  const sc = useMemo(() => {
+    const key = (id, side) => `${id}:${side}`;
+    const get = (id, side) => {
+      const k = key(id, side);
+      if (scoreDrafts[k] != null) return scoreDrafts[k];
+      const s = stateRef.current?.boxes[id]?.score;
+      const v = side === 'a' ? s?.a : s?.b;
+      return v ?? '';
+    };
+    if (canEnter) {
+      return {
+        editable: true,
+        get,
+        change: (id, side, v) => setScoreDrafts((d) => ({ ...d, [key(id, side)]: v })),
+        blur: (id, side, v) => {
+          setScoreDrafts((d) => { const n = { ...d }; delete n[key(id, side)]; return n; });
+          onScore(id, side === 'a' ? 'A' : 'B', v);
+        },
+      };
+    }
+    const hasScores = state && Object.values(state.boxes).some((b) => b.score && (b.score.a != null || b.score.b != null));
+    return hasScores ? { editable: false, get } : null;
+  }, [state, canEnter, scoreDrafts]);
 
   const runStatus = async (fn, okMsg) => {
     setBusy(true); setSave('saving');
@@ -147,73 +141,11 @@ export default function CustomBracketPlay({ bracketId, currentUserId, onExit }) 
       )}
 
       <div style={S.scroll}>
-        <div style={{ position: 'relative', width: layout.width, height: layout.height }}>
-          {state.rounds.length >= 2 && layout.columns.map((c, i) => (
-            <div key={i} style={{ ...S.colHead, left: c.x, width: CARDW }}>{c.label}</div>
-          ))}
-
-          <svg style={S.svg} width={layout.width} height={layout.height}>
-            {Object.keys(state.boxes).map((id) => {
-              const { r, p } = loc[id]; const pos = layout.positions[id]; if (!pos) return null;
-              return [0, 1].map((which) => {
-                const fid = feederId(state, r, p, which); if (!fid) return null;
-                const cp = layout.positions[fid]; if (!cp) return null;
-                const decided = resolveParticipant(state, loc, id, which === 0 ? 'A' : 'B') != null;
-                const x1 = cp.x + CARDW, y1 = cp.y + CARDH / 2, x2 = pos.x, y2 = pos.y + CARDH / 2, mx = (x1 + x2) / 2;
-                return <path key={id + which} d={`M ${x1} ${y1} C ${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`} fill="none" stroke={decided ? 'rgba(43,212,192,.55)' : 'rgba(130,139,161,.35)'} strokeWidth="2" />;
-              });
-            })}
-          </svg>
-
-          {Object.keys(state.boxes).map((id) => (
-            <PlayCard key={id} id={id} pos={layout.positions[id]}
-              a={resolveSlotForPlay(state, loc, nameMap, id, 'A')}
-              b={resolveSlotForPlay(state, loc, nameMap, id, 'B')}
-              result={state.boxes[id].result} score={state.boxes[id].score}
-              canEnter={canEnter} onPick={onPick} onScore={onScore} />
-          ))}
-        </div>
+        <BracketBoard state={state} nameMap={nameMap} editable={canEnter} onPick={onPick} sc={sc} />
       </div>
 
       {toast && <div style={S.toast}>{toast}</div>}
     </Shell>
-  );
-}
-
-function PlayCard({ id, pos, a, b, result, score, canEnter, onPick, onScore }) {
-  if (!pos) return null;
-  const decidable = a.kind === 'player' && b.kind === 'player';
-  const hasBye = a.kind === 'bye' || b.kind === 'bye';
-  const autoWinner = hasBye ? (a.kind === 'player' ? a.pid : (b.kind === 'player' ? b.pid : null)) : null;
-  const winnerPid = result?.winnerId ?? autoWinner;
-
-  const renderSlot = (slot, side) => {
-    if (slot.kind === 'pending') return <div style={{ ...S.slot, ...S.slotPending }}><Clock size={13} /> <span style={S.pendTxt}>Winner of {slot.src.toUpperCase()}</span></div>;
-    if (slot.kind === 'bye') return <div style={{ ...S.slot, ...S.slotMuted }}><span style={S.byeTxt}>Bye</span></div>;
-    if (slot.kind === 'open') return <div style={{ ...S.slot, ...S.slotMuted }}>—</div>;
-    const isWinner = slot.pid === winnerPid;
-    const isLoser = winnerPid != null && !isWinner;
-    const clickable = canEnter && decidable;
-    const sv = side === 'A' ? score?.a : score?.b;
-    return (
-      <div onClick={clickable ? () => onPick(id, slot.pid) : undefined}
-        style={{ ...S.slot, ...(isWinner ? S.slotWin : isLoser ? S.slotLose : clickable ? S.slotPick : S.slotIdle), cursor: clickable ? 'pointer' : 'default' }}>
-        {isWinner && <Check size={14} strokeWidth={3} />}
-        <span style={S.nameTxt}>{slot.name}</span>
-        {clickable
-          ? <input type="number" key={`sc-${side}-${sv ?? ''}`} defaultValue={sv ?? ''} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} onBlur={(e) => onScore(id, side, e.currentTarget.value)} style={S.scoreInput} aria-label="score" />
-          : (sv != null ? <span style={S.scoreTxt}>{sv}</span> : null)}
-      </div>
-    );
-  };
-
-  return (
-    <div style={{ ...S.card, left: pos.x, top: pos.y, width: CARDW }}>
-      <div style={S.tag}>{id.toUpperCase()}{result && <span style={S.finalTag}>final</span>}</div>
-      {renderSlot(a, 'A')}
-      <div style={S.vs}>vs</div>
-      {renderSlot(b, 'B')}
-    </div>
   );
 }
 
