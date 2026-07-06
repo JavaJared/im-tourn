@@ -76,6 +76,7 @@ import { StatusBadge, WhatNeedsToHappen } from './components/EliminationStatus';
 import './App.css';
 import CustomBracketPage from './components/CustomBracketPage';
 import { createCustomBracket, getUserCustomBrackets, getCustomStructureForPool, getPublicCustomBrackets, deleteBracket as deleteCustomBracket } from './services/customBracketService';
+import { generateSeededBracket, structureFromState } from './lib/standardBracket';
 import CustomPoolDetail from './components/CustomPoolDetail';
 
 // Admin user IDs (add your Firebase user ID here)
@@ -1837,101 +1838,51 @@ const CreatePoolPage = ({ onNavigate }) => {
   };
 
   const handleCreate = async () => {
-    if (!selectedBracket || !poolName.trim()) {
-      alert('Please select a bracket and enter a pool name');
-      return;
-    }
+  if (!selectedBracket || !poolName.trim()) {
+    alert('Please select a bracket and enter a pool name');
+    return;
+  }
 
-    setCreating(true);
-    try {
-      // Custom brackets carry their own free-form structure; skip seeded matchup generation.
-if (selectedBracket.isCustom) {
-  const structure = await getCustomStructureForPool(selectedBracket.id);
-  const result = await createBracketPool({
-    name: poolName.trim(),
-    description: poolDescription.trim(),
-    hostId: currentUser.uid,
-    hostDisplayName: currentUser.displayName || 'Anonymous',
-    bracketId: selectedBracket.id,
-    bracketTitle: selectedBracket.title,
-    bracketCategory: selectedBracket.category || 'Custom',
-    bracketType: 'custom',
-    bracketMatchups: structure,   // {rounds, boxes, nameMap, roundCount} — stringified by createBracketPool
-    lockDate: lockDate ? new Date(lockDate) : null,
-    roundPoints: roundPoints.slice(0, structure.roundCount),
-    enableSleepers: false,
-    sleeper1Points: 0,
-    sleeper2Points: 0,
-  });
-  onNavigate(`pool-${result.id}`);
-  setCreating(false);
-  return;
-}
-      // Parse the bracket's entries to create the matchup structure
-      const entries = typeof selectedBracket.entries === 'string' 
-        ? JSON.parse(selectedBracket.entries) 
+  setCreating(true);
+  try {
+    // UNIFIED PATH: every pool carries the engine structure, regardless of
+    // how the bracket was created. Custom brackets already live in engine
+    // shape; standard (seeded) brackets are generated into it on the spot.
+    let structure;
+    if (selectedBracket.isCustom) {
+      structure = await getCustomStructureForPool(selectedBracket.id);
+    } else {
+      const entries = typeof selectedBracket.entries === 'string'
+        ? JSON.parse(selectedBracket.entries)
         : selectedBracket.entries;
-      
-      // Build initial matchups (same as fill-out bracket)
-      const numRounds = Math.log2(entries.length);
-      const matchups = [];
-      
-      // Generate proper bracket seeding order (1v32, 16v17, 8v25, etc.)
-      const getSeedOrder = (n) => {
-        if (n === 2) return [0, 1];
-        const half = getSeedOrder(n / 2);
-        return half.flatMap((seed) => [seed, n - 1 - seed]);
-      };
-      
-      const seedOrder = getSeedOrder(entries.length);
-      
-      // First round with proper seeding
-      const firstRound = [];
-      for (let i = 0; i < entries.length / 2; i++) {
-        firstRound.push({
-          entry1: { ...entries[seedOrder[i * 2]], seed: seedOrder[i * 2] + 1 },
-          entry2: { ...entries[seedOrder[i * 2 + 1]], seed: seedOrder[i * 2 + 1] + 1 },
-          winner: null
-        });
-      }
-      matchups.push(firstRound);
-      
-      // Subsequent rounds
-      let prevRoundMatches = firstRound.length;
-      for (let r = 1; r < numRounds; r++) {
-        const round = [];
-        for (let i = 0; i < prevRoundMatches / 2; i++) {
-          round.push({ entry1: null, entry2: null, winner: null });
-        }
-        matchups.push(round);
-        prevRoundMatches = round.length;
-      }
-
-      const result = await createBracketPool({
-        name: poolName.trim(),
-        description: poolDescription.trim(),
-        hostId: currentUser.uid,
-        hostDisplayName: currentUser.displayName || 'Anonymous',
-        bracketId: selectedBracket.id,
-        bracketTitle: selectedBracket.title,
-        bracketCategory: selectedBracket.category,
-        bracketMatchups: matchups,
-        lockDate: lockDate ? new Date(lockDate) : null,
-        // Scoring settings
-        roundPoints: roundPoints.slice(0, numRounds),
-        // Sleeper picks settings
-        enableSleepers,
-        sleeper1Points: enableSleepers ? sleeper1Points : 0,
-        sleeper2Points: enableSleepers ? sleeper2Points : 0
-      });
-
-      onNavigate(`pool-${result.id}`);
-    } catch (error) {
-      console.error('Error creating pool:', error);
-      alert('Failed to create pool. Please try again.');
+      structure = structureFromState(generateSeededBracket(entries));
     }
-    setCreating(false);
-  };
+
+    const result = await createBracketPool({
+      name: poolName.trim(),
+      description: poolDescription.trim(),
+      hostId: currentUser.uid,
+      hostDisplayName: currentUser.displayName || 'Anonymous',
+      bracketId: selectedBracket.id,
+      bracketTitle: selectedBracket.title,
+      bracketCategory: selectedBracket.category || 'Custom',
+      bracketType: 'custom', // engine-shaped structure -> unified pool UI
+      bracketMatchups: structure, // {rounds, boxes, nameMap, seedMap?, roundCount}
+      lockDate: lockDate ? new Date(lockDate) : null,
+      roundPoints: roundPoints.slice(0, structure.roundCount),
+      // Sleeper picks settings (participant-id picks; scored in pool detail)
+      enableSleepers,
+      sleeper1Points: enableSleepers ? sleeper1Points : 0,
+      sleeper2Points: enableSleepers ? sleeper2Points : 0
+    });
+
+    onNavigate(`pool-${result.id}`);
+  } catch (error) {
+    console.error('Error creating pool:', error);
+    alert('Failed to create pool. Please try again.');
+  }
+  setCreating(false);
+};
 
   if (loading) {
     return (
