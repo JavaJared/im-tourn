@@ -1,47 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Check, Clock, Loader2, AlertTriangle, Send, Trophy } from './customBracketIcons';
-import { SLOT, locate, slotDisplay, feederId, resolveParticipant, setResult } from '../lib/customBracket';
+import { SLOT, setResult } from '../lib/customBracket';
+import BracketBoard from './BracketBoard';
 import { isEntryComplete, picksFromState } from '../lib/customScoring';
 import { subscribeToBracket, submitEntry, getEntry } from '../services/customBracketService';
 
-const COLW = 248, ROWH = 150, CARDW = 200, CARDH = 116, PADX = 60, PADTOP = 92, PADBOT = 56;
-function computeLayout(state) {
-  const positions = {}; const rounds = state.rounds;
-  rounds.forEach((rd, r) => {
-    let cursor = PADTOP;
-    rd.forEach((id, p) => {
-      let y;
-      if (r === 0) y = PADTOP + p * ROWH;
-      else { const ys = []; for (const w of [0, 1]) { const fid = feederId(state, r, p, w); if (fid && positions[fid]) ys.push(positions[fid].y); } y = ys.length ? ys.reduce((a, b) => a + b, 0) / ys.length : cursor; }
-      y = Math.max(y, cursor); positions[id] = { x: PADX + r * COLW, y }; cursor = y + ROWH;
-    });
-  });
-  const ids = Object.keys(positions);
-  const maxX = ids.length ? Math.max(...ids.map((i) => positions[i].x)) + CARDW : 360;
-  const maxY = ids.length ? Math.max(...ids.map((i) => positions[i].y)) + CARDH : 240;
-  const columns = rounds.map((rd, r) => ({ x: PADX + r * COLW, label: (r === rounds.length - 1 && rounds.length > 1) ? 'Final' : `Round ${r + 1}` }));
-  return { positions, columns, width: maxX + PADX, height: maxY + PADBOT };
-}
-function blankPrediction(bracketState) {
-  const boxes = {};
-  for (const id of Object.keys(bracketState.boxes)) { const b = bracketState.boxes[id]; boxes[id] = { id, slotA: b.slotA, slotB: b.slotB, result: null, score: null }; }
-  return { rounds: bracketState.rounds.map((r) => [...r]), boxes, _nextId: bracketState._nextId || 1, _lastCreated: [] };
-}
-function applyPicks(state, picks) {
-  let next = state;
-  for (const [boxId, winnerId] of Object.entries(picks || {})) { try { next = setResult(next, boxId, winnerId); } catch { /* stale pick, skip */ } }
-  return next;
-}
 function nameMapOf(state) { const m = {}; for (const id of Object.keys(state.boxes)) for (const k of ['slotA', 'slotB']) { const s = state.boxes[id][k]; if (s.type === SLOT.NAMED) m[s.participantId] = s.name; } return m; }
-function resolveSlot(state, loc, nameMap, boxId, slot) {
-  const d = slotDisplay(state, loc, boxId, slot);
-  if (d.type === SLOT.NAMED) return { kind: 'player', pid: d.participantId, name: d.name };
-  if (d.type === SLOT.BYE) return { kind: 'bye' };
-  if (d.type === SLOT.OPEN) return { kind: 'open' };
-  const pid = resolveParticipant(state, loc, boxId, slot);
-  if (pid == null) return { kind: 'pending', src: d.sourceBoxId };
-  return { kind: 'player', pid, name: nameMap[pid] || '—' };
-}
 
 /* ====================================================================== *
  * CustomBracketPredict — fill out your prediction and submit it (locked in).
@@ -79,8 +43,6 @@ export default function CustomBracketPredict({ bracketId, currentUserId, current
   }, [bracketId, currentUserId, lsKey]);
 
   const nameMap = useMemo(() => (pred ? nameMapOf(pred) : {}), [pred]);
-  const loc = useMemo(() => (pred ? locate(pred) : {}), [pred]);
-  const layout = useMemo(() => (pred ? computeLayout(pred) : null), [pred]);
   const complete = useMemo(() => (pred ? isEntryComplete(pred) : false), [pred]);
   const canEdit = !submitted && status === 'published' && !!currentUserId;
 
@@ -107,7 +69,7 @@ export default function CustomBracketPredict({ bracketId, currentUserId, current
 
   if (loading) return <Shell><div style={S.center}><Loader2 size={20} className="spin" /> Loading…</div></Shell>;
   if (error) return <Shell><div style={S.center}><AlertTriangle size={20} /> {error}</div></Shell>;
-  if (!pred || !layout) return null;
+  if (!pred) return null;
   if (status !== 'published' && !submitted) {
     return <Shell onExit={onExit}><div style={S.center}><Clock size={20} /> Predictions are closed for this bracket.{onViewLeaderboard && <button style={S.linkBtn} onClick={onViewLeaderboard}>View leaderboard</button>}</div></Shell>;
   }
@@ -134,54 +96,11 @@ export default function CustomBracketPredict({ bracketId, currentUserId, current
       {!submitted && !complete && <div style={S.notice}>Pick a winner in every matchup, then submit. You can change picks until you submit — after that it's locked in.</div>}
 
       <div style={S.scroll}>
-        <div style={{ position: 'relative', width: layout.width, height: layout.height }}>
-          {pred.rounds.length >= 2 && layout.columns.map((c, i) => <div key={i} style={{ ...S.colHead, left: c.x, width: CARDW }}>{c.label}</div>)}
-          <svg style={S.svg} width={layout.width} height={layout.height}>
-            {Object.keys(pred.boxes).map((id) => {
-              const { r, p } = loc[id]; const pos = layout.positions[id]; if (!pos) return null;
-              return [0, 1].map((w) => {
-                const fid = feederId(pred, r, p, w); if (!fid) return null; const cp = layout.positions[fid]; if (!cp) return null;
-                const decided = resolveParticipant(pred, loc, id, w === 0 ? 'A' : 'B') != null;
-                const x1 = cp.x + CARDW, y1 = cp.y + CARDH / 2, x2 = pos.x, y2 = pos.y + CARDH / 2, mx = (x1 + x2) / 2;
-                return <path key={id + w} d={`M ${x1} ${y1} C ${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`} fill="none" stroke={decided ? 'rgba(43,212,192,.5)' : 'rgba(130,139,161,.32)'} strokeWidth="2" />;
-              });
-            })}
-          </svg>
-          {Object.keys(pred.boxes).map((id) => (
-            <PredictCard key={id} id={id} pos={layout.positions[id]}
-              a={resolveSlot(pred, loc, nameMap, id, 'A')} b={resolveSlot(pred, loc, nameMap, id, 'B')}
-              result={pred.boxes[id].result} canEdit={canEdit} onPick={pick} />
-          ))}
-        </div>
+        <BracketBoard state={pred} nameMap={nameMap} editable={canEdit} onPick={pick} />
       </div>
 
       {toast && <div style={S.toast}>{toast}</div>}
     </Shell>
-  );
-}
-
-function PredictCard({ id, pos, a, b, result, canEdit, onPick }) {
-  if (!pos) return null;
-  const decidable = a.kind === 'player' && b.kind === 'player';
-  const hasBye = a.kind === 'bye' || b.kind === 'bye';
-  const autoWinner = hasBye ? (a.kind === 'player' ? a.pid : (b.kind === 'player' ? b.pid : null)) : null;
-  const winnerPid = result?.winnerId ?? autoWinner;
-  const slot = (sl) => {
-    if (sl.kind === 'pending') return <div style={{ ...S.slot, ...S.slotPending }}><Clock size={13} /> <span style={S.pend}>Winner of {sl.src.toUpperCase()}</span></div>;
-    if (sl.kind === 'bye') return <div style={{ ...S.slot, ...S.slotMuted }}><span style={S.byeTxt}>Bye</span></div>;
-    if (sl.kind === 'open') return <div style={{ ...S.slot, ...S.slotMuted }}>—</div>;
-    const isW = sl.pid === winnerPid, isL = winnerPid != null && !isW, click = canEdit && decidable;
-    return (
-      <div onClick={click ? () => onPick(id, sl.pid) : undefined} style={{ ...S.slot, ...(isW ? S.slotWin : isL ? S.slotLose : click ? S.slotPick : S.slotIdle), cursor: click ? 'pointer' : 'default' }}>
-        {isW && <Check size={14} strokeWidth={3} />}<span style={S.name}>{sl.name}</span>
-      </div>
-    );
-  };
-  return (
-    <div style={{ ...S.card, left: pos.x, top: pos.y, width: CARDW }}>
-      <div style={S.tag}>{id.toUpperCase()}</div>
-      {slot(a)}<div style={S.vs}>vs</div>{slot(b)}
-    </div>
   );
 }
 
