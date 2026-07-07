@@ -52,10 +52,18 @@ export function scoreEntry(bracketState, picks, roundPoints) {
   return { total, correct, correctByRound };
 }
 
-/** Rank entries by total (then correct, then name) with their scores attached. */
-export function buildLeaderboard(bracketState, entries, roundPoints) {
+/**
+ * Rank entries by total (then correct, then name) with their scores attached.
+ * When `pool` is provided and sleepers are enabled, each entry's sleeper
+ * bonus is graded live and folded into the total.
+ */
+export function buildLeaderboard(bracketState, entries, roundPoints, pool = null) {
   return entries
-    .map((e) => ({ ...e, ...scoreEntry(bracketState, e.picks || {}, roundPoints) }))
+    .map((e) => {
+      const base = scoreEntry(bracketState, e.picks || {}, roundPoints);
+      const s = gradeSleepers(bracketState, e, pool);
+      return { ...e, ...base, ...s, total: base.total + s.sleeperBonus };
+    })
     .sort((a, b) => b.total - a.total || b.correct - a.correct || String(a.displayName || '').localeCompare(String(b.displayName || '')));
 }
 
@@ -72,4 +80,62 @@ export function hydrateState(structure, resultsMap = {}) {
     boxes[id] = { id, slotA: b.slotA, slotB: b.slotB, result: resultsMap && resultsMap[id] != null ? { winnerId: resultsMap[id] } : null, score: null };
   }
   return { rounds: (src.rounds || []).map((r) => [...r]), boxes, _nextId: 1, _lastCreated: [] };
+}
+
+/* ------------------------------------------------------------------ *
+ * Sleeper picks
+ *
+ * Legacy semantics, preserved exactly: a sleeper is a participant the
+ * ENTRANT predicted to lose in a given round, who then APPEARS in the
+ * official bracket at a later round. Sleeper 1 = predicted round-1 loser
+ * (round index 0) who makes round 3 (index 2); sleeper 2 = predicted
+ * round-2 loser (index 1) who makes round 4 (index 3). "Makes" a round
+ * means resolving into any slot of that round — winning it isn't required.
+ * ------------------------------------------------------------------ */
+
+/** Set of participant ids that resolve into any slot of the given round. */
+export function participantsInRound(state, roundIndex) {
+  const loc = locate(state); const set = new Set();
+  for (const boxId of state.rounds[roundIndex] || []) {
+    for (const slot of ['A', 'B']) {
+      const pid = resolveParticipant(state, loc, boxId, slot);
+      if (pid != null) set.add(pid);
+    }
+  }
+  return set;
+}
+
+/**
+ * Participants the entrant predicted to LOSE in `roundIndex`, per their own
+ * picks. Only fully decided matchups count (both sides resolved + a pick),
+ * mirroring the legacy getRoundLosers behavior.
+ */
+export function predictedLosers(structure, picks, roundIndex) {
+  const st = hydrateState(structure, picks || {});
+  const loc = locate(st); const losers = [];
+  for (const boxId of st.rounds[roundIndex] || []) {
+    const a = resolveParticipant(st, loc, boxId, 'A');
+    const b = resolveParticipant(st, loc, boxId, 'B');
+    const w = st.boxes[boxId].result?.winnerId;
+    if (a != null && b != null && w != null) losers.push(w === a ? b : a);
+  }
+  return losers;
+}
+
+/**
+ * Grade an entry's sleeper picks (participant-id strings on entry.sleeper1/2)
+ * against official results. Rounds that don't exist in the bracket can't hit
+ * — same as the legacy results[target] === undefined behavior.
+ */
+export function gradeSleepers(officialState, entry, pool) {
+  const none = { sleeper1Hit: false, sleeper2Hit: false, sleeperBonus: 0 };
+  if (!pool || !pool.enableSleepers || !entry) return none;
+  const check = (pid, targetRound, points) => {
+    if (!pid || targetRound >= officialState.rounds.length) return [false, 0];
+    const made = participantsInRound(officialState, targetRound).has(pid);
+    return [made, made ? (Number(points) || 0) : 0];
+  };
+  const [sleeper1Hit, b1] = check(entry.sleeper1, 2, pool.sleeper1Points);
+  const [sleeper2Hit, b2] = check(entry.sleeper2, 3, pool.sleeper2Points);
+  return { sleeper1Hit, sleeper2Hit, sleeperBonus: b1 + b2 };
 }
