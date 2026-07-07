@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Check, Clock, Loader2, AlertTriangle, Send } from './customBracketIcons';
 import { SLOT, setResult, getChampion } from '../lib/customBracket';
 import BracketBoard from './BracketBoard';
-import { isEntryComplete, picksFromState } from '../lib/customScoring';
+import { isEntryComplete, picksFromState, blankPrediction, applyPicks } from '../lib/customScoring';
 import { subscribeToBracket, submitCustomFill } from '../services/customBracketService';
 
 function nameMapOf(state) { const m = {}; for (const id of Object.keys(state.boxes)) for (const k of ['slotA', 'slotB']) { const s = state.boxes[id][k]; if (s.type === SLOT.NAMED) m[s.participantId] = s.name; } return m; }
