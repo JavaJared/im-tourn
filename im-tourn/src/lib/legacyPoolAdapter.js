@@ -69,6 +69,24 @@ export function adaptLegacyPool(pool) {
  * champion recomputed as a participant id (legacy stored a display name).
  * Non-legacy entries pass through unchanged.
  */
+/**
+ * Normalize a sleeper pick to a participant id string. Handles: null, a pid
+ * string ('p5'), a legacy participant object ({name, seed}), or either of
+ * those JSON-stringified (legacy storage stringified sleeper objects).
+ * Legacy pids follow the converter's rule: p<seed> (seeds were always set
+ * by legacy pool creation).
+ */
+export function normalizeSleeper(value) {
+  if (value == null) return null;
+  let v = value;
+  if (typeof v === 'string') {
+    try { v = JSON.parse(v); } catch { /* plain pid string */ }
+  }
+  if (typeof v === 'string') return v;
+  if (typeof v === 'object' && v.seed != null) return `p${v.seed}`;
+  return null;
+}
+
 export function adaptLegacyEntry(entry) {
   if (!isLegacyEntry(entry)) return entry;
   const { state } = convertLegacyMatchups(entry.predictions);
@@ -76,6 +94,8 @@ export function adaptLegacyEntry(entry) {
     ...entry,
     predictions: picksFromState(state),
     champion: getChampion(state),
+    sleeper1: normalizeSleeper(entry.sleeper1),
+    sleeper2: normalizeSleeper(entry.sleeper2),
     _legacy: true,
   };
 }
