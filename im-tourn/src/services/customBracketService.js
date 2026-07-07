@@ -1,3 +1,4 @@
+import { adaptLegacyPool, adaptLegacyEntry } from '../lib/legacyPoolAdapter';
 /**
  * customBracketService.js — the only module that imports Firebase for custom
  * brackets. Translates between engine state (customBracket.js) and the
@@ -229,21 +230,21 @@ export async function updateCustomPoolScores(poolId, hostId, scoresMap) {
 
 /* ---- real-time pool subscriptions (custom pools) ---- */
 function parsePoolDoc(id, data) {
-  return {
+  return adaptLegacyPool({
     id, ...data,
     bracketMatchups: typeof data.bracketMatchups === 'string' ? JSON.parse(data.bracketMatchups) : data.bracketMatchups,
     results: data.results ? (typeof data.results === 'string' ? JSON.parse(data.results) : data.results) : null,
     lockDate: data.lockDate?.toDate?.() || null,
     createdAt: data.createdAt?.toDate?.() || null,
-  };
+  });
 }
 function parsePoolEntryDoc(id, data) {
-  return {
+  return adaptLegacyEntry({
     id, ...data,
     predictions: data.predictions ? (typeof data.predictions === 'string' ? JSON.parse(data.predictions) : data.predictions) : null,
     joinedAt: data.joinedAt?.toDate?.() || null,
     submittedAt: data.submittedAt?.toDate?.() || null,
-  };
+  });
 }
 /** Live updates for a custom pool document. */
 export function subscribeToPool(poolId, onChange, onError) {
