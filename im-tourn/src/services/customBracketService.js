@@ -1,4 +1,5 @@
 import { adaptLegacyPool, adaptLegacyEntry } from '../lib/legacyPoolAdapter';
+import { generateSeededBracket } from '../lib/standardBracket';
 /**
  * customBracketService.js — the only module that imports Firebase for custom
  * brackets. Translates between engine state (customBracket.js) and the
@@ -21,6 +22,25 @@ import { validateForPublish } from '../lib/customBracket';
 const COLLECTION = 'customBrackets';
 const ref = (id) => doc(db, COLLECTION, id);
 const emptyDoc = () => ({ version: 2, rounds: [], boxes: {}, results: {}, scores: {}, participants: {}, participantCount: 0, roundCount: 0 });
+
+/**
+ * Create a STANDARD (seeded, single-elimination) bracket as an engine doc.
+ * This is the unified write path: standard brackets live in the same
+ * collection as custom ones, differing only in how their structure was
+ * produced (generated from a seeded entry list) and in being publish-ready
+ * at creation. `type: 'standard'` records provenance; nothing filters on it.
+ */
+export async function createStandardBracket({ hostId, hostName = null, title, description = '', category = null, entries }) {
+  if (!hostId) throw new Error('hostId is required');
+  const state = generateSeededBracket(entries); // validates + seeds + byes
+  const newRef = doc(collection(db, COLLECTION));
+  await setDoc(newRef, {
+    ...serialize(state), title, hostId, hostName, description, category,
+    status: 'published', type: 'standard', scoring: { byTier: {} },
+    createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+  });
+  return newRef.id;
+}
 
 export async function createCustomBracket({ hostId, title = 'Untitled bracket', hostName = null, description = '', category = null, initialState = null }) {
   if (!hostId) throw new Error('hostId is required');
@@ -51,6 +71,7 @@ export function customCardView(d) {
     createdAt: created ? created.toLocaleDateString() : '',
     createdAtMs: created ? created.getTime() : 0,
     isCustom: true,
+    origin: d.type || 'custom',
   };
 }
 
