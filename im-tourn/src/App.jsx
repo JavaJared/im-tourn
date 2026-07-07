@@ -1,8 +1,7 @@
 // src/App.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { 
-  createBracket, 
+import {  
   getAllBrackets, 
   getUserBrackets,
   deleteBracket,
@@ -75,7 +74,7 @@ import { analyzePool, shouldShowWinningPaths } from './lib/elimination';
 import { StatusBadge, WhatNeedsToHappen } from './components/EliminationStatus';
 import './App.css';
 import CustomBracketPage from './components/CustomBracketPage';
-import { createCustomBracket, getUserCustomBrackets, getCustomStructureForPool, getPublicCustomBrackets, deleteBracket as deleteCustomBracket } from './services/customBracketService';
+import { createCustomBracket, createStandardBracket, getUserCustomBrackets, getCustomStructureForPool, getPublicCustomBrackets, deleteBracket as deleteCustomBracket } from './services/customBracketService';
 import { generateSeededBracket, structureFromState } from './lib/standardBracket';
 import CustomPoolDetail from './components/CustomPoolDetail';
 
@@ -89,43 +88,6 @@ const CATEGORIES = [
 
 const CUSTOM_STATUS_LABEL = { draft: 'Draft', published: 'Predictions open', locked: 'Live', complete: 'Complete' };
 const CUSTOM_BADGE_STYLE = { display: 'inline-block', marginLeft: 8, padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: 'rgba(43,212,192,0.15)', color: '#2bd4c0', verticalAlign: 'middle' };
-
-const generateMatchups = (entries) => {
-  const size = entries.length;
-  const rounds = Math.log2(size);
-  const bracket = [];
-  
-  const getSeedOrder = (n) => {
-    if (n === 2) return [0, 1];
-    const half = getSeedOrder(n / 2);
-    return half.flatMap((seed) => [seed, n - 1 - seed]);
-  };
-  
-  const seedOrder = getSeedOrder(size);
-  const firstRound = [];
-  
-  for (let i = 0; i < size / 2; i++) {
-    firstRound.push({
-      id: `r0-m${i}`,
-      entry1: { ...entries[seedOrder[i * 2]], seed: seedOrder[i * 2] + 1 },
-      entry2: { ...entries[seedOrder[i * 2 + 1]], seed: seedOrder[i * 2 + 1] + 1 },
-      winner: null
-    });
-  }
-  bracket.push(firstRound);
-  
-  let matchesInRound = size / 4;
-  for (let r = 1; r < rounds; r++) {
-    const round = [];
-    for (let m = 0; m < matchesInRound; m++) {
-      round.push({ id: `r${r}-m${m}`, entry1: null, entry2: null, winner: null });
-    }
-    bracket.push(round);
-    matchesInRound /= 2;
-  }
-  
-  return bracket;
-};
 
 // Auth Modal Component
 const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
@@ -1060,7 +1022,7 @@ const HomePage = ({ onFillOut, onNavigate }) => {
   bracket.isCustom ? (
     <div key={bracket.id} className="bracket-card" onClick={() => onNavigate(`custom-bracket-${bracket.id}`)} style={{ cursor: 'pointer' }}>
       <span className="bracket-category">{bracket.category}</span>
-      <span style={CUSTOM_BADGE_STYLE}>Custom</span>
+      {bracket.origin !== 'standard' && <span style={CUSTOM_BADGE_STYLE}>Custom</span>}
       <h3 className="bracket-title">{bracket.title}</h3>
       {bracket.description && <p className="bracket-description">{bracket.description}</p>}
       <div className="bracket-meta">
@@ -1193,7 +1155,7 @@ const handleDeleteCustom = async (id) => {
           {customBrackets.map(cb => (
   <div key={cb.id} className="bracket-card" onClick={() => onNavigate(`custom-bracket-${cb.id}`)} style={{ cursor: 'pointer' }}>
     <span className="bracket-category">{cb.category}</span>
-    <span style={CUSTOM_BADGE_STYLE}>Custom</span>
+    {cb.origin !== 'standard' && <span style={CUSTOM_BADGE_STYLE}>Custom</span>}
     <h3 className="bracket-title">{cb.title}</h3>
     {cb.description && <p className="bracket-description">{cb.description}</p>}
     <div className="bracket-meta">
@@ -4481,33 +4443,28 @@ const CreatePage = ({ onPublish, onNavigate }) => {
   const isValid = title && category && size && entries.every(e => e.name.trim());
   
   const handlePublish = async () => {
-    if (!isValid || !currentUser) return;
-    
-    setPublishing(true);
-    try {
-      const bracketData = {
-        title,
-        description,
-        category,
-        size,
-        entries,
-        matchups: generateMatchups(entries)
-      };
-      
-      console.log('Publishing bracket with data:', bracketData);
-      console.log('User ID:', currentUser.uid);
-      console.log('Display Name:', currentUser.displayName);
-      
-      await createBracket(bracketData, currentUser.uid, currentUser.displayName);
-      onNavigate('home');
-    } catch (error) {
-      console.error('Error publishing bracket:', error);
-      console.error('Error code:', error.code);
-      console.error('Error message:', error.message);
-      alert(`Failed to publish bracket.\n\nError: ${error.code || 'Unknown'}\n${error.message || 'Please try again.'}`);
-    }
-    setPublishing(false);
-  };
+  if (!isValid || !currentUser) return;
+
+  setPublishing(true);
+  try {
+    // UNIFIED WRITE PATH: standard brackets are generated into engine shape
+    // and stored alongside custom brackets — one collection, one ruleset,
+    // one UI. The legacy `brackets` collection receives no new writes.
+    const id = await createStandardBracket({
+      hostId: currentUser.uid,
+      hostName: currentUser.displayName || 'Anonymous',
+      title: title.trim(),
+      description,
+      category,
+      entries,
+    });
+    onNavigate(`custom-bracket-${id}`);
+  } catch (error) {
+    console.error('Error publishing bracket:', error);
+    alert(`Failed to publish bracket.\n${error.message || 'Please try again.'}`);
+  }
+  setPublishing(false);
+};
   
   if (!currentUser) {
     return (
