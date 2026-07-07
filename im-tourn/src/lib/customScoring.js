@@ -7,7 +7,7 @@
  * is stored back on the entry — the leaderboard is derived live from picks +
  * official results, so it can never go stale.
  */
-import { SLOT, locate, slotDisplay, resolveParticipant, matchWinner } from './customBracket';
+import { SLOT, locate, slotDisplay, resolveParticipant, matchWinner, setResult } from './customBracket';
 
 /** Escalating default: round 1 = 1pt, round 2 = 2pts, ... final = R. */
 export function defaultRoundPoints(roundCount) {
@@ -138,4 +138,22 @@ export function gradeSleepers(officialState, entry, pool) {
   const [sleeper1Hit, b1] = check(entry.sleeper1, 2, pool.sleeper1Points);
   const [sleeper2Hit, b2] = check(entry.sleeper2, 3, pool.sleeper2Points);
   return { sleeper1Hit, sleeper2Hit, sleeperBonus: b1 + b2 };
+}
+
+/* ------------------------------------------------------------------ *
+ * Fill/prediction state helpers (shared by the fill and predict flows)
+ * ------------------------------------------------------------------ */
+
+/** A results-free copy of a bracket state, ready to collect picks. */
+export function blankPrediction(bracketState) {
+  const boxes = {};
+  for (const id of Object.keys(bracketState.boxes)) { const b = bracketState.boxes[id]; boxes[id] = { id, slotA: b.slotA, slotB: b.slotB, result: null, score: null }; }
+  return { rounds: bracketState.rounds.map((r) => [...r]), boxes, _nextId: bracketState._nextId || 1, _lastCreated: [] };
+}
+
+/** Apply a { boxId: winnerPid } picks map onto a state, skipping stale picks. */
+export function applyPicks(state, picks) {
+  let next = state;
+  for (const [boxId, winnerId] of Object.entries(picks || {})) { try { next = setResult(next, boxId, winnerId); } catch { /* stale pick, skip */ } }
+  return next;
 }
