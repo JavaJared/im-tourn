@@ -732,8 +732,11 @@ export async function submitPoolPredictions(poolId, userId, predictions, champio
   
   // Add sleeper picks if provided
   if (sleeperPicks) {
-    updateData.sleeper1 = sleeperPicks.sleeper1 ? JSON.stringify(sleeperPicks.sleeper1) : null;
-    updateData.sleeper2 = sleeperPicks.sleeper2 ? JSON.stringify(sleeperPicks.sleeper2) : null;
+    // New-format sleepers are participant-id strings and are stored raw;
+    // legacy object picks keep their stringified form.
+    const enc = (v) => (v ? (typeof v === 'string' ? v : JSON.stringify(v)) : null);
+    updateData.sleeper1 = enc(sleeperPicks.sleeper1);
+    updateData.sleeper2 = enc(sleeperPicks.sleeper2);
     updateData.sleeper1Hit = false;
     updateData.sleeper2Hit = false;
   }
