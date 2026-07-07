@@ -2660,7 +2660,7 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
     setEditingDescription(true);
   };
 
-  if (pool.bracketType === 'custom') {
+  if (pool.bracketType === 'custom' || Array.isArray(pool.bracketMatchups)) {
     return (
       <CustomPoolDetail
         poolId={poolId}
