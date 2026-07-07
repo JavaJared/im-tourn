@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Check, Clock, Loader2, AlertTriangle, Trophy, Lock, Users, RotateCcw, Send, X, Trash2 } from './customBracketIcons';
 import { locate, matchWinner, setResult, getChampion } from '../lib/customBracket';
 import BracketBoard from './BracketBoard';
-import { hydrateState, picksFromState, isEntryComplete, buildLeaderboard, defaultRoundPoints } from '../lib/customScoring';
+import { hydrateState, picksFromState, isEntryComplete, buildLeaderboard, defaultRoundPoints, predictedLosers } from '../lib/customScoring';
 import { analyzeCustomPool, summarizeWinningScenarios, shouldShowWinningPaths } from '../lib/customElimination';
 import { joinBracketPool, submitPoolPredictions, lockPool, completePool, updatePoolDescription, deletePool, getPoolById } from '../services/bracketService';
 import { startCustomPool, updateCustomPoolResults, updateCustomPoolScores, recalculateCustomPoolScoresManual, subscribeToPool, subscribeToPoolEntries } from '../services/customBracketService';
@@ -79,6 +79,25 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [poolId, structureReady, submittedKey]);
 
+  // ---- Sleeper picks (participant ids) ----
+  const sleepersOn = !!pool?.enableSleepers;
+  const roundCountForSleepers = pool?.bracketMatchups?.roundCount || 0;
+  const [sleeper1, setSleeper1] = useState(null);
+  const [sleeper2, setSleeper2] = useState(null);
+  useEffect(() => { setSleeper1(myEntry?.sleeper1 || null); setSleeper2(myEntry?.sleeper2 || null); }, [submittedKey]);
+  // Eligible options derive live from the entrant's current picks; a sleeper
+  // must be someone THEY predicted to lose in that round. (Sleeper 1 needs a
+  // round 3 to reach, sleeper 2 a round 4 — smaller brackets can't have them.)
+  const sleeper1Options = useMemo(() => (
+    sleepersOn && predState && roundCountForSleepers >= 3 ? predictedLosers(pool.bracketMatchups, picksFromState(predState), 0) : []
+  ), [sleepersOn, predState, pool, roundCountForSleepers]);
+  const sleeper2Options = useMemo(() => (
+    sleepersOn && predState && roundCountForSleepers >= 4 ? predictedLosers(pool.bracketMatchups, picksFromState(predState), 1) : []
+  ), [sleepersOn, predState, pool, roundCountForSleepers]);
+  // Prune a selection if the entrant changes picks and it's no longer a predicted loser.
+  useEffect(() => { if (sleeper1 && sleeper1Options.length && !sleeper1Options.includes(sleeper1)) setSleeper1(null); }, [sleeper1, sleeper1Options]);
+  useEffect(() => { if (sleeper2 && sleeper2Options.length && !sleeper2Options.includes(sleeper2)) setSleeper2(null); }, [sleeper2, sleeper2Options]);
+
   // The official-results board: viewers (and a not-yet-recording host) mirror
   // pool.customResults live; an actively-recording host keeps resState local and
   // optimistic so rapid taps aren't clobbered by incoming snapshots.
@@ -95,7 +114,8 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
   const pickPred = (boxId, pid) => { if (!canPredict || !predState) return; try { setPredState(setResult(predState, boxId, pid)); } catch (e) { flash(e.message); } };
   const submitPredictions = () => {
     if (!predState || !isEntryComplete(predState)) return;
-    run(() => submitPoolPredictions(poolId, currentUserId, picksFromState(predState), getChampion(predState)), 'Predictions submitted');
+    const sleepers = sleepersOn ? { sleeper1, sleeper2 } : null;
+    run(() => submitPoolPredictions(poolId, currentUserId, picksFromState(predState), getChampion(predState), sleepers), 'Predictions submitted');
   };
   // host results — optimistic local update + persist; snapshots keep everyone else live
   const pickResult = (boxId, pid) => {
@@ -110,7 +130,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
     const official = hydrateState(pool.bracketMatchups, pool.customResults || {});
     // Pool entries carry their picks under `predictions`; buildLeaderboard reads `picks`.
     const scored = entries.filter((e) => e.predictions).map((e) => ({ ...e, picks: e.predictions, displayName: e.userDisplayName }));
-    return buildLeaderboard(official, scored, roundPoints);
+    return buildLeaderboard(official, scored, roundPoints, pool);
   }, [pool, entries, roundPoints]);
 
   // Official winner per box (pid), for grading any prediction board correct/incorrect.
@@ -324,6 +344,29 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
           ) : (
             <>
               {canPredict && predState && !isEntryComplete(predState) && <div style={S.note}>Pick a winner in every matchup, then submit.{submitted ? ' Re-submitting replaces your entry.' : ''}</div>}
+              {canPredict && sleepersOn && roundCountForSleepers >= 3 && (
+                <div style={S.sleeperPanel}>
+                  <div style={S.sleeperTitle}>Sleeper picks <span style={S.sleeperHint}>bonus points for predicted losers that go far anyway</span></div>
+                  <div style={S.sleeperRow}>
+                    <label style={S.sleeperLabel}>
+                      Round-1 loser makes round 3 <b style={{ fontWeight: 600 }}>(+{pool.sleeper1Points || 0})</b>
+                      <select style={S.sleeperSelect} value={sleeper1 || ''} onChange={(e) => setSleeper1(e.target.value || null)} disabled={!sleeper1Options.length}>
+                        <option value="">{sleeper1Options.length ? '— optional —' : 'Pick round 1 first'}</option>
+                        {sleeper1Options.map((pid) => <option key={pid} value={pid}>{nameMap[pid] || pid}</option>)}
+                      </select>
+                    </label>
+                    {roundCountForSleepers >= 4 && (
+                      <label style={S.sleeperLabel}>
+                        Round-2 loser makes round 4 <b style={{ fontWeight: 600 }}>(+{pool.sleeper2Points || 0})</b>
+                        <select style={S.sleeperSelect} value={sleeper2 || ''} onChange={(e) => setSleeper2(e.target.value || null)} disabled={!sleeper2Options.length}>
+                          <option value="">{sleeper2Options.length ? '— optional —' : 'Pick round 2 first'}</option>
+                          {sleeper2Options.map((pid) => <option key={pid} value={pid}>{nameMap[pid] || pid}</option>)}
+                        </select>
+                      </label>
+                    )}
+                  </div>
+                </div>
+              )}
               {canPredict && <div style={S.actionBar}><button style={{ ...S.primary, ...(predState && isEntryComplete(predState) ? {} : S.primaryOff) }} disabled={busy || !(predState && isEntryComplete(predState))} onClick={submitPredictions}><Send size={14} /> {submitted ? 'Update prediction' : 'Submit prediction'}</button></div>}
               {!canPredict && submitted && <div style={S.note}>Your prediction is in.{status === 'open' ? '' : ' Predictions are locked.'}</div>}
               {predState && <BracketBoard state={predState} nameMap={nameMap} seedMap={seedMap} editable={canPredict} onPick={pickPred} official={status === 'open' ? null : officialWinners} />}
@@ -350,6 +393,12 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
                   <span style={{ ...S.lbName, ...(me ? { color: 'var(--teal)' } : {}), ...(est === 'eliminated' ? { opacity: 0.5 } : {}) }}>{e.userDisplayName || e.displayName || 'Anonymous'}{me ? ' (you)' : ''}</span>
                   {est && <StatusBadge status={est} />}
                   {champ && <span style={S.lbChamp} title={`Champion pick: ${champ}`}><Trophy size={12} /> {champ}</span>}
+                  {pool.enableSleepers && (e.sleeper1 || e.sleeper2) && (
+                    <span style={S.lbSleepers}>
+                      {e.sleeper1 && <span style={{ ...S.sleeperChip, ...(e.sleeper1Hit ? S.sleeperChipHit : {}) }} title={`Sleeper 1: ${nameMap[e.sleeper1] || e.sleeper1}${e.sleeper1Hit ? ` (+${pool.sleeper1Points || 0})` : ''}`}>S1 {e.sleeper1Hit ? '✓' : '·'}</span>}
+                      {e.sleeper2 && <span style={{ ...S.sleeperChip, ...(e.sleeper2Hit ? S.sleeperChipHit : {}) }} title={`Sleeper 2: ${nameMap[e.sleeper2] || e.sleeper2}${e.sleeper2Hit ? ` (+${pool.sleeper2Points || 0})` : ''}`}>S2 {e.sleeper2Hit ? '✓' : '·'}</span>}
+                    </span>
+                  )}
                   <span style={S.correct}>{e.correct} correct</span>
                   <span style={S.pts}>{e.total} pts</span>
                 </div>
@@ -424,6 +473,15 @@ const S = {
   lbName: { flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14 },
   correct: { fontSize: 12, color: 'var(--muted)', flexShrink: 0 },
   pts: { fontSize: 16, fontWeight: 600, minWidth: 54, textAlign: 'right', flexShrink: 0 },
+  sleeperPanel: { background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 12, padding: '12px 14px', margin: '10px 0' },
+  sleeperTitle: { fontFamily: "'Bebas Neue',sans-serif", fontSize: 15, letterSpacing: 1, color: 'var(--text)', marginBottom: 8 },
+  sleeperHint: { fontFamily: "'Outfit',sans-serif", fontSize: 12, letterSpacing: 0, color: 'var(--muted)', marginLeft: 8, textTransform: 'none' },
+  sleeperRow: { display: 'flex', gap: 14, flexWrap: 'wrap' },
+  sleeperLabel: { display: 'flex', flexDirection: 'column', gap: 5, fontSize: 12.5, color: 'var(--muted)', minWidth: 220 },
+  sleeperSelect: { background: 'var(--surface2)', color: 'var(--text)', border: '1px solid var(--line)', borderRadius: 8, padding: '7px 9px', fontSize: 13 },
+  lbSleepers: { display: 'inline-flex', gap: 5, marginLeft: 8 },
+  sleeperChip: { fontSize: 10.5, fontWeight: 700, padding: '2px 7px', borderRadius: 12, background: 'var(--surface2)', border: '1px solid var(--line)', color: 'var(--muted)' },
+  sleeperChipHit: { background: 'rgba(43,212,192,.14)', border: '1px solid rgba(43,212,192,.45)', color: 'var(--teal)' },
   toast: { position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: 'var(--orange)', color: '#0c0e13', fontSize: 13, fontWeight: 600, padding: '9px 16px', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,.4)', animation: 'pop .15s ease', zIndex: 20 },
   codeWrap: { display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .4 },
   codeVal: { fontFamily: "'Bebas Neue',sans-serif", fontSize: 16, letterSpacing: 1.5, color: 'var(--text)', textTransform: 'none' },
