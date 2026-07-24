@@ -64,6 +64,63 @@ const RankingCard = ({ ranking, onClick }) => {
 };
 
 // ============================================================================
+// Featured ranking of the day
+//
+// Deterministic, backend-free daily pick: every browser hashes today's ET
+// date with each ranking's id and features the highest hash (rendezvous
+// hashing). Same inputs everywhere -> everyone sees the same pick all day;
+// at midnight ET the date changes and the pick rotates. Repeats over time
+// are expected and fine. Open rankings are preferred; closed ones only
+// feature when nothing is open.
+// ============================================================================
+
+const fnv1a = (s) => {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i += 1) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return h >>> 0;
+};
+
+const todayKeyET = () => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date());
+  const get = (t) => parts.find((p) => p.type === t).value;
+  return `${get('year')}-${get('month')}-${get('day')}`;
+};
+
+export const pickFeaturedRanking = (rankings, dateKey = todayKeyET()) => {
+  if (!rankings || rankings.length === 0) return null;
+  const open = rankings.filter((r) => r.status !== 'closed');
+  const candidates = open.length > 0 ? open : rankings;
+  let best = null, bestHash = -1;
+  for (const r of candidates) {
+    const h = fnv1a(`${dateKey}:${r.id}`);
+    if (h > bestHash) { bestHash = h; best = r; }
+  }
+  return best;
+};
+
+const FeaturedRankingCard = ({ ranking, onClick }) => (
+  <div className="featured-ranking-card" onClick={onClick}>
+    <div className="featured-ranking-badge">★ Featured today</div>
+    <div className="featured-ranking-body">
+      {ranking.category && <span className="ranking-card-category">{ranking.category}</span>}
+      <h3 className="featured-ranking-title">{ranking.title}</h3>
+      {ranking.description && (
+        <p className="ranking-card-description">{ranking.description}</p>
+      )}
+      <div className="ranking-card-meta">
+        <span className="ranking-card-stats">
+          {ranking.entryCount} entries · {ranking.voteCount || 0} {(ranking.voteCount === 1) ? 'vote' : 'votes'}
+        </span>
+        <span className="ranking-card-host">by {ranking.hostDisplayName}</span>
+      </div>
+    </div>
+    <span className="featured-ranking-cta">{ranking.status === 'closed' ? 'See results →' : 'Vote now →'}</span>
+  </div>
+);
+
+// ============================================================================
 // RankingsBrowsePage — public list, the main entry point from the nav
 // ============================================================================
 
@@ -90,6 +147,10 @@ export const RankingsBrowsePage = ({ onNavigate }) => {
   };
 
   const categories = [...new Set(rankings.map(r => r.category).filter(Boolean))].sort();
+
+  // Today's featured ranking — picked from the full list (search/filters
+  // deliberately don't affect it) and recomputed only when the list loads.
+  const featured = pickFeaturedRanking(rankings);
 
   const filtered = rankings
     .filter(r => {
@@ -123,6 +184,16 @@ export const RankingsBrowsePage = ({ onNavigate }) => {
           <p className="hero-cta">Sign up to create and vote on rankings!</p>
         )}
       </div>
+
+      {!loading && featured && (
+        <>
+          <div className="section-title">FEATURED TODAY</div>
+          <FeaturedRankingCard
+            ranking={featured}
+            onClick={() => onNavigate(`ranking-${featured.id}`)}
+          />
+        </>
+      )}
 
       <div className="section-title">BROWSE RANKINGS</div>
 
