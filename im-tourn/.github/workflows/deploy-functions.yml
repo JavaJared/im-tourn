@@ -25,7 +25,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  FIREBASE_PROJECT_ID: YOUR_FIREBASE_PROJECT_ID
+  FIREBASE_PROJECT_ID: 
+i-m-tourn
 
 jobs:
   deploy:
