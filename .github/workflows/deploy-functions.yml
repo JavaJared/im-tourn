@@ -28,8 +28,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  FIREBASE_PROJECT_ID: 
-i-m-tourn
+  FIREBASE_PROJECT_ID: i-m-tourn
 
 
 jobs:
