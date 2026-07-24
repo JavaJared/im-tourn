@@ -6430,3 +6430,78 @@ body {
 .predicted-name.you-got-it {
   color: #ef4444;
 }
+
+/* ============================================================
+   Featured Ranking of the Day — append to src/App.css
+   ============================================================ */
+
+.featured-ranking-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  margin: 0 auto 2rem;
+  max-width: 720px;
+  padding: 1.4rem 1.5rem 1.25rem;
+  background:
+    linear-gradient(135deg, rgba(245, 158, 66, 0.10), rgba(43, 212, 192, 0.06)),
+    var(--surface, #161a22);
+  border: 1px solid rgba(245, 158, 66, 0.45);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.3);
+}
+
+.featured-ranking-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-orange, #f59e42);
+  box-shadow: 0 10px 28px rgba(245, 158, 66, 0.18);
+}
+
+.featured-ranking-badge {
+  position: absolute;
+  top: -11px;
+  left: 1.25rem;
+  background: var(--accent-orange, #f59e42);
+  color: #14161c;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.featured-ranking-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.featured-ranking-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.7rem;
+  letter-spacing: 0.03em;
+  margin: 0.35rem 0 0.3rem;
+  color: var(--text, #e8eaf0);
+}
+
+.featured-ranking-cta {
+  flex-shrink: 0;
+  align-self: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--accent-teal, #2bd4c0);
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .featured-ranking-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  .featured-ranking-cta {
+    align-self: flex-end;
+  }
+}
