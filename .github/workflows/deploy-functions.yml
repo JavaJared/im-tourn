@@ -1,0 +1,62 @@
+# .github/workflows/deploy-functions.yml   <-- MUST live at the REPO ROOT
+#
+# (GitHub only discovers workflows at the repository root, even though the
+# app itself lives in the im-tourn/ subfolder.)
+#
+# Deploys the Cloud Functions in im-tourn/functions/ whenever they change on
+# main, or when run manually from the Actions tab.
+#
+# One-time setup (all in the browser — see GITHUB-DEPLOY.md):
+#   1. Create a Google Cloud service account with deploy permissions and
+#      download its JSON key.
+#   2. Save the key's contents as a GitHub Actions secret named
+#      FIREBASE_SERVICE_ACCOUNT.
+#   3. Replace YOUR_FIREBASE_PROJECT_ID below with your real project ID.
+
+name: Deploy Firebase Functions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'im-tourn/functions/**'
+      - '.github/workflows/deploy-functions.yml'
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-functions
+  cancel-in-progress: false
+
+env:
+  FIREBASE_PROJECT_ID: YOUR_FIREBASE_PROJECT_ID
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install function dependencies
+        working-directory: im-tourn/functions
+        run: npm install
+
+      - name: Run helper tests (deploy gate)
+        working-directory: im-tourn/functions
+        run: node helpers.test.js
+
+      - name: Write service account credentials
+        run: printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/gcp-sa.json"
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Deploy to Firebase
+        working-directory: im-tourn
+        run: npx firebase-tools@13 deploy --only functions --project "$FIREBASE_PROJECT_ID" --non-interactive --force
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json
