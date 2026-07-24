@@ -81,6 +81,14 @@ import CustomPoolDetail from './components/CustomPoolDetail';
 // Admin user IDs (add your Firebase user ID here)
 const ADMIN_USER_IDS = ['VBbDwj6gkVgW7gBcs3vTmt0ulLF2'];
 
+// Feature visibility flags — set to true to bring a feature back.
+const FEATURES = { predictions: false, drafts: false, pastChampions: false };
+
+const isHiddenView = (v) =>
+  (!FEATURES.predictions && (v === 'prediction-pools' || v === 'create-prediction-pool' || v.startsWith('prediction-pool-'))) ||
+  (!FEATURES.drafts && (v === 'drafts' || v === 'create-draft' || v === 'my-drafts' || (v.startsWith('draft-') && v !== 'drafts'))) ||
+  (!FEATURES.pastChampions && v === 'champions');
+
 const CATEGORIES = [
   'Movies', 'TV Shows', 'Books', 'Sports Teams', 'Video Games',
   'Music Artists', 'Food & Drinks', 'Anime', 'Superheroes', 'Historical Figures', 'Other'
@@ -481,30 +489,36 @@ const Header = ({ onNavigate, currentView }) => {
           >
             Bracket Pools
           </button>
-          <button 
-            className={`nav-link ${currentView === 'prediction-pools' || currentView === 'create-prediction-pool' || currentView.startsWith('prediction-pool-') ? 'active' : ''}`}
-            onClick={() => onNavigate('prediction-pools')}
-          >
-            Predictions
-          </button>
+          {FEATURES.predictions && (
+            <button 
+              className={`nav-link ${currentView === 'prediction-pools' || currentView === 'create-prediction-pool' || currentView.startsWith('prediction-pool-') ? 'active' : ''}`}
+              onClick={() => onNavigate('prediction-pools')}
+            >
+              Predictions
+            </button>
+          )}
           <button 
             className={`nav-link ${currentView === 'rankings' || currentView === 'create-ranking' || currentView.startsWith('ranking-') ? 'active' : ''}`}
             onClick={() => onNavigate('rankings')}
           >
             Rankings
           </button>
-          <button
-            className={`nav-link ${currentView === 'drafts' || currentView === 'create-draft' || currentView.startsWith('draft-') ? 'active' : ''}`}
-            onClick={() => onNavigate('drafts')}
-          >
-            Drafts
-          </button>
-          <button 
-            className={`nav-link ${currentView === 'champions' ? 'active' : ''}`}
-            onClick={() => onNavigate('champions')}
-          >
-            Past Champions
-          </button>
+          {FEATURES.drafts && (
+            <button
+              className={`nav-link ${currentView === 'drafts' || currentView === 'create-draft' || currentView.startsWith('draft-') ? 'active' : ''}`}
+              onClick={() => onNavigate('drafts')}
+            >
+              Drafts
+            </button>
+          )}
+          {FEATURES.pastChampions && (
+            <button 
+              className={`nav-link ${currentView === 'champions' ? 'active' : ''}`}
+              onClick={() => onNavigate('champions')}
+            >
+              Past Champions
+            </button>
+          )}
         </nav>
         
         <div className="header-actions">
@@ -537,9 +551,11 @@ const Header = ({ onNavigate, currentView }) => {
                   <button onClick={() => { onNavigate('my-rankings'); setShowUserMenu(false); }}>
                     My Rankings
                   </button>
-                  <button onClick={() => { onNavigate('my-drafts'); setShowUserMenu(false); }}>
-                    My Drafts
-                  </button>
+                  {FEATURES.drafts && (
+                    <button onClick={() => { onNavigate('my-drafts'); setShowUserMenu(false); }}>
+                      My Drafts
+                    </button>
+                  )}
                   {isAdmin && (
                     <button onClick={() => { onNavigate('admin'); setShowUserMenu(false); }}>
                       Admin Panel
@@ -743,7 +759,7 @@ const Footer = ({ onOpenFeedback, onNavigate }) => {
           <h4>Features</h4>
           <ul>
             <li><a href="#" onClick={navTo('pools')}>Bracket Pools</a></li>
-            <li><a href="#" onClick={navTo('prediction-pools')}>Prediction Pools</a></li>
+            {FEATURES.predictions && <li><a href="#" onClick={navTo('prediction-pools')}>Prediction Pools</a></li>}
             <li><a href="#" onClick={navTo('rankings')}>Rankings</a></li>
             <li><a href="#" onClick={navTo('weekly')}>Weekly Brackets</a></li>
           </ul>
@@ -794,11 +810,6 @@ const GuidedTour = ({ onComplete }) => {
       title: "Bracket Pools",
       content: "Compete with friends! Create a bracket pool, share the join code, and see who can predict the most winners. Perfect for March Madness, playoffs, and more.",
       icon: "🏀"
-    },
-    {
-      title: "Prediction Pools",
-      content: "Not just brackets! Create prediction pools for award shows, reality TV, or any event with categories. Predict winners and compete on the leaderboard.",
-      icon: "🎬"
     },
     {
       title: "Weekly Bracket",
@@ -5060,6 +5071,7 @@ const PDFPage = ({ bracket, onBack }) => {
 // Main App Component
 function AppContent() {
   const [view, setView] = useState('home');
+  useEffect(() => { if (isHiddenView(view)) setView('home'); }, [view]);
   const [currentBracket, setCurrentBracket] = useState(null);
   const [fillingBracket, setFillingBracket] = useState(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
