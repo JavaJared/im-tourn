@@ -6713,7 +6713,19 @@ body {
   transition: color .15s, border-color .15s, box-shadow .15s;
 }
 .wv-toggle:hover { color: var(--wv-cyan); border-color: var(--wv-cyan); box-shadow: 0 0 12px rgba(34, 230, 255, 0.25); }
-.wv-full-map { width: 100%; }
+
+/* full bracket: expanded per-entry view, pannable on small screens */
+.wv-full-map { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 0.5rem; }
+.wv-full-map .wv-map-expanded { min-width: 900px; }
+.wv-map-entry { font-size: 10.5px; fill: var(--wv-text); }
+.wv-map-entry.win { fill: var(--wv-cyan); font-weight: 700; }
+.wv-map-entry.loss { fill: var(--wv-muted); opacity: 0.7; }
+.wv-map-pct { font-size: 10px; font-weight: 700; fill: var(--wv-muted); }
+.wv-map-pct.win { fill: var(--wv-cyan); }
+.wv-map-fill { fill: rgba(139, 108, 255, 0.16); }
+.wv-map-fill.win { fill: rgba(34, 230, 255, 0.16); }
+.wv-map-divider { stroke: rgba(139, 108, 255, 0.22); stroke-width: 1; }
+.wv-map-pickdot { fill: var(--wv-cyan); filter: drop-shadow(0 0 3px rgba(34, 230, 255, 0.9)); }
 
 /* ---------------- motion & mobile ---------------- */
 @media (prefers-reduced-motion: reduce) {
