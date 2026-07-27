@@ -135,18 +135,17 @@ function VsCard({ match, matchId, votes, picked, showResults, onPick, disabled }
     const isPick = picked === side;
     const isWin = winnerSide === side, isLoss = winnerSide != null && !isWin;
     const cls = ['wv-panel', isPick ? 'my-pick' : '', isWin ? 'winner' : '', isLoss ? 'loser' : '', onPick && !disabled ? 'pickable' : ''].filter(Boolean).join(' ');
+    const count = tally ? ((side === 1 ? tally.entry1 : tally.entry2) || 0) : 0;
     return (
       <button type="button" className={cls} disabled={disabled || !onPick} onClick={onPick ? () => onPick(side) : undefined}>
+        {showResults && tally && <span className="wv-pct-bar" style={{ width: `${pct(side)}%` }} />}
         <span className="wv-seed">{entry.seed}</span>
         <span className="wv-name">{entry.name}</span>
-        {showResults && tally && (
-          <span className="wv-pct-wrap">
-            <span className="wv-pct-bar" style={{ width: `${pct(side)}%` }} />
-            <span className="wv-pct-label">{pct(side)}% · {(side === 1 ? tally.entry1 : tally.entry2) || 0} vote{((side === 1 ? tally.entry1 : tally.entry2) || 0) === 1 ? '' : 's'}</span>
-          </span>
-        )}
         {isPick && <span className="wv-your-pick">Your pick</span>}
         {isWin && <span className="wv-won">Winner</span>}
+        {showResults && tally && (
+          <span className="wv-pct-label">{pct(side)}% · {count} vote{count === 1 ? '' : 's'}</span>
+        )}
       </button>
     );
   };
