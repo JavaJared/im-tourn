@@ -6505,3 +6505,119 @@ body {
     align-self: flex-end;
   }
 }
+
+/* ============================================================
+   Weekly Bracket revamp — append to src/App.css
+   (or import as its own stylesheet)
+   ============================================================ */
+
+.wv-page { display: flex; flex-direction: column; align-items: center; }
+
+.wv-header { text-align: center; margin-bottom: 1rem; }
+.wv-title { font-family: 'Bebas Neue', sans-serif; font-size: 2.2rem; letter-spacing: 0.04em; margin: 0; }
+.wv-subtitle { color: var(--text-muted, #828ba1); margin: 0.25rem 0 0; }
+
+.wv-progress { display: flex; gap: 6px; justify-content: center; margin-top: 0.75rem; flex-wrap: wrap; }
+.wv-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--border, #2a2f3a); cursor: pointer; transition: background .2s, transform .2s; }
+.wv-dot.done { background: var(--accent-teal, #2bd4c0); }
+.wv-dot.now { background: var(--accent-orange, #f59e42); transform: scale(1.35); }
+
+/* ---------------- stage (voting) ---------------- */
+.wv-stage { position: relative; width: 100%; max-width: 860px; }
+.wv-stage-bracket { transition: opacity .4s ease, transform .4s ease; }
+.wv-stage-bracket.dimmed { opacity: 0.16; transform: scale(0.96); }
+.wv-stage-bracket.lit { opacity: 1; transform: scale(1); }
+
+.wv-map { width: 100%; height: auto; display: block; }
+.wv-map-connector { fill: none; stroke: rgba(130, 139, 161, 0.3); stroke-width: 1.5; }
+.wv-map-box { fill: #161a22; stroke: var(--border, #2a2f3a); stroke-width: 1.2; transition: fill .25s, stroke .25s; }
+.wv-map-box.decided { stroke: rgba(43, 212, 192, 0.55); }
+.wv-map-box.picked { fill: rgba(43, 212, 192, 0.16); stroke: var(--accent-teal, #2bd4c0); }
+.wv-map-box.active { stroke: var(--accent-orange, #f59e42); stroke-width: 2; filter: drop-shadow(0 0 6px rgba(245, 158, 66, 0.55)); }
+.wv-map-box.tappable { cursor: pointer; }
+.wv-map-box.tappable:hover { fill: rgba(245, 158, 66, 0.12); }
+.wv-map-label { font-size: 9px; fill: var(--text-muted, #828ba1); pointer-events: none; }
+.wv-map-label.active { fill: var(--text, #e8eaf0); font-weight: 600; }
+
+/* the traveling pulse: draw the path tip-first */
+.wv-map-pulse {
+  fill: none;
+  stroke: var(--accent-orange, #f59e42);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 0.22 1;   /* a comet 22% of the path long */
+  stroke-dashoffset: 1.22;
+  filter: drop-shadow(0 0 5px rgba(245, 158, 66, 0.8));
+  animation: wv-travel 0.52s linear forwards;
+}
+@keyframes wv-travel { to { stroke-dashoffset: 0; } }
+
+/* the big card overlay */
+.wv-card-holder {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%) scale(1);
+  width: min(92%, 560px);
+  opacity: 1;
+  transition: left .42s ease-in, top .42s ease-in, transform .42s ease-in, opacity .38s ease-in;
+  will-change: transform, opacity;
+}
+.wv-card-holder.wv-enter { animation: wv-zoom-in 0.42s ease-out; }
+@keyframes wv-zoom-in {
+  from { transform: translate(-50%, -50%) scale(0.25); opacity: 0; }
+  to   { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wv-card-holder, .wv-stage-bracket { transition: none; }
+  .wv-card-holder.wv-enter { animation: none; }
+  .wv-map-pulse { animation: none; stroke-dashoffset: 0; }
+}
+
+/* ---------------- VS card ---------------- */
+.wv-card { display: flex; flex-direction: column; gap: 0.6rem; background: var(--surface, #161a22); border: 1px solid var(--border, #2a2f3a); border-radius: 16px; padding: 1.1rem; box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45); }
+.wv-vs { text-align: center; font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem; color: var(--text-muted, #828ba1); letter-spacing: 0.2em; }
+
+.wv-panel { position: relative; display: flex; align-items: center; gap: 0.85rem; width: 100%; text-align: left; background: #10141b; border: 1px solid var(--border, #2a2f3a); border-radius: 12px; padding: 1.05rem 1.1rem; color: var(--text, #e8eaf0); font-size: 1.05rem; font-family: inherit; overflow: hidden; }
+.wv-panel.pickable { cursor: pointer; transition: border-color .15s, transform .12s, background .15s; }
+.wv-panel.pickable:hover { border-color: var(--accent-teal, #2bd4c0); transform: translateY(-1px); background: #121826; }
+.wv-panel.pickable:active { transform: scale(0.99); }
+.wv-panel.my-pick { border-color: var(--accent-teal, #2bd4c0); background: rgba(43, 212, 192, 0.10); }
+.wv-panel.winner { border-color: var(--accent-teal, #2bd4c0); }
+.wv-panel.loser { opacity: 0.55; }
+.wv-panel.pending { justify-content: center; color: var(--text-muted, #828ba1); }
+.wv-panel:disabled { cursor: default; }
+
+.wv-seed { flex-shrink: 0; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; background: var(--accent-orange, #f59e42); color: #14161c; border-radius: 8px; font-weight: 800; font-size: 0.85rem; }
+.wv-name { font-weight: 600; flex: 1; min-width: 0; position: relative; z-index: 1; }
+
+.wv-pct-wrap { position: absolute; inset: 0; z-index: 0; }
+.wv-pct-bar { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(43, 212, 192, 0.12); transition: width .5s ease; }
+.wv-pct-label { position: absolute; right: 0.9rem; top: 50%; transform: translateY(-50%); font-size: 0.8rem; font-weight: 700; color: var(--accent-teal, #2bd4c0); }
+.wv-your-pick, .wv-won { position: relative; z-index: 1; flex-shrink: 0; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; }
+.wv-your-pick { background: rgba(43, 212, 192, 0.16); color: var(--accent-teal, #2bd4c0); }
+.wv-won { background: rgba(245, 158, 66, 0.18); color: var(--accent-orange, #f59e42); }
+
+/* ---------------- review ---------------- */
+.wv-review { width: 100%; max-width: 860px; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+.wv-review-hint { color: var(--text-muted, #828ba1); margin: 0; text-align: center; }
+.wv-review-map { width: 100%; }
+.wv-submit { background: var(--accent-orange, #f59e42); color: #14161c; border: none; border-radius: 12px; font-weight: 800; font-size: 1rem; padding: 0.9rem 2rem; cursor: pointer; transition: transform .12s, opacity .15s; }
+.wv-submit:hover:not(:disabled) { transform: translateY(-1px); }
+.wv-submit:disabled { opacity: 0.5; cursor: default; }
+
+/* ---------------- results ---------------- */
+.wv-results { width: 100%; max-width: 860px; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+.wv-results-card { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.5rem; width: 100%; }
+.wv-arrow { background: var(--surface, #161a22); border: 1px solid var(--border, #2a2f3a); color: var(--text, #e8eaf0); width: 42px; height: 42px; border-radius: 50%; font-size: 1.4rem; cursor: pointer; transition: border-color .15s; }
+.wv-arrow:hover:not(:disabled) { border-color: var(--accent-teal, #2bd4c0); }
+.wv-arrow:disabled { opacity: 0.3; cursor: default; }
+.wv-toggle { background: transparent; border: 1px solid var(--border, #2a2f3a); color: var(--text-muted, #828ba1); border-radius: 10px; padding: 0.55rem 1.1rem; cursor: pointer; font-weight: 600; transition: color .15s, border-color .15s; }
+.wv-toggle:hover { color: var(--text, #e8eaf0); border-color: var(--accent-teal, #2bd4c0); }
+.wv-full-map { width: 100%; }
+
+@media (max-width: 560px) {
+  .wv-title { font-size: 1.7rem; }
+  .wv-panel { padding: 0.85rem 0.9rem; font-size: 0.98rem; }
+  .wv-arrow { width: 36px; height: 36px; }
+}
