@@ -126,6 +126,63 @@ function todayKeyET(now = new Date()) {
   return `${get('year')}-${get('month')}-${get('day')}`;
 }
 
+// ---------------------------------------------------------------------------
+// Vote tallying (server-side; used by the weeklyVotes Firestore trigger)
+//
+// A user's vote doc stores { votes: '{"r0-m0":1,"r0-m1":2,...}' } (selection
+// 1 or 2 per match). The tally on weeklyBracket/current stores
+// { "r0-m0": { entry1: n, entry2: n }, ... }. The trigger turns a vote doc
+// change (create/update/delete) into a tally delta and applies it.
+// ---------------------------------------------------------------------------
+
+/** Parse the votes map out of a weeklyVotes doc's data (null-safe). */
+function voteDocVotes(docData) {
+  if (!docData || docData.votes == null) return {};
+  try {
+    const v = typeof docData.votes === 'string' ? JSON.parse(docData.votes) : docData.votes;
+    return v && typeof v === 'object' ? v : {};
+  } catch (e) { return {}; }
+}
+
+/**
+ * Tally delta from a vote-doc transition: -1 for every old selection,
+ * +1 for every new one, keeping only matches with a net change. Handles
+ * create (before {}), update, and delete (after {}).
+ */
+function computeVoteDelta(beforeVotes, afterVotes) {
+  const delta = {};
+  const bump = (matchId, selection, amount) => {
+    if (selection !== 1 && selection !== 2) return;              // ignore malformed selections
+    if (!delta[matchId]) delta[matchId] = { entry1: 0, entry2: 0 };
+    delta[matchId][selection === 1 ? 'entry1' : 'entry2'] += amount;
+  };
+  for (const [m, sel] of Object.entries(beforeVotes || {})) bump(m, sel, -1);
+  for (const [m, sel] of Object.entries(afterVotes || {})) bump(m, sel, +1);
+  for (const m of Object.keys(delta)) {
+    if (delta[m].entry1 === 0 && delta[m].entry2 === 0) delete delta[m];
+  }
+  return delta;
+}
+
+/**
+ * Apply a delta to a tally map, returning a new map. Counts clamp at zero:
+ * during the Sunday rollover, deletes of last week's vote docs can race the
+ * freshly-zeroed bracket doc, and clamping makes those stray decrements
+ * harmless no-ops instead of negative counts.
+ */
+function applyVoteDelta(tallies, delta) {
+  const next = { ...(tallies || {}) };
+  for (const [m, d] of Object.entries(delta)) {
+    const cur = next[m] || { entry1: 0, entry2: 0 };
+    next[m] = {
+      ...cur,
+      entry1: Math.max(0, (cur.entry1 || 0) + d.entry1),
+      entry2: Math.max(0, (cur.entry2 || 0) + d.entry2),
+    };
+  }
+  return next;
+}
+
 module.exports = {
   chooseWinnerFromVotes,
   resolveRound,
@@ -135,4 +192,7 @@ module.exports = {
   initVotes,
   computeWeekStartMondayET,
   todayKeyET,
+  voteDocVotes,
+  computeVoteDelta,
+  applyVoteDelta,
 };
