@@ -1240,12 +1240,6 @@ const WeeklyBracketPage = () => {
     setShowResults(false);
     
     try {
-      // First check if we need to auto-advance
-      const advanceResult = await checkAndAutoAdvance();
-      if (advanceResult?.autoAdvanced) {
-        console.log('Bracket auto-advanced to round', advanceResult.currentRound);
-      }
-      
       // Then load the bracket
       const data = await getWeeklyBracket();
       setWeeklyBracketState(data);
@@ -1303,7 +1297,16 @@ const WeeklyBracketPage = () => {
       await submitWeeklyVote(currentUser.uid, activeRound, userVotes);
       setHasVoted(true);
       setShowResults(true);
-      await loadWeeklyBracket(); // Reload to get updated vote counts
+      setWeeklyBracketState(prev => {
+        if (!prev) return prev;
+        const votes = { ...(prev.votes || {}) };
+        Object.entries(userVotes).forEach(([mid, sel]) => {
+          const t = votes[mid] ? { ...votes[mid] } : { entry1: 0, entry2: 0 };
+          if (sel === 1) t.entry1 += 1; else t.entry2 += 1;
+          votes[mid] = t;
+        });
+        return { ...prev, votes };
+      });
     } catch (error) {
       console.error('Error submitting votes:', error);
       alert('Failed to submit votes. Please try again.');
