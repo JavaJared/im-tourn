@@ -300,7 +300,8 @@ export async function setWeeklyBracket(bracketData) {
 
 // Submit vote for weekly bracket
 export async function submitWeeklyVote(userId, roundIndex, votes) {
-  // Record individual user vote
+  // Record the user's vote; the tallyWeeklyVote cloud function folds it
+  // into the shared tallies server-side (clients can't write weeklyBracket).
   const voteDocRef = doc(db, WEEKLY_VOTES_COLLECTION, `${userId}_round${roundIndex}`);
   await setDoc(voteDocRef, {
     userId,
@@ -308,30 +309,6 @@ export async function submitWeeklyVote(userId, roundIndex, votes) {
     votes: JSON.stringify(votes),
     submittedAt: serverTimestamp()
   });
-  
-  // Update vote tallies in weekly bracket
-  const bracketRef = doc(db, WEEKLY_BRACKET_COLLECTION, 'current');
-  const bracketSnap = await getDoc(bracketRef);
-  
-  if (bracketSnap.exists()) {
-    const data = bracketSnap.data();
-    const currentVotes = typeof data.votes === 'string' ? JSON.parse(data.votes) : (data.votes || {});
-    
-    // Add votes
-    Object.entries(votes).forEach(([matchId, selection]) => {
-      if (currentVotes[matchId]) {
-        if (selection === 1) {
-          currentVotes[matchId].entry1 += 1;
-        } else if (selection === 2) {
-          currentVotes[matchId].entry2 += 1;
-        }
-      }
-    });
-    
-    await updateDoc(bracketRef, {
-      votes: JSON.stringify(currentVotes)
-    });
-  }
 }
 
 // Check if user has voted for a round
