@@ -1,0 +1,432 @@
+// src/components/WeeklyBracketPage.jsx
+//
+// Revamped Weekly Bracket experience.
+//
+//   VOTING  — one matchup at a time as a full-width VS card (Rankings-style).
+//             After each pick, a cinematic transition plays: the card flies
+//             down into its slot on the bracket map, a pulse travels along
+//             the bracket to the next matchup, and that box zooms up into
+//             the next card. After the last pick: review on the bracket map,
+//             tap any box to change a pick, then one Submit (same one-shot
+//             vote model as before; the tallyWeeklyVote cloud function folds
+//             the vote doc into the shared tallies server-side).
+//
+//   RESULTS — the same card layout, browsable with arrows/dots, now showing
+//             vote percentages, plus a full-bracket toggle. Tapping a box on
+//             the full bracket jumps to that matchup's card.
+//
+// Self-contained: no dependence on the old weekly CSS. Styles live in
+// weekly-vote.css. Animations are pure CSS transforms/transitions and are
+// skipped entirely for prefers-reduced-motion users.
+
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import {
+  getWeeklyBracket,
+  submitWeeklyVote,
+  hasUserVotedForRound,
+  getUserVotesForRound,
+} from '../services/bracketService';
+
+// Transition phase durations (ms). One knob for tests and tuning.
+const PHASE_MS = { out: 420, travel: 520, in: 420 };
+
+const prefersReducedMotion = () =>
+  typeof window !== 'undefined'
+  && typeof window.matchMedia === 'function'
+  && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ---------------------------------------------------------------------------
+// Bracket geometry (shared by the mini-map and the fly-to-slot animation)
+// ---------------------------------------------------------------------------
+const COL_W = 150, BOX_W = 112, BOX_H = 26, ROW_H = 36;
+
+function bracketGeometry(matchups) {
+  const rounds = matchups.length;
+  const rows = Math.max(...matchups.map((r) => r.length));
+  const width = rounds * COL_W;
+  const height = rows * ROW_H;
+  const center = (r, m) => ({
+    x: r * COL_W + (COL_W - BOX_W) / 2 + BOX_W / 2,
+    y: (m + 0.5) * (height / matchups[r].length),
+  });
+  return { rounds, width, height, center };
+}
+
+/** Smooth travel path between two matchup boxes, riding the connector lane. */
+function travelPath(geo, r1, m1, r2, m2) {
+  const a = geo.center(r1, m1), b = geo.center(r2, m2);
+  const ax = a.x + BOX_W / 2, bx = b.x + BOX_W / 2;
+  const lane = Math.max(ax, bx) + (COL_W - BOX_W) / 2.5;
+  return `M ${ax} ${a.y} C ${lane} ${a.y} ${lane} ${a.y} ${lane} ${(a.y + b.y) / 2} S ${lane} ${b.y} ${bx} ${b.y}`;
+}
+
+// ---------------------------------------------------------------------------
+// Mini bracket map
+// ---------------------------------------------------------------------------
+function BracketMap({ matchups, votes, activeRound, userVotes, currentIdx, pulse, onTapBox, mode }) {
+  const geo = useMemo(() => bracketGeometry(matchups), [matchups]);
+  return (
+    <svg
+      className="wv-map"
+      viewBox={`0 0 ${geo.width} ${geo.height}`}
+      preserveAspectRatio="xMidYMid meet"
+    >
+      {/* connectors */}
+      {matchups.map((round, r) => (r < matchups.length - 1
+        ? round.map((_, m) => {
+          const a = geo.center(r, m), b = geo.center(r + 1, Math.floor(m / 2));
+          const x1 = a.x + BOX_W / 2, x2 = b.x - BOX_W / 2, mid = (x1 + x2) / 2;
+          return (
+            <path key={`c${r}-${m}`}
+              d={`M ${x1} ${a.y} C ${mid} ${a.y} ${mid} ${b.y} ${x2} ${b.y}`}
+              className="wv-map-connector" />
+          );
+        })
+        : null))}
+      {/* travel pulse */}
+      {pulse && (
+        <path d={travelPath(geo, pulse.r1, pulse.m1, pulse.r2, pulse.m2)}
+          pathLength="1" className="wv-map-pulse" />
+      )}
+      {/* boxes */}
+      {matchups.map((round, r) => round.map((match, m) => {
+        const c = geo.center(r, m);
+        const isActive = r === activeRound && m === currentIdx;
+        const picked = r === activeRound && userVotes[`r${r}-m${m}`] != null;
+        const decided = !!match.winner;
+        const cls = [
+          'wv-map-box',
+          decided ? 'decided' : '',
+          picked ? 'picked' : '',
+          isActive ? 'active' : '',
+          r === activeRound ? 'in-round' : '',
+          onTapBox && r === activeRound ? 'tappable' : '',
+        ].filter(Boolean).join(' ');
+        return (
+          <g key={`b${r}-${m}`}
+            onClick={onTapBox && r === activeRound ? () => onTapBox(m) : undefined}>
+            <rect x={c.x - BOX_W / 2} y={c.y - BOX_H / 2} width={BOX_W} height={BOX_H} rx="5" className={cls} />
+            {match.entry1 && match.entry2 && (
+              <text x={c.x} y={c.y + 3.5} textAnchor="middle" className={`wv-map-label ${isActive ? 'active' : ''}`}>
+                {mode === 'names'
+                  ? `${match.entry1.name} · ${match.entry2.name}`.slice(0, 24)
+                  : `${match.entry1.seed} v ${match.entry2.seed}`}
+              </text>
+            )}
+          </g>
+        );
+      }))}
+    </svg>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// The big VS card
+// ---------------------------------------------------------------------------
+function VsCard({ match, matchId, votes, picked, showResults, onPick, disabled }) {
+  const tally = showResults && votes ? votes[matchId] : null;
+  const total = tally ? (tally.entry1 || 0) + (tally.entry2 || 0) : 0;
+  const pct = (side) => (total === 0 ? 50 : Math.round(((side === 1 ? tally.entry1 : tally.entry2) / total) * 100));
+  const winnerSide = match.winner || null;
+
+  const panel = (entry, side) => {
+    if (!entry) return <div className="wv-panel pending">TBD</div>;
+    const isPick = picked === side;
+    const isWin = winnerSide === side, isLoss = winnerSide != null && !isWin;
+    const cls = ['wv-panel', isPick ? 'my-pick' : '', isWin ? 'winner' : '', isLoss ? 'loser' : '', onPick && !disabled ? 'pickable' : ''].filter(Boolean).join(' ');
+    return (
+      <button type="button" className={cls} disabled={disabled || !onPick} onClick={onPick ? () => onPick(side) : undefined}>
+        <span className="wv-seed">{entry.seed}</span>
+        <span className="wv-name">{entry.name}</span>
+        {showResults && tally && (
+          <span className="wv-pct-wrap">
+            <span className="wv-pct-bar" style={{ width: `${pct(side)}%` }} />
+            <span className="wv-pct-label">{pct(side)}% · {(side === 1 ? tally.entry1 : tally.entry2) || 0} vote{((side === 1 ? tally.entry1 : tally.entry2) || 0) === 1 ? '' : 's'}</span>
+          </span>
+        )}
+        {isPick && <span className="wv-your-pick">Your pick</span>}
+        {isWin && <span className="wv-won">Winner</span>}
+      </button>
+    );
+  };
+
+  return (
+    <div className="wv-card">
+      {panel(match.entry1, 1)}
+      <div className="wv-vs">VS</div>
+      {panel(match.entry2, 2)}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
+const WeeklyBracketPage = () => {
+  const { currentUser } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [bracket, setBracket] = useState(null);
+  const [hasVoted, setHasVoted] = useState(false);
+  const [userVotes, setUserVotes] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+
+  // flow: 'vote' | 'review' | 'results'
+  const [flow, setFlow] = useState('results');
+  // transition phase while voting: 'card' | 'out' | 'travel' | 'in'
+  const [phase, setPhase] = useState('card');
+  const [idx, setIdx] = useState(0);
+  const [pulse, setPulse] = useState(null);
+  const [resultsIdx, setResultsIdx] = useState(0);
+  const [showFullBracket, setShowFullBracket] = useState(false);
+  const [returnToReview, setReturnToReview] = useState(false);
+  const timers = useRef([]);
+
+  const later = (fn, ms) => { timers.current.push(setTimeout(fn, ms)); };
+  useEffect(() => () => timers.current.forEach(clearTimeout), []);
+
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [currentUser?.uid]);
+
+  const load = async () => {
+    try {
+      const data = await getWeeklyBracket();
+      setBracket(data);
+      if (data && currentUser) {
+        const round = data.currentRound ?? 0;
+        const voted = await hasUserVotedForRound(currentUser.uid, round);
+        setHasVoted(voted);
+        if (voted) {
+          const votes = await getUserVotesForRound(currentUser.uid, round);
+          setUserVotes(votes || {});
+          setFlow('results');
+        } else {
+          setFlow('vote'); setIdx(0); setPhase('card');
+        }
+      } else if (data) {
+        setFlow('vote'); setIdx(0); setPhase('card');   // signed-out: browse cards; picking prompts login
+      }
+    } catch (e) {
+      console.error('Error loading weekly bracket:', e);
+    }
+    setLoading(false);
+  };
+
+  const activeRound = bracket?.currentRound ?? 0;
+  const matchups = bracket?.matchups?.[activeRound] || [];
+  const finalRound = (bracket?.matchups?.length || 1) - 1;
+  const finalMatch = bracket?.matchups?.[finalRound]?.[0];
+  const champion = finalMatch?.winner ? (finalMatch.winner === 1 ? finalMatch.entry1 : finalMatch.entry2) : null;
+  const geo = useMemo(() => (bracket?.matchups ? bracketGeometry(bracket.matchups) : null), [bracket]);
+
+  // Where a matchup's box sits on the map, as fractions of the stage (for the fly-to-slot).
+  const slotFraction = useCallback((m) => {
+    if (!geo) return { x: 0.5, y: 0.5 };
+    const c = geo.center(activeRound, m);
+    return { x: c.x / geo.width, y: c.y / geo.height };
+  }, [geo, activeRound]);
+
+  const roundName = (r) => {
+    const names = ['Round of 64', 'Round of 32', 'Sweet 16', 'Elite 8', 'Final 4', 'Championship'];
+    const total = bracket?.matchups?.length || 5;
+    return names[r + (total === 5 ? 1 : 0)] || `Round ${r + 1}`;
+  };
+
+  // ---- voting flow -------------------------------------------------------
+  const handlePick = (side) => {
+    if (!currentUser) { alert('Please log in to vote'); return; }
+    if (phase !== 'card' || hasVoted) return;
+    const next = { ...userVotes, [`r${activeRound}-m${idx}`]: side };
+    setUserVotes(next);
+
+    const lastIdx = matchups.length - 1;
+    const goingToReview = returnToReview || idx >= lastIdx;
+
+    if (prefersReducedMotion()) {
+      if (goingToReview) { setFlow('review'); setReturnToReview(false); }
+      else setIdx(idx + 1);
+      return;
+    }
+    setPhase('out');
+    later(() => {
+      if (goingToReview) {
+        setPulse(null); setFlow('review'); setReturnToReview(false); setPhase('card');
+      } else {
+        setPulse({ r1: activeRound, m1: idx, r2: activeRound, m2: idx + 1 });
+        setPhase('travel');
+        later(() => {
+          setPulse(null); setIdx(idx + 1); setPhase('in');
+          later(() => setPhase('card'), PHASE_MS.in);
+        }, PHASE_MS.travel);
+      }
+    }, PHASE_MS.out);
+  };
+
+  const editFromReview = (m) => { setReturnToReview(true); setIdx(m); setFlow('vote'); setPhase('card'); };
+
+  const allPicked = matchups.length > 0 && matchups.every((_, m) => userVotes[`r${activeRound}-m${m}`]);
+
+  const handleSubmit = async () => {
+    if (!currentUser || !allPicked) return;
+    setSubmitting(true);
+    try {
+      await submitWeeklyVote(currentUser.uid, activeRound, userVotes);
+      setHasVoted(true);
+      // Optimistic tally merge: the cloud trigger lands in a second or two;
+      // show the voter their own vote immediately.
+      setBracket((prev) => {
+        if (!prev) return prev;
+        const votes = { ...(prev.votes || {}) };
+        Object.entries(userVotes).forEach(([mid, sel]) => {
+          const t = votes[mid] ? { ...votes[mid] } : { entry1: 0, entry2: 0 };
+          if (sel === 1) t.entry1 += 1; else t.entry2 += 1;
+          votes[mid] = t;
+        });
+        return { ...prev, votes };
+      });
+      setResultsIdx(0);
+      setFlow('results');
+      setShowFullBracket(false);
+    } catch (e) {
+      console.error('Error submitting votes:', e);
+      alert('Failed to submit votes. Please try again.');
+    }
+    setSubmitting(false);
+  };
+
+  // ---- render ------------------------------------------------------------
+  if (loading) {
+    return (
+      <div className="home-container"><div className="loading-state"><div className="spinner"></div><p>Loading weekly bracket...</p></div></div>
+    );
+  }
+  if (!bracket || !bracket.matchups?.length) {
+    return (
+      <div className="home-container"><div className="empty-state"><p>No weekly bracket is running right now. Check back soon!</p></div></div>
+    );
+  }
+
+  const votingMode = flow === 'vote' && !hasVoted;
+  const showCard = votingMode && matchups[idx];
+  const frac = showCard ? slotFraction(idx) : { x: 0.5, y: 0.5 };
+  const cardStyle = phase === 'out'
+    ? { left: `${frac.x * 100}%`, top: `${frac.y * 100}%`, transform: 'translate(-50%, -50%) scale(0.1)', opacity: 0 }
+    : phase === 'in'
+      ? undefined // handled by the 'wv-enter' animation class
+      : undefined;
+
+  return (
+    <div className="home-container wv-page">
+      <div className="wv-header">
+        <h1 className="wv-title">{bracket.title || 'Weekly Bracket'}</h1>
+        <p className="wv-subtitle">
+          {champion
+            ? <>Champion: <strong>{champion.name}</strong> 🏆</>
+            : <>{roundName(activeRound)}{votingMode ? <> · Matchup {Math.min(idx + 1, matchups.length)} of {matchups.length}</> : null}</>}
+        </p>
+        {votingMode && (
+          <div className="wv-progress">
+            {matchups.map((_, m) => (
+              <span key={m} className={`wv-dot ${userVotes[`r${activeRound}-m${m}`] ? 'done' : ''} ${m === idx ? 'now' : ''}`} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ---------------- VOTING ---------------- */}
+      {votingMode && (
+        <div className="wv-stage">
+          <div className={`wv-stage-bracket ${phase === 'card' ? 'dimmed' : 'lit'}`}>
+            <BracketMap
+              matchups={bracket.matchups}
+              activeRound={activeRound}
+              userVotes={userVotes}
+              currentIdx={idx}
+              pulse={phase === 'travel' ? pulse : null}
+            />
+          </div>
+          {showCard && phase !== 'travel' && (
+            <div
+              className={`wv-card-holder ${phase === 'in' ? 'wv-enter' : ''} ${phase === 'out' ? 'wv-leaving' : ''}`}
+              style={cardStyle}
+            >
+              <VsCard
+                match={matchups[idx]}
+                matchId={`r${activeRound}-m${idx}`}
+                picked={userVotes[`r${activeRound}-m${idx}`]}
+                onPick={handlePick}
+                disabled={phase !== 'card'}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ---------------- REVIEW ---------------- */}
+      {flow === 'review' && !hasVoted && (
+        <div className="wv-review">
+          <p className="wv-review-hint">Here's your round. Tap any matchup to change your pick.</p>
+          <div className="wv-review-map">
+            <BracketMap
+              matchups={bracket.matchups}
+              activeRound={activeRound}
+              userVotes={userVotes}
+              currentIdx={-1}
+              onTapBox={editFromReview}
+            />
+          </div>
+          <button className="wv-submit" disabled={!allPicked || submitting} onClick={handleSubmit}>
+            {submitting ? 'Submitting…' : `Submit ${roundName(activeRound)} votes`}
+          </button>
+        </div>
+      )}
+
+      {/* ---------------- RESULTS ---------------- */}
+      {(flow === 'results' || hasVoted) && flow !== 'review' && !votingMode && (
+        <div className="wv-results">
+          {!currentUser && <p className="wv-review-hint">Log in to vote in this round.</p>}
+          {!hasVoted && currentUser && flow === 'results' && (
+            <p className="wv-review-hint">Results are hidden until you vote.</p>
+          )}
+          {showFullBracket ? (
+            <>
+              <div className="wv-full-map">
+                <BracketMap
+                  matchups={bracket.matchups}
+                  activeRound={activeRound}
+                  userVotes={userVotes}
+                  currentIdx={resultsIdx}
+                  onTapBox={(m) => { setResultsIdx(m); setShowFullBracket(false); }}
+                  mode="names"
+                />
+              </div>
+              <button className="wv-toggle" onClick={() => setShowFullBracket(false)}>Back to matchups</button>
+            </>
+          ) : (
+            <>
+              <div className="wv-results-card">
+                <button className="wv-arrow" disabled={resultsIdx === 0} onClick={() => setResultsIdx(resultsIdx - 1)} aria-label="Previous matchup">‹</button>
+                <VsCard
+                  match={matchups[resultsIdx]}
+                  matchId={`r${activeRound}-m${resultsIdx}`}
+                  votes={hasVoted ? bracket.votes : null}
+                  picked={userVotes[`r${activeRound}-m${resultsIdx}`]}
+                  showResults={hasVoted}
+                  disabled
+                />
+                <button className="wv-arrow" disabled={resultsIdx >= matchups.length - 1} onClick={() => setResultsIdx(resultsIdx + 1)} aria-label="Next matchup">›</button>
+              </div>
+              <div className="wv-progress">
+                {matchups.map((_, m) => (
+                  <span key={m} className={`wv-dot ${m === resultsIdx ? 'now' : ''}`} onClick={() => setResultsIdx(m)} />
+                ))}
+              </div>
+              <button className="wv-toggle" onClick={() => setShowFullBracket(true)}>View full bracket</button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default WeeklyBracketPage;
