@@ -28,12 +28,14 @@
 // Requires the Firebase Blaze plan. Expected cost at 6 runs/week: <$0.01/mo.
 
 const { onSchedule } = require('firebase-functions/v2/scheduler');
+const { onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { setGlobalOptions } = require('firebase-functions/v2');
 const { logger } = require('firebase-functions/v2');
 const admin = require('firebase-admin');
 const {
   resolveRound, forceFinish, championOf, freshenMatchups, initVotes,
   computeWeekStartMondayET, todayKeyET,
+  voteDocVotes, computeVoteDelta, applyVoteDelta,
 } = require('./helpers');
 
 admin.initializeApp();
@@ -197,3 +199,41 @@ exports.rolloverWeeklyBracket = onSchedule(
     logger.info(`Selected new weekly bracket "${pickedData.title ?? picked.id}" from ${candidates.length} candidate(s).`);
   }
 );
+
+// ---------------------------------------------------------------------------
+// Vote tallying trigger
+//
+// Firestore security rules (post-hardening) allow only admins to write
+// weeklyBracket/current, so clients can no longer update the vote tallies
+// themselves. Instead, each user writes only their own weeklyVotes doc
+// (which rules DO allow, bound to their uid) and this trigger — running
+// with admin privileges — folds every vote-doc change into the tally.
+//
+// Runs on create (count the votes), update (re-count the changed matches),
+// and delete (subtract them, e.g. a user retracting). The read-modify-write
+// happens inside a transaction, which also fixes the long-standing race
+// where two simultaneous voters could overwrite each other's tally update.
+// Counts clamp at zero so the rollover's mass-delete of last week's vote
+// docs can never drive the fresh week's tallies negative.
+// ---------------------------------------------------------------------------
+exports.tallyWeeklyVote = onDocumentWritten('weeklyVotes/{voteId}', async (event) => {
+  const before = event.data.before.exists ? event.data.before.data() : null;
+  const after = event.data.after.exists ? event.data.after.data() : null;
+  const delta = computeVoteDelta(voteDocVotes(before), voteDocVotes(after));
+  if (Object.keys(delta).length === 0) return;
+
+  const ref = db.collection(WEEKLY_BRACKET_COLLECTION).doc('current');
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) return;                       // no bracket (e.g. mid-rollover) — nothing to tally
+    const data = snap.data();
+    let tallies;
+    try { tallies = typeof data.votes === 'string' ? JSON.parse(data.votes) : (data.votes || {}); }
+    catch (e) { tallies = {}; }
+    tx.update(ref, {
+      votes: JSON.stringify(applyVoteDelta(tallies, delta)),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  });
+  logger.info(`Tallied vote change for ${event.params.voteId} (${Object.keys(delta).length} matchup(s)).`);
+});
