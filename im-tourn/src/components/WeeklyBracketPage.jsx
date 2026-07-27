@@ -144,17 +144,26 @@ function BracketMap({ matchups, votes, activeRound, userVotes, currentIdx, pulse
               {p != null && p > 0 && (
                 <rect x={left} y={y} width={(BOX_W * p) / 100} height={rowH} className={`wv-map-fill ${isWin ? 'win' : ''}`} />
               )}
-              <text x={left + 7} y={y + rowH / 2 + 3.5}
-                className={`wv-map-entry ${isWin ? 'win' : ''} ${isLoss ? 'loss' : ''}`}>
-                {entry ? `${entry.seed} ${trunc(entry.name, p != null ? 15 : 20)}` : 'TBD'}
-              </text>
+              {pickedSide === side && (
+                <rect x={left + 1} y={y + 2} width="3" height={rowH - 4} rx="1.5" className="wv-map-pickbar" />
+              )}
+              {entry ? (
+                <>
+                  <text x={left + 9} y={y + rowH / 2 + 3.5} className="wv-map-seedtxt">{entry.seed}</text>
+                  <text x={left + 28} y={y + rowH / 2 + 3.5}
+                    className={`wv-map-entry ${isWin ? 'win' : ''} ${isLoss ? 'loss' : ''}`}>
+                    {trunc(entry.name, p != null ? 13 : 17)}
+                  </text>
+                </>
+              ) : (
+                <text x={left + 9} y={y + rowH / 2 + 3.5} className="wv-map-entry loss">TBD</text>
+              )}
               {p != null && (
                 <text x={left + BOX_W - 6} y={y + rowH / 2 + 3.5} textAnchor="end"
                   className={`wv-map-pct ${isWin ? 'win' : ''}`}>
                   {p}%
                 </text>
               )}
-              {pickedSide === side && <circle cx={left + BOX_W - (p != null ? 30 : 8)} cy={y + rowH / 2} r="2.6" className="wv-map-pickdot" />}
             </g>
           );
         };
