@@ -147,5 +147,43 @@ console.log('date helpers');
   assertTrue(todayKeyET(lateNight) === '2026-07-18', 'todayKeyET uses the ET calendar date, not UTC');
 }
 
+// ---- vote tallying (weeklyVotes trigger) -----------------------------------
+console.log('voteDocVotes / computeVoteDelta / applyVoteDelta');
+{
+  const { voteDocVotes, computeVoteDelta, applyVoteDelta } = require('./helpers');
+  // parsing
+  assertTrue(JSON.stringify(voteDocVotes({ votes: '{"r0-m0":1,"r0-m1":2}' })) === '{"r0-m0":1,"r0-m1":2}', 'parses stringified votes');
+  assertTrue(Object.keys(voteDocVotes(null)).length === 0, 'null doc -> empty votes');
+  assertTrue(Object.keys(voteDocVotes({ votes: '{bad json' })).length === 0, 'malformed JSON -> empty votes');
+  // create: all +1 on the chosen sides
+  const created = computeVoteDelta({}, { 'r0-m0': 1, 'r0-m1': 2 });
+  assertTrue(created['r0-m0'].entry1 === 1 && created['r0-m0'].entry2 === 0, 'create adds +1 to entry1 side');
+  assertTrue(created['r0-m1'].entry2 === 1, 'create adds +1 to entry2 side');
+  // delete: all -1
+  const deleted = computeVoteDelta({ 'r0-m0': 1 }, {});
+  assertTrue(deleted['r0-m0'].entry1 === -1, 'delete subtracts the old vote');
+  // update: only the changed match nets a delta
+  const updated = computeVoteDelta({ 'r0-m0': 1, 'r0-m1': 2 }, { 'r0-m0': 1, 'r0-m1': 1 });
+  assertTrue(!('r0-m0' in updated), 'unchanged match nets zero (dropped)');
+  assertTrue(updated['r0-m1'].entry1 === 1 && updated['r0-m1'].entry2 === -1, 'flipped match moves one from side to side');
+  // malformed selections are ignored
+  assertTrue(Object.keys(computeVoteDelta({}, { 'r0-m0': 3, 'r0-m1': 'x' })).length === 0, 'invalid selections ignored');
+  // applying
+  const t0 = { 'r0-m0': { entry1: 4, entry2: 2 } };
+  const t1 = applyVoteDelta(t0, { 'r0-m0': { entry1: 1, entry2: 0 }, 'r0-m5': { entry1: 0, entry2: 1 } });
+  assertTrue(t1['r0-m0'].entry1 === 5 && t1['r0-m0'].entry2 === 2, 'existing tally incremented');
+  assertTrue(t1['r0-m5'].entry2 === 1, 'missing tally key created');
+  assertTrue(t0['r0-m0'].entry1 === 4, 'input tallies not mutated');
+  // rollover race: deleting last week's votes against a fresh zeroed doc clamps at 0
+  const fresh = { 'r0-m0': { entry1: 0, entry2: 0 } };
+  const clamped = applyVoteDelta(fresh, { 'r0-m0': { entry1: -1, entry2: 0 } });
+  assertTrue(clamped['r0-m0'].entry1 === 0, 'stray decrement clamps at zero (rollover-safe)');
+  // full round trip: create then delete returns to the starting tallies
+  const start = { 'r0-m0': { entry1: 7, entry2: 3 } };
+  const afterCreate = applyVoteDelta(start, computeVoteDelta({}, { 'r0-m0': 2 }));
+  const afterDelete = applyVoteDelta(afterCreate, computeVoteDelta({ 'r0-m0': 2 }, {}));
+  assertTrue(afterDelete['r0-m0'].entry1 === 7 && afterDelete['r0-m0'].entry2 === 3, 'create+retract round-trips cleanly');
+}
+
 console.log(`\n${passed} passed, ${failed} failed.`);
 if (failed > 0) process.exit(1);
