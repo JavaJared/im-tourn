@@ -39,22 +39,26 @@ const prefersReducedMotion = () =>
 // ---------------------------------------------------------------------------
 // Bracket geometry (shared by the mini-map and the fly-to-slot animation)
 // ---------------------------------------------------------------------------
-const COL_W = 150, BOX_W = 112, BOX_H = 26, ROW_H = 36;
+const DIMS = {
+  compact: { COL_W: 150, BOX_W: 112, BOX_H: 26, ROW_H: 36 },
+  expanded: { COL_W: 196, BOX_W: 172, BOX_H: 48, ROW_H: 60 },
+};
 
-function bracketGeometry(matchups) {
+function bracketGeometry(matchups, dims = DIMS.compact) {
   const rounds = matchups.length;
   const rows = Math.max(...matchups.map((r) => r.length));
-  const width = rounds * COL_W;
-  const height = rows * ROW_H;
+  const width = rounds * dims.COL_W;
+  const height = rows * dims.ROW_H;
   const center = (r, m) => ({
-    x: r * COL_W + (COL_W - BOX_W) / 2 + BOX_W / 2,
+    x: r * dims.COL_W + (dims.COL_W - dims.BOX_W) / 2 + dims.BOX_W / 2,
     y: (m + 0.5) * (height / matchups[r].length),
   });
-  return { rounds, width, height, center };
+  return { rounds, width, height, center, dims };
 }
 
 /** Smooth travel path between two matchup boxes, riding the connector lane. */
 function travelPath(geo, r1, m1, r2, m2) {
+  const { BOX_W, COL_W } = geo.dims;
   const a = geo.center(r1, m1), b = geo.center(r2, m2);
   const ax = a.x + BOX_W / 2, bx = b.x + BOX_W / 2;
   const lane = Math.max(ax, bx) + (COL_W - BOX_W) / 2.5;
@@ -62,13 +66,27 @@ function travelPath(geo, r1, m1, r2, m2) {
 }
 
 // ---------------------------------------------------------------------------
-// Mini bracket map
+// Bracket map — compact (voting mini-map) or expanded (full results bracket
+// with both entries and their vote percentages in every matchup)
 // ---------------------------------------------------------------------------
-function BracketMap({ matchups, votes, activeRound, userVotes, currentIdx, pulse, onTapBox, mode }) {
-  const geo = useMemo(() => bracketGeometry(matchups), [matchups]);
+function BracketMap({ matchups, votes, activeRound, userVotes, currentIdx, pulse, onTapBox, expanded }) {
+  const dims = expanded ? DIMS.expanded : DIMS.compact;
+  const geo = useMemo(() => bracketGeometry(matchups, dims), [matchups, dims]);
+  const { BOX_W, BOX_H } = dims;
+  const trunc = (s, n) => (s && s.length > n ? `${s.slice(0, n - 1)}…` : s || '');
+
+  // Percentages for a matchup, from the shared tallies (null when no votes / hidden).
+  const pctFor = (r, m) => {
+    const t = votes?.[`r${r}-m${m}`];
+    if (!t) return null;
+    const total = (t.entry1 || 0) + (t.entry2 || 0);
+    if (total === 0) return null;
+    return { p1: Math.round(((t.entry1 || 0) / total) * 100), p2: Math.round(((t.entry2 || 0) / total) * 100) };
+  };
+
   return (
     <svg
-      className="wv-map"
+      className={`wv-map ${expanded ? 'wv-map-expanded' : ''}`}
       viewBox={`0 0 ${geo.width} ${geo.height}`}
       preserveAspectRatio="xMidYMid meet"
     >
@@ -92,28 +110,60 @@ function BracketMap({ matchups, votes, activeRound, userVotes, currentIdx, pulse
       {/* boxes */}
       {matchups.map((round, r) => round.map((match, m) => {
         const c = geo.center(r, m);
+        const left = c.x - BOX_W / 2, top = c.y - BOX_H / 2;
         const isActive = r === activeRound && m === currentIdx;
-        const picked = r === activeRound && userVotes[`r${r}-m${m}`] != null;
+        const pickedSide = r === activeRound ? userVotes?.[`r${r}-m${m}`] : null;
         const decided = !!match.winner;
+        const tappable = onTapBox && r === activeRound;
         const cls = [
-          'wv-map-box',
-          decided ? 'decided' : '',
-          picked ? 'picked' : '',
-          isActive ? 'active' : '',
-          r === activeRound ? 'in-round' : '',
-          onTapBox && r === activeRound ? 'tappable' : '',
+          'wv-map-box', decided ? 'decided' : '', pickedSide ? 'picked' : '',
+          isActive ? 'active' : '', tappable ? 'tappable' : '',
         ].filter(Boolean).join(' ');
-        return (
-          <g key={`b${r}-${m}`}
-            onClick={onTapBox && r === activeRound ? () => onTapBox(m) : undefined}>
-            <rect x={c.x - BOX_W / 2} y={c.y - BOX_H / 2} width={BOX_W} height={BOX_H} rx="5" className={cls} />
-            {match.entry1 && match.entry2 && (
-              <text x={c.x} y={c.y + 3.5} textAnchor="middle" className={`wv-map-label ${isActive ? 'active' : ''}`}>
-                {mode === 'names'
-                  ? `${match.entry1.name} · ${match.entry2.name}`.slice(0, 24)
-                  : `${match.entry1.seed} v ${match.entry2.seed}`}
+
+        if (!expanded) {
+          return (
+            <g key={`b${r}-${m}`} onClick={tappable ? () => onTapBox(m) : undefined}>
+              <rect x={left} y={top} width={BOX_W} height={BOX_H} rx="5" className={cls} />
+              {match.entry1 && match.entry2 && (
+                <text x={c.x} y={c.y + 3.5} textAnchor="middle" className={`wv-map-label ${isActive ? 'active' : ''}`}>
+                  {match.entry1.seed} v {match.entry2.seed}
+                </text>
+              )}
+            </g>
+          );
+        }
+
+        // ---- expanded: two entry rows with percentage fills ----
+        const pcts = pctFor(r, m);
+        const rowH = BOX_H / 2;
+        const row = (entry, side, y) => {
+          const isWin = match.winner === side, isLoss = decided && !isWin;
+          const p = pcts ? (side === 1 ? pcts.p1 : pcts.p2) : null;
+          return (
+            <g key={side}>
+              {p != null && p > 0 && (
+                <rect x={left} y={y} width={(BOX_W * p) / 100} height={rowH} className={`wv-map-fill ${isWin ? 'win' : ''}`} />
+              )}
+              <text x={left + 7} y={y + rowH / 2 + 3.5}
+                className={`wv-map-entry ${isWin ? 'win' : ''} ${isLoss ? 'loss' : ''}`}>
+                {entry ? `${entry.seed} ${trunc(entry.name, p != null ? 15 : 20)}` : 'TBD'}
               </text>
-            )}
+              {p != null && (
+                <text x={left + BOX_W - 6} y={y + rowH / 2 + 3.5} textAnchor="end"
+                  className={`wv-map-pct ${isWin ? 'win' : ''}`}>
+                  {p}%
+                </text>
+              )}
+              {pickedSide === side && <circle cx={left + BOX_W - (p != null ? 30 : 8)} cy={y + rowH / 2} r="2.6" className="wv-map-pickdot" />}
+            </g>
+          );
+        };
+        return (
+          <g key={`b${r}-${m}`} onClick={tappable ? () => onTapBox(m) : undefined}>
+            <rect x={left} y={top} width={BOX_W} height={BOX_H} rx="7" className={cls} />
+            {row(match.entry1, 1, top)}
+            <line x1={left + 4} x2={left + BOX_W - 4} y1={c.y} y2={c.y} className="wv-map-divider" />
+            {row(match.entry2, 2, top + rowH)}
           </g>
         );
       }))}
@@ -391,11 +441,12 @@ const WeeklyBracketPage = () => {
               <div className="wv-full-map">
                 <BracketMap
                   matchups={bracket.matchups}
+                  votes={hasVoted ? bracket.votes : null}
                   activeRound={activeRound}
                   userVotes={userVotes}
                   currentIdx={resultsIdx}
                   onTapBox={(m) => { setResultsIdx(m); setShowFullBracket(false); }}
-                  mode="names"
+                  expanded
                 />
               </div>
               <button className="wv-toggle" onClick={() => setShowFullBracket(false)}>Back to matchups</button>
