@@ -1195,7 +1195,21 @@ const PoolsPage = ({ onNavigate }) => {
   const [joinCode, setJoinCode] = useState('');
   const [joinError, setJoinError] = useState('');
   const [joining, setJoining] = useState(false);
+  const POOL_FILTERS = ['active', 'open', 'in_progress', 'completed', 'all'];
+  const [statusFilter, setStatusFilter] = useState(() => {
+    try {
+      const saved = localStorage.getItem('imtourn-pool-filter');
+      return POOL_FILTERS.includes(saved) ? saved : 'active';
+    } catch (e) {
+      return 'active';
+    }
+  });
   const { currentUser } = useAuth();
+
+  const changeFilter = (key) => {
+    setStatusFilter(key);
+    try { localStorage.setItem('imtourn-pool-filter', key); } catch (e) { /* private mode etc. */ }
+  };
 
   useEffect(() => {
     if (currentUser) {
@@ -1219,6 +1233,18 @@ const PoolsPage = ({ onNavigate }) => {
     }
     setLoading(false);
   };
+
+  const matchesFilter = (pool) => {
+    if (statusFilter === 'all') return true;
+    if (statusFilter === 'active') return pool.status !== 'completed';
+    return pool.status === statusFilter;
+  };
+  const visibleHosted = hostedPools.filter(matchesFilter);
+  const visibleJoined = joinedPools.filter(matchesFilter);
+  const countFor = (key) =>
+    [...hostedPools, ...joinedPools].filter((p) =>
+      key === 'all' ? true : key === 'active' ? p.status !== 'completed' : p.status === key
+    ).length;
 
   const handleJoinPool = async () => {
     if (!joinCode.trim()) {
@@ -1316,11 +1342,23 @@ const PoolsPage = ({ onNavigate }) => {
         {joinError && <p className="error-text">{joinError}</p>}
       </div>
 
-      {hostedPools.length > 0 && (
+      <div className="pool-filters">
+        {[['active', 'Active'], ['open', 'Open'], ['in_progress', 'In Progress'], ['completed', 'Completed'], ['all', 'All']].map(([key, label]) => (
+          <button
+            key={key}
+            className={`pool-filter-chip ${statusFilter === key ? 'selected' : ''}`}
+            onClick={() => changeFilter(key)}
+          >
+            {label} <span className="pool-filter-count">{countFor(key)}</span>
+          </button>
+        ))}
+      </div>
+
+      {visibleHosted.length > 0 && (
         <div className="pools-section">
           <h2>Pools You Host</h2>
           <div className="pools-grid">
-            {hostedPools.map(pool => {
+            {visibleHosted.map(pool => {
               const badge = getStatusBadge(pool.status);
               return (
                 <div 
@@ -1345,7 +1383,7 @@ const PoolsPage = ({ onNavigate }) => {
         <div className="pools-section">
           <h2>Pools You Joined</h2>
           <div className="pools-grid">
-            {joinedPools.map(pool => {
+            {visibleJoined.map(pool => {
               const badge = getStatusBadge(pool.status);
               return (
                 <div 
@@ -1363,6 +1401,13 @@ const PoolsPage = ({ onNavigate }) => {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {!loading && visibleHosted.length === 0 && visibleJoined.length === 0
+        && (hostedPools.length > 0 || joinedPools.length > 0) && (
+        <div className="empty-state">
+          <p>No pools match this filter.</p>
         </div>
       )}
 
