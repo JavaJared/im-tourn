@@ -6746,3 +6746,17 @@ body {
   .wv-pct-label { font-size: 0.74rem; }
   .wv-arrow { width: 36px; height: 36px; }
 }
+
+.pool-filters { display: flex; gap: 8px; flex-wrap: wrap; margin: 1rem 0 1.5rem; }
+.pool-filter-chip {
+  background: transparent; border: 1px solid var(--border, #2a2f3a);
+  color: var(--text-muted, #828ba1); border-radius: 999px;
+  padding: 6px 14px; font-size: 0.85rem; font-weight: 600;
+  cursor: pointer; transition: color .15s, border-color .15s, background .15s;
+}
+.pool-filter-chip:hover { color: var(--text, #e8eaf0); border-color: var(--accent-teal, #2bd4c0); }
+.pool-filter-chip.selected {
+  background: rgba(43, 212, 192, 0.12); border-color: var(--accent-teal, #2bd4c0);
+  color: var(--accent-teal, #2bd4c0);
+}
+.pool-filter-count { opacity: 0.65; font-weight: 500; margin-left: 2px; }
