@@ -4682,6 +4682,37 @@ const PDFPage = ({ bracket, onBack }) => {
 // Main App Component
 function AppContent() {
   const [view, setView] = useState('home');
+  // Invite links: capture ?pool=CODE from the URL on first load
+const [pendingPoolCode, setPendingPoolCode] = useState(null);
+useEffect(() => {
+  const code = new URLSearchParams(window.location.search).get('pool');
+  if (code) {
+    setPendingPoolCode(code.trim());
+    // Clean the URL so refreshes/bookmarks don't re-trigger the lookup
+    window.history.replaceState({}, '', window.location.pathname);
+  }
+}, []);
+
+// Resolve the code to a pool and navigate to it
+useEffect(() => {
+  if (!pendingPoolCode) return;
+  let cancelled = false;
+  (async () => {
+    try {
+      const pool = await getPoolByJoinCode(pendingPoolCode);
+      if (cancelled) return;
+      if (pool) {
+        setView(`pool-${pool.id}`);
+      } else {
+        alert(`No pool found for code "${pendingPoolCode}" — it may have been deleted.`);
+      }
+    } catch (e) {
+      console.error('Invite link lookup failed:', e);
+    }
+    if (!cancelled) setPendingPoolCode(null);
+  })();
+  return () => { cancelled = true; };
+}, [pendingPoolCode]);
   useEffect(() => { if (isHiddenView(view)) setView('home'); }, [view]);
   const [currentBracket, setCurrentBracket] = useState(null);
   const [fillingBracket, setFillingBracket] = useState(null);
