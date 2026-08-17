@@ -6760,3 +6760,363 @@ body {
   color: var(--accent-teal, #2bd4c0);
 }
 .pool-filter-count { opacity: 0.65; font-weight: 500; margin-left: 2px; }
+
+/* ============================================================
+   Kristin Tiers
+   Append to src/App.css.
+   Colour values fall back to literals in case the custom property
+   names differ in your stylesheet — swap the fallbacks out once
+   you've confirmed the variable names.
+   ============================================================ */
+
+.kt-page {
+  padding-bottom: 3rem;
+}
+
+/* ---- inputs & small buttons ---- */
+
+.kt-input {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.95rem;
+  padding: 0.6rem 0.8rem;
+  width: 100%;
+}
+
+.kt-input:focus {
+  border-color: var(--accent-teal, #2bd4c0);
+  outline: none;
+}
+
+.kt-text-btn {
+  background: none;
+  border: none;
+  color: var(--accent-teal, #2bd4c0);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 0.25rem 0.4rem;
+}
+
+.kt-text-btn:hover {
+  text-decoration: underline;
+}
+
+.kt-danger {
+  color: #ff6b6b;
+}
+
+.kt-field-label {
+  display: block;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  margin: 1rem 0 0.35rem;
+  opacity: 0.7;
+  text-transform: uppercase;
+}
+
+/* ---- index page ---- */
+
+.kt-create-row {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.kt-create-row .kt-input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---- editor header ---- */
+
+.kt-header .kt-title {
+  cursor: pointer;
+}
+
+.kt-header .kt-title:hover {
+  opacity: 0.8;
+}
+
+.kt-title-input {
+  font-family: inherit;
+  font-size: 1.6rem;
+  max-width: 520px;
+}
+
+.kt-save-note {
+  opacity: 0.6;
+}
+
+.kt-save-error {
+  color: #ff6b6b;
+}
+
+.kt-toolbar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+/* ---- selection action bar ---- */
+
+.kt-action-bar {
+  align-items: center;
+  background: rgba(43, 212, 192, 0.1);
+  border: 1px solid rgba(43, 212, 192, 0.35);
+  border-radius: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.6rem 0.9rem;
+  position: sticky;
+  top: 0.5rem;
+  z-index: 5;
+}
+
+.kt-action-name {
+  font-weight: 700;
+}
+
+.kt-action-hint {
+  flex: 1;
+  font-size: 0.85rem;
+  min-width: 140px;
+  opacity: 0.75;
+}
+
+.kt-action-buttons {
+  display: flex;
+  gap: 0.25rem;
+}
+
+/* ---- tier rows ---- */
+
+.kt-tier,
+.kt-pool {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  margin-bottom: 0.85rem;
+  padding: 0.75rem 0.9rem;
+}
+
+.kt-pool {
+  background: none;
+  border-style: dashed;
+}
+
+.kt-tier-head {
+  align-items: baseline;
+  display: flex;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+
+.kt-tier-name {
+  font-family: 'Bebas Neue', 'Outfit', sans-serif;
+  font-size: 1.15rem;
+  letter-spacing: 0.05em;
+}
+
+.kt-tier-count {
+  font-size: 0.8rem;
+  opacity: 0.6;
+}
+
+.kt-tier-clear {
+  margin-left: auto;
+}
+
+.kt-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.kt-pool-empty {
+  font-size: 0.85rem;
+  margin: 0.4rem 0;
+  opacity: 0.55;
+}
+
+/* ---- tiles ---- */
+
+.kt-tile {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: block;
+  padding: 0;
+  width: 66px;
+}
+
+.kt-tile-face {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  display: flex;
+  height: 62px;
+  justify-content: center;
+  overflow: hidden;
+  transition: border-color 0.12s ease, transform 0.12s ease;
+  width: 100%;
+}
+
+.kt-tile-face img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.kt-tile-initials {
+  font-family: 'Bebas Neue', 'Outfit', sans-serif;
+  font-size: 1.25rem;
+  letter-spacing: 0.05em;
+  opacity: 0.85;
+}
+
+.kt-tile-label {
+  display: block;
+  font-size: 0.7rem;
+  margin-top: 4px;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kt-tile:hover .kt-tile-face {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.kt-tile-selected .kt-tile-face {
+  border-color: var(--accent-orange, #ff7a1a);
+  transform: translateY(-2px);
+}
+
+/* empty slot */
+
+.kt-tile-empty {
+  align-items: center;
+  border: 2px dashed rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  display: flex;
+  height: 62px;
+  justify-content: center;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.kt-tile-empty:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* highlighted while something is selected and waiting to be placed */
+.kt-tile-empty.kt-tile-target {
+  background: rgba(43, 212, 192, 0.08);
+  border-color: var(--accent-teal, #2bd4c0);
+}
+
+.kt-tile-plus {
+  font-size: 1.4rem;
+  opacity: 0.45;
+}
+
+/* ---- modal ---- */
+
+.kt-modal-backdrop {
+  align-items: center;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 1rem;
+  position: fixed;
+  z-index: 100;
+}
+
+.kt-modal {
+  background: #16181d;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  max-width: 420px;
+  padding: 1.5rem;
+  width: 100%;
+}
+
+.kt-modal h3 {
+  font-family: 'Bebas Neue', 'Outfit', sans-serif;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.5rem;
+}
+
+.kt-image-row {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+}
+
+.kt-image-preview {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  display: flex;
+  flex: none;
+  height: 72px;
+  justify-content: center;
+  overflow: hidden;
+  width: 72px;
+}
+
+.kt-image-preview img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.kt-image-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.kt-image-actions input[type='file'] {
+  font-size: 0.8rem;
+  max-width: 100%;
+}
+
+.kt-modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+}
+
+/* ---- phones ---- */
+
+@media (max-width: 560px) {
+  .kt-tile {
+    width: 58px;
+  }
+
+  .kt-tile-face,
+  .kt-tile-empty {
+    height: 54px;
+  }
+
+  .kt-create-row {
+    flex-direction: column;
+  }
+
+  .kt-action-bar {
+    top: 0;
+  }
+}
