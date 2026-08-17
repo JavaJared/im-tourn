@@ -78,17 +78,19 @@ import { createCustomBracket, createStandardBracket, getUserCustomBrackets, getC
 import { generateSeededBracket, structureFromState } from './lib/standardBracket';
 import CustomPoolDetail from './components/CustomPoolDetail';
 import WeeklyBracketPage from './components/WeeklyBracketPage';
+import { KristinTiersPage, KristinTiersDetailPage } from './components/TierPages';
 
 // Admin user IDs (add your Firebase user ID here)
 const ADMIN_USER_IDS = ['VBbDwj6gkVgW7gBcs3vTmt0ulLF2'];
 
 // Feature visibility flags — set to true to bring a feature back.
-const FEATURES = { predictions: false, drafts: false, pastChampions: false };
+const FEATURES = { predictions: false, drafts: false, pastChampions: false, kristinTiers: true };
 
 const isHiddenView = (v) =>
   (!FEATURES.predictions && (v === 'prediction-pools' || v === 'create-prediction-pool' || v.startsWith('prediction-pool-'))) ||
   (!FEATURES.drafts && (v === 'drafts' || v === 'create-draft' || v === 'my-drafts' || (v.startsWith('draft-') && v !== 'drafts'))) ||
-  (!FEATURES.pastChampions && v === 'champions');
+  (!FEATURES.pastChampions && v === 'champions') ||
+  (!FEATURES.kristinTiers && v.startsWith('kristin-tiers'));
 
 const CATEGORIES = [
   'Movies', 'TV Shows', 'Books', 'Sports Teams', 'Video Games',
@@ -735,8 +737,13 @@ const FeedbackModal = ({ isOpen, onClose }) => {
 };
 
 // Footer Component
-const Footer = ({ onOpenFeedback, onNavigate }) => {
+const Footer = ({ onOpenFeedback, onNavigate, currentView }) => {
   const currentYear = new Date().getFullYear();
+
+  // Kristin Tiers is unlisted: the only way in is this footer link, and it
+  // only appears while you're on My Rankings (reached from the profile
+  // dropdown). Nothing in the header or the nav points at it.
+  const showKristinTiers = FEATURES.kristinTiers && currentView === 'my-rankings';
  
   // Small helper that intercepts a click, prevents the anchor default,
   // and routes to the given view key. Using anchors (instead of plain
@@ -780,6 +787,9 @@ const Footer = ({ onOpenFeedback, onNavigate }) => {
           <ul>
             <li><a href="#" onClick={navTo('privacy')}>Privacy Policy</a></li>
             <li><a href="#" onClick={navTo('terms')}>Terms of Service</a></li>
+            {showKristinTiers && (
+              <li><a href="#" onClick={navTo('kristin-tiers')}>Kristin Tiers</a></li>
+            )}
           </ul>
         </div>
       </div>
@@ -4825,12 +4835,16 @@ useEffect(() => {
         {view === 'privacy' && <PrivacyPolicyPage />}
         {view === 'terms' && <TermsOfServicePage />}
         {view === 'admin' && <AdminPage />}
+        {view === 'kristin-tiers' && <KristinTiersPage onNavigate={setView} />}
+        {view.startsWith('kristin-tiers-') && (
+          <KristinTiersDetailPage listId={view.replace('kristin-tiers-', '')} onNavigate={setView} />
+        )}
         {view.startsWith('custom-bracket-') && (
   <CustomBracketPage bracketId={view.replace('custom-bracket-', '')} currentUserId={currentUser?.uid} currentUserName={currentUser?.displayName} onNavigate={setView} />
 )}
       </main>
       
-      <Footer onOpenFeedback={() => setShowFeedbackModal(true)} onNavigate={setView} />
+      <Footer onOpenFeedback={() => setShowFeedbackModal(true)} onNavigate={setView} currentView={view} />
       
       <FeedbackModal 
         isOpen={showFeedbackModal} 
