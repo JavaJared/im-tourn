@@ -2,7 +2,7 @@
 
 Production is https://imtourn.com on Netlify, site `8048488b-f6ff-44b3-9f7f-fbd38e6780b3`.
 The verified production commit before repairs was `3c3b0f3e604734345e35d79eb641497adb1ba600`.
-The canonical app, Firebase rules, and Functions source live in **im-tourn/**. Root package scripts and Firebase configuration now forward there. Root legacy source files are retained for reference and are not part of the Netlify build.
+The canonical app, Firebase configuration, and Functions source now live at the repository root. The former nested app was promoted here and the obsolete root copy removed. Git history retains the old versions.
 
 ## Changes
 
@@ -22,7 +22,7 @@ The canonical app, Firebase rules, and Functions source live in **im-tourn/**. R
 The repair branch does not change production until deployed. No existing pools, entries, rankings or ballots require destructive migration.
 
 1. Run **Deploy Firebase Backend** from the repair branch (or merge, which triggers it). It installs locked dependencies, runs tests, deploys Functions and indexes, then writes a backend-ready marker only after success. It uses the existing `FIREBASE_SERVICE_ACCOUNT` secret. The account must also be permitted to deploy indexes and write the readiness marker.
-2. Publish/retry the Netlify build after that workflow succeeds. `netlify.toml` sets base `im-tourn`, publish `dist`, and Node 22. Production builds refuse to publish until the readiness endpoint confirms backend release 2. A failed build leaves the previous production deployment online. Deploy previews skip this guard for visual review; their authenticated mutations still require the new Functions.
+2. Publish/retry the Netlify build after that workflow succeeds. `netlify.toml` sets base `.`, publish `dist`, and Node 22. Production builds refuse to publish until the readiness endpoint confirms backend release 2. A failed build leaves the previous production deployment online. Deploy previews skip this guard for visual review; their authenticated mutations still require the new Functions.
 3. Verify on the new frontend: sign in; create a standard bracket; join and submit in a disposable pool; record results and complete a tied pool; submit a ranking ballot; test a tier image and feedback. Use a dedicated test account and disposable records. Existing live contests should not be used for mutation testing.
 4. Run **Deploy Firebase Rules (after frontend)** after confirming the new frontend. This applies Firestore and Storage rules. The first Storage deployment using Firestore lookups may require enabling cross-service permissions in Firebase. Users with a pre-update tab may need to refresh to use the secured APIs.
 5. Verify the protected operations using the checked-in emulator suite and spot-check normal signed-in flows again. Security findings remain open on production until these rules are deployed.
@@ -35,7 +35,7 @@ Netlify retains the previous deployment for rollback. Keep the new backend avail
 
 ## Validation and remaining work
 
-Run from `im-tourn/`:
+Run from the repository root:
 
 ```sh
 npm ci
@@ -48,6 +48,6 @@ Use Node 22 and Java 21+ for emulators. `npm run check` runs pure regressions, t
 
 The UUID override in Functions stays on CommonJS-compatible 11.x. The affected Google HTTP libraries use only its stable `v4()` API. Do not use `npm audit fix --force`: the suggested downgrade crosses unsupported Firebase SDK generations.
 
-This repair does **not** change existing public pools into private pools. Public join codes and picks remain part of the current data model (review S7). A private-pool/sealed-picks migration needs an explicit access model, membership-based queries and separate public metadata. Broader catalog pagination/search, a full mobile bracket redesign, audit-history UI and new competition features remain follow-up work. Initial feature code is split, but the shared Firebase chunk is still large. The legacy root source remains as reference rather than being deleted in a repairs release.
+This repair does **not** change existing public pools into private pools. Public join codes and picks remain part of the current data model (review S7). A private-pool/sealed-picks migration needs an explicit access model, membership-based queries and separate public metadata. Broader catalog pagination/search, a full mobile bracket redesign, audit-history UI and new competition features remain follow-up work. Initial feature code is split, but the shared Firebase chunk is still large.
 
 Live authenticated smoke tests and production security-rule deployment cannot be replaced by a successful build or an emulator run. Check the PR for actual completed validation and deployment status.

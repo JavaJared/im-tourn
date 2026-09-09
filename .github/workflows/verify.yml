@@ -14,14 +14,12 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: im-tourn/package-lock.json
+          cache-dependency-path: package-lock.json
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
       - run: npm ci
-        working-directory: im-tourn
       - run: npm ci
-        working-directory: im-tourn/functions
+        working-directory: functions
       - run: npm run check && npm run test:rules
-        working-directory: im-tourn

@@ -28,17 +28,14 @@ jobs:
           distribution: temurin
           java-version: '21'
       - run: npm ci
-        working-directory: im-tourn
       - run: npm ci
-        working-directory: im-tourn/functions
+        working-directory: functions
       - run: npm run test:rules
-        working-directory: im-tourn
       - name: Write credentials
         run: printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/gcp-sa.json"
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
       - name: Deploy rules
-        working-directory: im-tourn
         run: npx firebase deploy --only firestore:rules,storage --project "$FIREBASE_PROJECT_ID" --non-interactive
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json

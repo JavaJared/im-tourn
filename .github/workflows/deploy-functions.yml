@@ -3,13 +3,14 @@ on:
   push:
     branches: [main]
     paths:
-      - 'im-tourn/functions/**'
-      - 'im-tourn/src/lib/**'
-      - 'im-tourn/src/services/interactiveSort.js'
-      - 'im-tourn/firestore.indexes.json'
-      - 'im-tourn/package.json'
-      - 'im-tourn/package-lock.json'
-      - 'im-tourn/scripts/**'
+      - 'firebase.json'
+      - 'functions/**'
+      - 'src/lib/**'
+      - 'src/services/interactiveSort.js'
+      - 'firestore.indexes.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/**'
       - '.github/workflows/deploy-functions.yml'
   workflow_dispatch:
 permissions:
@@ -32,28 +33,23 @@ jobs:
           distribution: temurin
           java-version: '21'
       - run: npm ci
-        working-directory: im-tourn
       - run: npm ci
-        working-directory: im-tourn/functions
+        working-directory: functions
       - run: npm run check && npm run test:rules
-        working-directory: im-tourn
       - name: Write credentials
         run: printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/gcp-sa.json"
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
       # Retain artifacts without modifying cleanup policies or forcing deployment.
       - name: Retain Firebase build artifacts
-        working-directory: im-tourn
         run: node scripts/retain-build-artifacts.cjs
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json
       - name: Deploy functions and indexes
-        working-directory: im-tourn
         run: npx firebase deploy --only functions,firestore:indexes --project "$FIREBASE_PROJECT_ID" --non-interactive
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json
       - name: Allow Netlify production builds to proceed
-        working-directory: im-tourn
         run: node scripts/mark-backend-ready.cjs
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json

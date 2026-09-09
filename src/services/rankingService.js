@@ -1,15 +1,23 @@
+import { callServer } from './server';
 // src/services/rankingService.js
 //
-// Service layer for Ranking Pools — the "head-to-head sorted ranking" feature.
+// Service layer for the public Rankings feature.
+//
+// Rankings are public by default (like brackets), discoverable through a
+// browse page. Anyone logged in can vote on any ranking. Hosts can close
+// a ranking to stop new votes, but there is no concept of "joining" a
+// ranking — they are open access.
 //
 // Data model:
-//   rankingPools/{poolId}              — the pool metadata + join code
-//   rankingEntries/{poolId}_{idx}      — one doc per entry (holds base64 image inline)
-//   rankingVotes/{poolId}_{userId}     — one doc per voter (their personal ranking)
+//   rankings/{rankingId}                — the ranking metadata
+//   rankingEntries/{rankingId}_{idx}    — one doc per entry (text + image URL)
+//   rankingVotes/{rankingId}_{userId}   — one doc per voter (their personal ranking)
 //
-// We use a flat collection (not subcollections) to match the pattern of
-// bracketPools / predictionPools in bracketService.js. Entries are stored in
-// their own collection so each one has its own 1MB budget for images.
+// Images are stored in Firebase Storage at:
+//   rankings/{rankingId}/entries/{entryIndex}-{suffix}.jpg
+//
+// Each entry doc carries BOTH `imageUrl` (public download URL for display)
+// AND `imagePath` (the Storage path, used for cleanup on delete/reupload).
 
 import {
   collection,
@@ -24,12 +32,18 @@ import {
   orderBy,
   where,
   serverTimestamp,
-  increment,
+  writeBatch,
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import {
+  ref as storageRef,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject,
+} from 'firebase/storage';
+import { db, storage } from '../firebase';
 import { computeConsensus } from './interactiveSort';
 
-const RANKING_POOLS_COLLECTION = 'rankingPools';
+const RANKINGS_COLLECTION = 'rankings';
 const RANKING_ENTRIES_COLLECTION = 'rankingEntries';
 const RANKING_VOTES_COLLECTION = 'rankingVotes';
 
@@ -37,37 +51,36 @@ const RANKING_VOTES_COLLECTION = 'rankingVotes';
 export const MAX_RANKING_ENTRIES = 32;
 export const MIN_RANKING_ENTRIES = 3;
 
-// ============ HELPERS ============
+// ============ IMAGE HELPERS ============
 
-function generateRankingJoinCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  for (let i = 0; i < 6; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return code;
+/**
+ * Short random suffix for uploaded file names. This guarantees that when
+ * an image is swapped/reuploaded, the new file has a different URL than
+ * the old one — otherwise the CDN might serve a cached old version.
+ */
+function randomSuffix() {
+  return Math.random().toString(36).slice(2, 10);
 }
 
 /**
  * Compress an image file client-side before upload.
- * Returns a base64 data URL sized to fit comfortably in a Firestore doc.
+ * Returns a JPEG Blob sized for display quality while staying fast to
+ * transfer on mobile connections.
  *
- * Target: max 400px on longest edge, JPEG quality 0.75, which yields
- * roughly 15-40KB per image. The final data URL is checked against a
- * hard size limit, and if it's still too large we try again with a
- * smaller quality.
+ * Target: max 1200px on the longest edge, JPEG quality 0.85.
+ * Expected size: ~150–400KB for typical photo content.
  *
  * @param {File} file - image file from an <input type="file">
- * @returns {Promise<string>} base64 data URL
+ * @returns {Promise<Blob>} JPEG blob ready to upload
  */
-export async function compressImageToBase64(file) {
+export async function compressImage(file) {
   if (!file) return null;
   if (!file.type.startsWith('image/')) {
     throw new Error('File must be an image');
   }
 
-  const MAX_DIMENSION = 400;
-  const MAX_SIZE_BYTES = 500_000; // 500KB — comfortably under Firestore's 1MB limit
+  const MAX_DIMENSION = 1200;
+  const QUALITY = 0.85;
 
   // Load the file as a data URL, then draw it to a canvas at reduced size.
   const dataUrl = await new Promise((resolve, reject) => {
@@ -84,7 +97,7 @@ export async function compressImageToBase64(file) {
     image.src = dataUrl;
   });
 
-  // Compute target dimensions preserving aspect ratio.
+  // Preserve aspect ratio while fitting within MAX_DIMENSION on longest edge.
   let { width, height } = img;
   if (width > height) {
     if (width > MAX_DIMENSION) {
@@ -104,33 +117,78 @@ export async function compressImageToBase64(file) {
   const ctx = canvas.getContext('2d');
   ctx.drawImage(img, 0, 0, width, height);
 
-  // Try successively lower qualities until we fit.
-  let quality = 0.75;
-  let result = canvas.toDataURL('image/jpeg', quality);
+  // Convert to a Blob — this is what Firebase Storage wants, and it
+  // avoids the ~33% base64 encoding overhead.
+  const blob = await new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error('Failed to compress image'))),
+      'image/jpeg',
+      QUALITY
+    );
+  });
 
-  while (result.length > MAX_SIZE_BYTES && quality > 0.3) {
-    quality -= 0.1;
-    result = canvas.toDataURL('image/jpeg', quality);
-  }
-
-  if (result.length > MAX_SIZE_BYTES) {
-    throw new Error('Image is too large even after compression. Try a smaller image.');
-  }
-
-  return result;
+  return blob;
 }
 
-// ============ POOL CRUD ============
+/**
+ * Upload a compressed image Blob to Firebase Storage.
+ * Returns the public download URL and the storage path (kept for cleanup).
+ *
+ * @param {string} rankingId - ID of the ranking this entry belongs to
+ * @param {number} entryIndex - 0-based index of the entry
+ * @param {Blob} blob - the compressed image blob from compressImage()
+ * @returns {Promise<{url: string, path: string}>}
+ */
+export async function uploadEntryImage(rankingId, entryIndex, blob) {
+  const suffix = randomSuffix();
+  const path = `rankings/${rankingId}/entries/${entryIndex}-${suffix}.jpg`;
+  const ref = storageRef(storage, path);
+  await uploadBytes(ref, blob, { contentType: 'image/jpeg' });
+  try { const url = await getDownloadURL(ref); return { url, path }; }
+  catch (error) { await deleteObject(ref).catch(() => {}); throw error; }
+}
 
 /**
- * Create a new ranking pool. The pool starts in 'open' status, meaning
- * it's accepting votes. The host can lock it later to stop new votes.
+ * Delete an uploaded entry image by its storage path.
+ * Safe to call on a path that doesn't exist — "object-not-found" errors
+ * are swallowed because the goal is just to ensure the file is gone.
  *
- * @param {object} poolData - { title, description, hostId, hostDisplayName }
- * @param {Array<{text: string, imageUrl: string|null}>} entries
- * @returns {Promise<{id: string, joinCode: string}>}
+ * @param {string} path - the storage path (e.g. 'rankings/abc/entries/0-xyz.jpg')
  */
-export async function createRankingPool(poolData, entries) {
+export async function deleteEntryImage(path) {
+  if (!path) return;
+  try {
+    const ref = storageRef(storage, path);
+    await deleteObject(ref);
+  } catch (err) {
+    if (err?.code !== 'storage/object-not-found') {
+      console.warn('Failed to delete entry image:', path, err);
+    }
+  }
+}
+
+// ============ RANKING CRUD ============
+
+/**
+ * Create a new public ranking. Starts in 'open' status (accepting votes).
+ *
+ * Upload flow:
+ *   1. Create the ranking doc first (so we have an ID)
+ *   2. Upload any pending image blobs to rankings/{id}/entries/...
+ *   3. Write the entry docs with the resulting URLs + paths
+ *   4. If anything fails partway, best-effort cleanup
+ *
+ * Entries passed in should have shape:
+ *   { text: string, imageBlob: Blob | null }
+ *
+ * The caller holds images as Blobs until this function runs, so nothing
+ * is uploaded if the user abandons the create form.
+ *
+ * @param {object} rankingData - { title, description, category, hostId, hostDisplayName }
+ * @param {Array<{text: string, imageBlob: Blob | null}>} entries
+ * @returns {Promise<{id: string}>}
+ */
+export async function createRanking(rankingData, entries) {
   if (!Array.isArray(entries)) {
     throw new Error('entries must be an array');
   }
@@ -146,57 +204,59 @@ export async function createRankingPool(poolData, entries) {
     }
   }
 
-  const joinCode = generateRankingJoinCode();
-
-  // Create the pool document first so we have an ID for the entries.
-  const poolRef = await addDoc(collection(db, RANKING_POOLS_COLLECTION), {
-    title: poolData.title,
-    description: poolData.description || '',
-    hostId: poolData.hostId,
-    hostDisplayName: poolData.hostDisplayName || 'Anonymous',
+  // Step 1: create the ranking doc first so we know the ID.
+  const rankingRef = await addDoc(collection(db, RANKINGS_COLLECTION), {
+    title: rankingData.title,
+    description: rankingData.description || '',
+    category: rankingData.category || '',
+    hostId: rankingData.hostId,
+    hostDisplayName: rankingData.hostDisplayName || 'Anonymous',
     entryCount: entries.length,
     voteCount: 0,
-    joinCode,
-    status: 'open', // open | locked
-    consensusRanking: null, // cached aggregate, recomputed on vote submit
+    status: 'draft',
+    consensusRanking: null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+  const rankingId = rankingRef.id;
 
-  // Write each entry as its own doc, keyed by `${poolId}_${index}`.
-  // We use a deterministic index-based ID so we can retrieve them in order
-  // later without needing a Firestore orderBy.
-  const entryWrites = entries.map((entry, index) => {
-    const entryId = `${poolRef.id}_${index}`;
-    const entryRef = doc(db, RANKING_ENTRIES_COLLECTION, entryId);
-    return setDoc(entryRef, {
-      poolId: poolRef.id,
-      index,
-      text: entry.text.trim(),
-      imageUrl: entry.imageUrl || null, // base64 data URL or null
-      createdAt: serverTimestamp(),
+  const uploaded = await Promise.allSettled(entries.map((entry, index) => entry.imageBlob ? uploadEntryImage(rankingId, index, entry.imageBlob) : null));
+  const uploadResults = uploaded.map(r => r.status === 'fulfilled' ? r.value : null);
+  try {
+    const failed = uploaded.find(r => r.status === 'rejected');
+    if (failed) throw failed.reason;
+    const batch = writeBatch(db);
+    entries.forEach((entry, index) => {
+      batch.set(doc(db, RANKING_ENTRIES_COLLECTION, `${rankingId}_${index}`), {
+        rankingId, index, text: entry.text.trim(), imageUrl: uploadResults[index]?.url || null,
+        imagePath: uploadResults[index]?.path || null, createdAt: serverTimestamp(),
+      });
     });
-  });
+    batch.update(rankingRef, { status: 'open', updatedAt: serverTimestamp() });
+    await batch.commit();
+  } catch (error) {
+    // Wait for all uploads before cleanup, while the parent still grants ownership.
+    await Promise.all(uploadResults.filter(Boolean).map(r => deleteEntryImage(r.path)));
+    await deleteDoc(rankingRef).catch(() => {});
+    throw error;
+  }
 
-  await Promise.all(entryWrites);
-
-  return { id: poolRef.id, joinCode };
+  return { id: rankingId };
 }
 
 /**
- * Get a ranking pool by ID, including its entries.
- * Returns null if not found.
+ * Get a ranking by ID, including its entries.
  */
-export async function getRankingPoolById(poolId) {
-  const poolRef = doc(db, RANKING_POOLS_COLLECTION, poolId);
-  const poolSnap = await getDoc(poolRef);
-  if (!poolSnap.exists()) return null;
+export async function getRankingById(rankingId) {
+  const rankingRef = doc(db, RANKINGS_COLLECTION, rankingId);
+  const snap = await getDoc(rankingRef);
+  if (!snap.exists()) return null;
 
-  const entries = await getRankingPoolEntries(poolId);
+  const entries = await getRankingEntries(rankingId);
 
-  const data = poolSnap.data();
+  const data = snap.data();
   return {
-    id: poolSnap.id,
+    id: snap.id,
     ...data,
     entries,
     createdAt: data.createdAt?.toDate?.() || null,
@@ -205,35 +265,12 @@ export async function getRankingPoolById(poolId) {
 }
 
 /**
- * Get a ranking pool by its 6-character join code.
+ * Get all entries for a ranking, sorted by their index.
  */
-export async function getRankingPoolByJoinCode(joinCode) {
-  const q = query(
-    collection(db, RANKING_POOLS_COLLECTION),
-    where('joinCode', '==', joinCode.toUpperCase())
-  );
-  const snap = await getDocs(q);
-  if (snap.empty) return null;
-
-  const poolDoc = snap.docs[0];
-  const entries = await getRankingPoolEntries(poolDoc.id);
-  const data = poolDoc.data();
-  return {
-    id: poolDoc.id,
-    ...data,
-    entries,
-    createdAt: data.createdAt?.toDate?.() || null,
-    updatedAt: data.updatedAt?.toDate?.() || null,
-  };
-}
-
-/**
- * Get all entries for a pool, sorted by their index.
- */
-export async function getRankingPoolEntries(poolId) {
+export async function getRankingEntries(rankingId) {
   const q = query(
     collection(db, RANKING_ENTRIES_COLLECTION),
-    where('poolId', '==', poolId)
+    where('rankingId', '==', rankingId)
   );
   const snap = await getDocs(q);
   return snap.docs
@@ -242,138 +279,171 @@ export async function getRankingPoolEntries(poolId) {
 }
 
 /**
- * Get all ranking pools hosted by a user.
+ * Get ALL rankings for the public browse page.
  */
-export async function getUserHostedRankingPools(userId) {
+export async function getAllRankings() {
   const q = query(
-    collection(db, RANKING_POOLS_COLLECTION),
-    where('hostId', '==', userId),
+    collection(db, RANKINGS_COLLECTION),
+    where('status', 'in', ['open', 'closed']),
     orderBy('createdAt', 'desc')
   );
   const snap = await getDocs(q);
   return snap.docs.map(d => {
     const data = d.data();
+    const { consensusRanking, ...rest } = data;
     return {
       id: d.id,
-      ...data,
+      ...rest,
       createdAt: data.createdAt?.toDate?.() || null,
     };
   });
 }
 
 /**
- * Get all ranking pools a user has voted in.
- * We do this by querying rankingVotes for the user, then loading each pool.
+ * Get all rankings created by a specific user. Used by the My Rankings page.
  */
-export async function getUserVotedRankingPools(userId) {
+export async function getUserCreatedRankings(userId) {
+  const q = query(
+    collection(db, RANKINGS_COLLECTION),
+    where('hostId', '==', userId),
+    orderBy('createdAt', 'desc')
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(d => {
+    const data = d.data();
+    const { consensusRanking, ...rest } = data;
+    return {
+      id: d.id,
+      ...rest,
+      createdAt: data.createdAt?.toDate?.() || null,
+    };
+  });
+}
+
+/**
+ * Get all rankings a user has voted in. Used by the My Rankings page.
+ */
+export async function getUserVotedRankings(userId) {
   const q = query(
     collection(db, RANKING_VOTES_COLLECTION),
     where('userId', '==', userId)
   );
   const snap = await getDocs(q);
-  const poolIds = snap.docs.map(d => d.data().poolId);
-  if (poolIds.length === 0) return [];
+  const rankingIds = snap.docs.map(d => d.data().rankingId);
+  if (rankingIds.length === 0) return [];
 
-  const pools = await Promise.all(
-    poolIds.map(async pid => {
-      const ref = doc(db, RANKING_POOLS_COLLECTION, pid);
+  const rankings = await Promise.all(
+    rankingIds.map(async (rid) => {
+      const ref = doc(db, RANKINGS_COLLECTION, rid);
       const snap = await getDoc(ref);
       if (!snap.exists()) return null;
       const data = snap.data();
+      const { consensusRanking, ...rest } = data;
       return {
         id: snap.id,
-        ...data,
+        ...rest,
         createdAt: data.createdAt?.toDate?.() || null,
       };
     })
   );
-  return pools.filter(p => p !== null);
+  return rankings
+    .filter(r => r !== null)
+    .sort((a, b) => {
+      if (!a.createdAt || !b.createdAt) return 0;
+      return b.createdAt - a.createdAt;
+    });
 }
 
 /**
- * Update a ranking pool's description (host only).
+ * Update a ranking's description (host only).
  */
-export async function updateRankingPoolDescription(poolId, hostId, description) {
-  const poolRef = doc(db, RANKING_POOLS_COLLECTION, poolId);
-  const snap = await getDoc(poolRef);
-  if (!snap.exists()) throw new Error('Pool not found');
+export async function updateRankingDescription(rankingId, hostId, description) {
+  const rankingRef = doc(db, RANKINGS_COLLECTION, rankingId);
+  const snap = await getDoc(rankingRef);
+  if (!snap.exists()) throw new Error('Ranking not found');
   if (snap.data().hostId !== hostId) {
-    throw new Error('Only the host can edit this pool');
+    throw new Error('Only the creator can edit this ranking');
   }
-  await updateDoc(poolRef, {
+  await updateDoc(rankingRef, {
     description,
     updatedAt: serverTimestamp(),
   });
 }
 
 /**
- * Lock a pool (host only) — no more votes can be submitted.
+ * Close a ranking (host only) — no more votes can be submitted.
  */
-export async function lockRankingPool(poolId, hostId) {
-  const poolRef = doc(db, RANKING_POOLS_COLLECTION, poolId);
-  const snap = await getDoc(poolRef);
-  if (!snap.exists()) throw new Error('Pool not found');
+export async function closeRanking(rankingId, hostId) {
+  const rankingRef = doc(db, RANKINGS_COLLECTION, rankingId);
+  const snap = await getDoc(rankingRef);
+  if (!snap.exists()) throw new Error('Ranking not found');
   if (snap.data().hostId !== hostId) {
-    throw new Error('Only the host can lock this pool');
+    throw new Error('Only the creator can close this ranking');
   }
-  await updateDoc(poolRef, {
-    status: 'locked',
+  await updateDoc(rankingRef, {
+    status: 'closed',
     updatedAt: serverTimestamp(),
   });
 }
 
 /**
- * Reopen a locked pool (host only).
+ * Reopen a closed ranking (host only).
  */
-export async function reopenRankingPool(poolId, hostId) {
-  const poolRef = doc(db, RANKING_POOLS_COLLECTION, poolId);
-  const snap = await getDoc(poolRef);
-  if (!snap.exists()) throw new Error('Pool not found');
+export async function reopenRanking(rankingId, hostId) {
+  const rankingRef = doc(db, RANKINGS_COLLECTION, rankingId);
+  const snap = await getDoc(rankingRef);
+  if (!snap.exists()) throw new Error('Ranking not found');
   if (snap.data().hostId !== hostId) {
-    throw new Error('Only the host can reopen this pool');
+    throw new Error('Only the creator can reopen this ranking');
   }
-  await updateDoc(poolRef, {
+  await updateDoc(rankingRef, {
     status: 'open',
     updatedAt: serverTimestamp(),
   });
 }
 
 /**
- * Delete a pool and all its entries and votes (host only).
+ * Delete a ranking and all its entries, votes, and uploaded images (host only).
  */
-export async function deleteRankingPool(poolId, hostId) {
-  const poolRef = doc(db, RANKING_POOLS_COLLECTION, poolId);
-  const snap = await getDoc(poolRef);
-  if (!snap.exists()) throw new Error('Pool not found');
+export async function deleteRanking(rankingId, hostId) {
+  const rankingRef = doc(db, RANKINGS_COLLECTION, rankingId);
+  const snap = await getDoc(rankingRef);
+  if (!snap.exists()) throw new Error('Ranking not found');
   if (snap.data().hostId !== hostId) {
-    throw new Error('Only the host can delete this pool');
+    throw new Error('Only the creator can delete this ranking');
   }
 
-  // Delete all entries
-  const entries = await getRankingPoolEntries(poolId);
+  const entries = await getRankingEntries(rankingId);
+
+  // Delete Storage images in parallel (errors swallowed by deleteEntryImage).
+  const imageDeletes = entries
+    .filter(e => e.imagePath)
+    .map(e => deleteEntryImage(e.imagePath));
+
+  // Delete entry docs.
   const entryDeletes = entries.map(e =>
     deleteDoc(doc(db, RANKING_ENTRIES_COLLECTION, e.id))
   );
 
-  // Delete all votes
+  // Delete votes.
   const votesQ = query(
     collection(db, RANKING_VOTES_COLLECTION),
-    where('poolId', '==', poolId)
+    where('rankingId', '==', rankingId)
   );
   const votesSnap = await getDocs(votesQ);
   const voteDeletes = votesSnap.docs.map(d => deleteDoc(d.ref));
 
-  await Promise.all([...entryDeletes, ...voteDeletes]);
-  await deleteDoc(poolRef);
+  await Promise.all([...imageDeletes, ...entryDeletes, ...voteDeletes]);
+  await deleteDoc(rankingRef);
 }
 
 // ============ VOTING ============
 
 /**
- * Get a user's vote for a pool (their personal ranking), or null.
+ * Get a user's vote for a ranking (their personal ranking), or null.
  */
-export async function getUserRankingVote(poolId, userId) {
-  const voteRef = doc(db, RANKING_VOTES_COLLECTION, `${poolId}_${userId}`);
+export async function getUserRankingVote(rankingId, userId) {
+  const voteRef = doc(db, RANKING_VOTES_COLLECTION, `${rankingId}_${userId}`);
   const snap = await getDoc(voteRef);
   if (!snap.exists()) return null;
   const data = snap.data();
@@ -386,95 +456,19 @@ export async function getUserRankingVote(poolId, userId) {
 }
 
 /**
- * Submit a user's final ranking for a pool. Recomputes the consensus.
- *
- * @param {string} poolId
- * @param {string} userId
- * @param {string} userDisplayName
- * @param {string[]} ranking - entry IDs in order (best first)
- * @param {number} comparisonsMade - for stats display
+ * Submit a user's final ranking. Recomputes the consensus.
  */
-export async function submitRankingVote(poolId, userId, userDisplayName, ranking, comparisonsMade) {
-  const pool = await getRankingPoolById(poolId);
-  if (!pool) throw new Error('Pool not found');
-  if (pool.status !== 'open') {
-    throw new Error('This pool is no longer accepting votes');
-  }
-  if (!Array.isArray(ranking) || ranking.length === 0) {
-    throw new Error('Ranking is empty');
-  }
-
-  // Validate: the ranking must include every entry in the pool exactly once.
-  const entryIds = new Set(pool.entries.map(e => e.id));
-  const rankingSet = new Set(ranking);
-  if (rankingSet.size !== entryIds.size) {
-    throw new Error('Ranking is incomplete');
-  }
-  for (const id of ranking) {
-    if (!entryIds.has(id)) {
-      throw new Error('Ranking contains unknown entry');
-    }
-  }
-
-  const voteRef = doc(db, RANKING_VOTES_COLLECTION, `${poolId}_${userId}`);
-  const existing = await getDoc(voteRef);
-  const isNewVote = !existing.exists();
-
-  await setDoc(voteRef, {
-    poolId,
-    userId,
-    userDisplayName: userDisplayName || 'Anonymous',
-    ranking: JSON.stringify(ranking),
-    comparisonsMade: comparisonsMade || 0,
-    submittedAt: serverTimestamp(),
-  });
-
-  // Bump the vote count on the pool (only for new votes).
-  const poolRef = doc(db, RANKING_POOLS_COLLECTION, poolId);
-  if (isNewVote) {
-    await updateDoc(poolRef, {
-      voteCount: increment(1),
-    });
-  }
-
-  // Recompute consensus from ALL votes and cache it on the pool doc.
-  await recomputeRankingConsensus(poolId);
+export async function submitRankingVote(rankingId, userId, userDisplayName, ranking, comparisonsMade) {
+  return callServer('castRankingVote', { rankingId, ranking, comparisonsMade: comparisonsMade || 0 });
 }
 
 /**
- * Fetch all votes for a pool, recompute the Borda consensus, and store it.
- * Called after every vote submission. Cheap for reasonable voter counts.
+ * Get all votes for a ranking (for host stats / future leaderboard view).
  */
-export async function recomputeRankingConsensus(poolId) {
+export async function getRankingVotes(rankingId) {
   const q = query(
     collection(db, RANKING_VOTES_COLLECTION),
-    where('poolId', '==', poolId)
-  );
-  const snap = await getDocs(q);
-
-  const rankings = snap.docs.map(d => {
-    const data = d.data();
-    return typeof data.ranking === 'string' ? JSON.parse(data.ranking) : data.ranking;
-  });
-
-  const consensus = computeConsensus(rankings);
-
-  const poolRef = doc(db, RANKING_POOLS_COLLECTION, poolId);
-  await updateDoc(poolRef, {
-    consensusRanking: JSON.stringify(consensus),
-    updatedAt: serverTimestamp(),
-  });
-
-  return consensus;
-}
-
-/**
- * Get all votes for a pool (for leaderboard / host view).
- */
-export async function getRankingPoolVotes(poolId) {
-  const q = query(
-    collection(db, RANKING_VOTES_COLLECTION),
-    where('poolId', '==', poolId)
+    where('rankingId', '==', rankingId)
   );
   const snap = await getDocs(q);
   return snap.docs
@@ -494,13 +488,12 @@ export async function getRankingPoolVotes(poolId) {
 }
 
 /**
- * Get the consensus ranking (already computed), as an array of entry objects
- * with their scores, sorted best first.
+ * Parse the cached consensus ranking off a ranking doc.
  */
-export function parseConsensus(pool) {
-  if (!pool || !pool.consensusRanking) return [];
-  const parsed = typeof pool.consensusRanking === 'string'
-    ? JSON.parse(pool.consensusRanking)
-    : pool.consensusRanking;
+export function parseConsensus(ranking) {
+  if (!ranking || !ranking.consensusRanking) return [];
+  const parsed = typeof ranking.consensusRanking === 'string'
+    ? JSON.parse(ranking.consensusRanking)
+    : ranking.consensusRanking;
   return parsed || [];
 }

@@ -1,15 +1,46 @@
 {
-  "firestore": {
-    "rules": "im-tourn/firestore.rules",
-    "indexes": "im-tourn/firestore.indexes.json"
+  "hosting": {
+    "public": "dist",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
   },
   "storage": {
-    "rules": "im-tourn/storage.rules"
+    "rules": "storage.rules"
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
   },
   "functions": {
-    "source": "im-tourn/functions",
+    "source": "functions",
     "predeploy": [
-      "npm --prefix im-tourn run build:server"
+      "npm --prefix \"$PROJECT_DIR\" run build:server"
     ]
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8080
+    },
+    "storage": {
+      "port": 9199
+    },
+    "auth": {
+      "port": 9099
+    },
+    "functions": {
+      "port": 5001
+    },
+    "ui": {
+      "enabled": false
+    }
   }
 }

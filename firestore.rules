@@ -1,33 +1,134 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Brackets collection
-    match /brackets/{bracketId} {
-      // Anyone can read brackets
-      allow read: if true;
-      
-      // Only authenticated users can create brackets
-      allow create: if request.auth != null 
-        && request.resource.data.userId == request.auth.uid;
-      
-      // Only the owner can update or delete their brackets
-      allow update, delete: if request.auth != null 
-        && resource.data.userId == request.auth.uid;
+    function signedIn() { return request.auth != null; }
+    // Preserve the existing administrator while allowing future trusted claims.
+    function admin() { return signedIn() && (request.auth.uid == 'VBbDwj6gkVgW7gBcs3vTmt0ulLF2' || request.auth.token.get('admin', false) == true); }
+    function owns(field) { return signedIn() && resource.data[field] == request.auth.uid; }
+    function unchanged(fields) { return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields); }
+    function only(fields) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields); }
+    function openPool(p) { return p.status == 'open' && (p.get('lockDate', null) == null || request.time < p.lockDate); }
+    function pool(collection, id) { return get(/databases/$(database)/documents/$(collection)/$(id)).data; }
+    function validEntry(id, collection) {
+      let d = request.resource.data;
+      return signedIn() && d.userId == request.auth.uid && id == d.poolId + '_' + request.auth.uid
+        && openPool(pool(collection, d.poolId)) && d.score == 0 && d.predictions == null && d.joinedAt == request.time && d.submittedAt == null
+        && d.keys().hasOnly(['poolId','userId','userDisplayName','predictions','score','joinedAt','submittedAt']);
     }
-    
-    // Submissions collection
-    match /submissions/{submissionId} {
-      // Anyone can read submissions
+    function editEntry(collection) {
+      let p = pool(collection, resource.data.poolId);
+      return signedIn() && unchanged(['poolId','userId','joinedAt']) && (
+        (owns('userId') && openPool(p) && only(['predictions','champion','submittedAt','sleeper1','sleeper2','sleeper1Hit','sleeper2Hit'])
+          && request.resource.data.submittedAt == request.time
+          && request.resource.data.get('sleeper1Hit', false) == false && request.resource.data.get('sleeper2Hit', false) == false)
+        || (p.hostId == request.auth.uid && only(['score','sleeper1Hit','sleeper2Hit']))
+      );
+    }
+    function deleteEntry(collection) {
+      let p = pool(collection, resource.data.poolId);
+      return signedIn() && (p.hostId == request.auth.uid || (owns('userId') && openPool(p)));
+    }
+    match /brackets/{id} {
       allow read: if true;
-      
-      // Only authenticated users can create submissions
-      allow create: if request.auth != null 
-        && request.resource.data.userId == request.auth.uid;
-      
-      // Only the owner can update or delete their submissions
-      allow update, delete: if request.auth != null 
-        && resource.data.userId == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if owns('userId') && unchanged(['userId','createdAt']);
+      allow delete: if owns('userId');
+    }
+    match /submissions/{id} {
+      allow read: if true;
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid
+        && request.resource.data.get('upvotes', 0) == 0 && request.resource.data.get('upvotedBy', []).size() == 0;
+      // Likes go through an idempotent server transaction.
+      allow update: if false;
+      allow delete: if owns('userId');
+    }
+    match /weeklyBracket/{id} { allow read: if true; allow write: if admin(); }
+    match /weeklyArchive/{id} { allow read: if true; allow write: if admin(); }
+    // Atomic castWeeklyVotes validates week, round, deadline, identity and picks.
+    match /weeklyVotes/{id} { allow read: if true; allow write: if false; }
+    match /bracketPools/{id} {
+      allow read: if true;
+      allow create: if signedIn() && request.resource.data.hostId == request.auth.uid && request.resource.data.status == 'open';
+      allow update: if owns('hostId') && only(['description','status','results','customResults','customScores','updatedAt','winnerId','winnerIds','winnerName','winnerScore']);
+      allow delete: if owns('hostId');
+    }
+    match /poolEntries/{id} {
+      allow read: if true;
+      allow create: if validEntry(id, 'bracketPools');
+      allow update: if editEntry('bracketPools');
+      allow delete: if deleteEntry('bracketPools');
+    }
+    match /predictionPools/{id} {
+      allow read: if true;
+      allow create: if signedIn() && request.resource.data.hostId == request.auth.uid && request.resource.data.status == 'open';
+      allow update: if owns('hostId') && only(['description','status','results','updatedAt','winnerId','winnerIds','winnerName','winnerScore']);
+      allow delete: if owns('hostId');
+    }
+    match /predictionEntries/{id} {
+      allow read: if true;
+      allow create: if validEntry(id, 'predictionPools');
+      allow update: if editEntry('predictionPools');
+      allow delete: if deleteEntry('predictionPools');
+    }
+    match /rankings/{id} {
+      allow read: if true;
+      allow create: if signedIn() && request.resource.data.hostId == request.auth.uid
+        && request.resource.data.voteCount == 0 && request.resource.data.consensusRanking == null
+        && request.resource.data.entryCount >= 3 && request.resource.data.entryCount <= 32;
+      allow update: if owns('hostId') && only(['description','status','updatedAt']);
+      allow delete: if owns('hostId');
+    }
+    match /rankingEntries/{id} {
+      allow read: if true;
+      allow create: if signedIn() && pool('rankings', request.resource.data.rankingId).hostId == request.auth.uid && pool('rankings', request.resource.data.rankingId).status == 'draft';
+      allow update: if signedIn() && pool('rankings', resource.data.rankingId).hostId == request.auth.uid && unchanged(['rankingId']) && pool('rankings', resource.data.rankingId).status == 'draft';
+      allow delete: if signedIn() && pool('rankings', resource.data.rankingId).hostId == request.auth.uid;
+    }
+    match /rankingVotes/{id} {
+      allow read: if true;
+      // Ballots and aggregate updates are validated together on the server.
+      allow create, update: if false;
+      allow delete: if signedIn() && pool('rankings', resource.data.rankingId).hostId == request.auth.uid;
+    }
+    // Drafts are currently disabled. Keep existing drafts readable and owner
+    // cleanup possible; do not expose an unvalidated participant write API.
+    match /drafts/{id} { allow read: if true; allow delete: if owns('hostId'); }
+    match /customBrackets/{id} {
+      allow read: if owns('hostId') || resource.data.status != 'draft';
+      allow create: if signedIn() && request.resource.data.hostId == request.auth.uid
+        && (request.resource.data.status == 'draft' || (request.resource.data.status == 'published'
+          && request.resource.data.type == 'standard' && request.resource.data.participantCount >= 2
+          && request.resource.data.participantCount <= 100 && request.resource.data.roundCount >= 1));
+      allow update: if owns('hostId') && unchanged(['hostId','createdAt']) && (
+        (resource.data.status == 'draft' && request.resource.data.status in ['draft','published'])
+        || (resource.data.status in ['published','locked','complete'] && request.resource.data.status in ['published','locked','complete'] && only(['title','description','category','status','results','scores','updatedAt']))
+      );
+      allow delete: if owns('hostId');
+      match /submissions/{submissionId} {
+        allow read: if true;
+        allow create, update: if signedIn() && submissionId == request.auth.uid && request.resource.data.userId == request.auth.uid
+          && pool('customBrackets', id).status == 'published'
+          && request.resource.data.keys().hasOnly(['userId','displayName','picks','champion','createdAt']);
+        allow delete: if owns('userId') || (signedIn() && pool('customBrackets', id).hostId == request.auth.uid);
+      }
+    }
+    match /tierLists/{id} {
+      allow read, delete: if owns('ownerId');
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.items.size() <= 60;
+      allow update: if owns('ownerId') && unchanged(['ownerId','createdAt'])
+        && request.resource.data.items.size() <= 60
+        && only(['title','tierLabels','items','placements','updatedAt']);
+    }
+    match /feedback/{id} {
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid
+        && request.resource.data.keys().hasOnly(['userId','type','subject','description','email','createdAt'])
+        && request.resource.data.type in ['bug','feature','other']
+        && request.resource.data.subject is string && request.resource.data.subject.size() > 0 && request.resource.data.subject.size() <= 200
+        && request.resource.data.description is string && request.resource.data.description.size() > 0 && request.resource.data.description.size() <= 5000
+        && request.resource.data.email is string && request.resource.data.email.size() <= 254
+        && request.resource.data.createdAt == request.time;
+      allow read, delete: if admin();
     }
   }
 }
