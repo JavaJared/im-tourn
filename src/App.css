@@ -7124,3 +7124,18 @@ body {
 /* Visible keyboard focus and reduced-motion support across bracket surfaces. */
 :where(button,a,input,select,textarea,[role="button"]):focus-visible { outline: 3px solid #2bd4c0; outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
+
+/* Native pick buttons retain the legacy bracket layout. */
+.fill-container button.matchup-entry {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-left: 3px solid transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.fill-container button.matchup-entry:first-child { border-bottom: 1px solid var(--border-subtle); }
+.fill-container button.matchup-entry.selected { background: rgba(0, 212, 170, 0.15); border-left-color: var(--accent-teal); }
+.fill-container button.matchup-entry:hover:not(:disabled) { background: rgba(255, 107, 53, 0.1); }
+.fill-container button.matchup-entry:disabled { cursor: not-allowed; }

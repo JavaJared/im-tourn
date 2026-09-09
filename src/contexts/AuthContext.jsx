@@ -1,13 +1,14 @@
 // src/contexts/AuthContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { 
+import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
+  sendPasswordResetEmail,
   onAuthStateChanged,
   GoogleAuthProvider,
   signInWithPopup,
-  updateProfile
+  updateProfile,
 } from 'firebase/auth';
 import { auth } from '../firebase';
 
@@ -22,10 +23,9 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   function signup(email, password, displayName) {
-    return createUserWithEmailAndPassword(auth, email, password)
-      .then((result) => {
-        return updateProfile(result.user, { displayName });
-      });
+    return createUserWithEmailAndPassword(auth, email, password).then((result) => {
+      return updateProfile(result.user, { displayName });
+    });
   }
 
   function login(email, password) {
@@ -35,6 +35,15 @@ export function AuthProvider({ children }) {
   function loginWithGoogle() {
     const provider = new GoogleAuthProvider();
     return signInWithPopup(auth, provider);
+  }
+
+  async function resetPassword(email) {
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+    } catch (error) {
+      // Keep the same confirmation whether or not the email has an account.
+      if (error.code !== 'auth/user-not-found') throw error;
+    }
   }
 
   function logout() {
@@ -55,12 +64,9 @@ export function AuthProvider({ children }) {
     signup,
     login,
     loginWithGoogle,
-    logout
+    resetPassword,
+    logout,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {!loading && children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;
 }

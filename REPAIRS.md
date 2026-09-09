@@ -6,6 +6,9 @@ The canonical app, Firebase configuration, and Functions source now live at the 
 
 ## Changes
 
+- Legacy fill picks now autosave on this device, scoped to bracket and account, and restore after refresh. Invalid or outdated drafts are ignored; storage failures are visible. Saving disables repeat submissions and pick changes, keeps failed submissions available for retry, and clears drafts only after a successful save/export. Every matchup must be decided before submission. Native pick buttons support keyboard activation.
+- The existing Firebase login dialog now offers password recovery through Firebase's hosted reset email flow, with generic account-existence confirmation, retryable errors, and protection against duplicate requests. No account migration is required.
+
 - Server-owned weekly votes, ranking ballots/consensus and idempotent submission likes. Weekly tally retries recompute canonical ballots rather than applying event deltas; week-scoped ballots are retained through rollover. Archive and replacement are transactional, and selection validates candidates before any mutation.
 - Standard 32/64 brackets join the weekly catalog. A 64-entry bracket's Saturday final closes in the Sunday rollover. Weekly voting follows New York calendar boundaries, rejects closed rounds, updates live, and restores local draft picks.
 - Firestore rules freeze entry identities and competitive settings, enforce deadlines at server time, protect rankings and administrative data, and disable hidden draft writes. Standard creation, private tier lists and saved fill submissions have matching rules. Storage writes/deletes check parent ownership.

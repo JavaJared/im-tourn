@@ -1,10 +1,44 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import {
+  clearFillDraft,
+  fillDraftKey,
+  readFillDraft,
+  saveFillDraft,
+  selectFillWinner,
+} from '../../lib/fillDraft';
 import { useAuth } from '../../contexts/AuthContext';
 import { submitFilledBracket } from '../../services/bracketService';
 
-const FillPage = ({ bracket, onSubmit, onBack }) => {
-  const [matchups, setMatchups] = useState(bracket.matchups);
+const FillPage = (props) => {
   const { currentUser } = useAuth();
+  const draftKey = fillDraftKey(props.bracket.id, currentUser?.uid);
+  // Remount when the account or source changes; never write an old user's draft into a new scope.
+  return (
+    <FillEditor
+      key={JSON.stringify([draftKey, props.bracket.matchups])}
+      {...props}
+      currentUser={currentUser}
+      draftKey={draftKey}
+    />
+  );
+};
+
+const FillEditor = ({ bracket, onSubmit, onBack, currentUser, draftKey }) => {
+  const [draft] = useState(() => readFillDraft(draftKey, bracket.matchups));
+  const [matchups, setMatchups] = useState(draft.matchups);
+  const [draftStatus, setDraftStatus] = useState(
+    draft.restored ? 'Saved picks restored.' : 'Picks save automatically on this device.',
+  );
+  const [submitError, setSubmitError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const getRoundName = (roundIndex, totalRounds) => {
     const remaining = totalRounds - roundIndex;
@@ -15,44 +49,19 @@ const FillPage = ({ bracket, onSubmit, onBack }) => {
   };
 
   const handleSelectWinner = (roundIndex, matchIndex, entryNum) => {
-    const newMatchups = matchups.map((round) => round.map((match) => ({ ...match })));
-    const match = newMatchups[roundIndex][matchIndex];
-    const selectedEntry = entryNum === 1 ? match.entry1 : match.entry2;
-
-    if (!selectedEntry) return;
-
-    match.winner = entryNum;
-
-    for (let r = roundIndex + 1; r < newMatchups.length; r++) {
-      for (let m = 0; m < newMatchups[r].length; m++) {
-        if (r === roundIndex + 1) {
-          const entrySlot = matchIndex % 2 === 0 ? 'entry1' : 'entry2';
-          newMatchups[r][Math.floor(matchIndex / 2)][entrySlot] = selectedEntry;
-          newMatchups[r][Math.floor(matchIndex / 2)].winner = null;
-        } else {
-          newMatchups[r][m].entry1 = null;
-          newMatchups[r][m].entry2 = null;
-          newMatchups[r][m].winner = null;
-        }
-      }
-    }
-
-    for (let r = roundIndex + 1; r < newMatchups.length; r++) {
-      for (let m = 0; m < newMatchups[r].length; m++) {
-        const prevRound = newMatchups[r - 1];
-        const match1 = prevRound[m * 2];
-        const match2 = prevRound[m * 2 + 1];
-        if (match1?.winner)
-          newMatchups[r][m].entry1 = match1.winner === 1 ? match1.entry1 : match1.entry2;
-        if (match2?.winner)
-          newMatchups[r][m].entry2 = match2.winner === 1 ? match2.entry1 : match2.entry2;
-      }
-    }
-
-    setMatchups(newMatchups);
+    if (submittingRef.current) return;
+    const next = selectFillWinner(matchups, roundIndex, matchIndex, entryNum);
+    setMatchups(next);
+    setDraftStatus(
+      saveFillDraft(draftKey, bracket.matchups, next)
+        ? 'Picks saved on this device.'
+        : 'Your browser could not save these picks. Keep this page open to avoid losing them.',
+    );
+    setSubmitError('');
   };
 
-  const isComplete = () => matchups[matchups.length - 1][0].winner !== null;
+  const isComplete = () =>
+    matchups.every((round) => round.every((match) => match.winner === 1 || match.winner === 2));
 
   const getChampion = () => {
     const finalMatch = matchups[matchups.length - 1][0];
@@ -64,29 +73,42 @@ const FillPage = ({ bracket, onSubmit, onBack }) => {
   };
 
   const handleSubmit = async () => {
+    if (submittingRef.current || !isComplete()) return;
+    submittingRef.current = true;
+    setSubmitting(true);
+    setSubmitError('');
     const filledBracket = { ...bracket, matchups, champion: getChampion() };
-
-    if (currentUser) {
-      try {
+    try {
+      if (currentUser) {
         await submitFilledBracket(
-          { matchups, champion: getChampion() },
+          { matchups, champion: filledBracket.champion },
           bracket.id,
           currentUser.uid,
           currentUser.displayName,
         );
-      } catch (error) {
-        console.error('Error saving submission:', error);
       }
+    } catch {
+      if (!mounted.current) return;
+      setSubmitError(
+        'Your bracket could not be submitted. Your picks are still here. Check your connection and try again.',
+      );
+      submittingRef.current = false;
+      setSubmitting(false);
+      return;
     }
-
-    onSubmit(filledBracket);
+    clearFillDraft(draftKey);
+    if (mounted.current) onSubmit(filledBracket);
   };
 
   const downloadBlankBracket = async () => {
     const { jsPDF } = await import('jspdf');
 
     // Create landscape letter PDF
-    const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'letter' });
+    const pdf = new jsPDF({
+      orientation: 'landscape',
+      unit: 'pt',
+      format: 'letter',
+    });
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
 
@@ -138,7 +160,9 @@ const FillPage = ({ bracket, onSubmit, onBack }) => {
       pdf.setFontSize(8);
       pdf.setTextColor(...mediumGray);
       const roundName = getRoundName(roundIndex, numRounds);
-      pdf.text(roundName, roundX + matchupWidth / 2, bracketTop - 5, { align: 'center' });
+      pdf.text(roundName, roundX + matchupWidth / 2, bracketTop - 5, {
+        align: 'center',
+      });
 
       // Calculate total height needed for this round's matchups
       // Each subsequent round needs more spacing to align with previous round
@@ -263,6 +287,7 @@ const FillPage = ({ bracket, onSubmit, onBack }) => {
       <div className="fill-header">
         <h1>{bracket.title}</h1>
         <p>Click on entries to select winners for each matchup</p>
+        <p role="status">{draftStatus}</p>
         <p className="bracket-author-fill">Created by {bracket.userDisplayName}</p>
         <button className="download-blank-btn" onClick={downloadBlankBracket}>
           <svg
@@ -286,7 +311,10 @@ const FillPage = ({ bracket, onSubmit, onBack }) => {
             <div className="matchups-container">
               {round.map((match, matchIndex) => (
                 <div key={match.id} className="matchup">
-                  <div
+                  <button
+                    type="button"
+                    disabled={!match.entry1 || submitting}
+                    aria-pressed={match.winner === 1}
                     className={`matchup-entry ${!match.entry1 ? 'empty' : ''} ${match.winner === 1 ? 'selected' : ''}`}
                     onClick={() => match.entry1 && handleSelectWinner(roundIndex, matchIndex, 1)}
                   >
@@ -298,8 +326,11 @@ const FillPage = ({ bracket, onSubmit, onBack }) => {
                     ) : (
                       <span className="entry-name tbd">TBD</span>
                     )}
-                  </div>
-                  <div
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!match.entry2 || submitting}
+                    aria-pressed={match.winner === 2}
                     className={`matchup-entry ${!match.entry2 ? 'empty' : ''} ${match.winner === 2 ? 'selected' : ''}`}
                     onClick={() => match.entry2 && handleSelectWinner(roundIndex, matchIndex, 2)}
                   >
@@ -311,7 +342,7 @@ const FillPage = ({ bracket, onSubmit, onBack }) => {
                     ) : (
                       <span className="entry-name tbd">TBD</span>
                     )}
-                  </div>
+                  </button>
                 </div>
               ))}
             </div>
@@ -326,12 +357,34 @@ const FillPage = ({ bracket, onSubmit, onBack }) => {
         </div>
       )}
 
+      {submitError && (
+        <p className="error-message" role="alert">
+          {submitError}
+        </p>
+      )}
+      {submitting && <p role="status">Saving your bracket. Please keep this page open.</p>}
+      {!currentUser && (
+        <p>
+          Sign in before filling to save a submission to your account. As a guest, you can export
+          your picks.
+        </p>
+      )}
       <div className="submit-section">
-        <button className="back-btn" onClick={onBack}>
+        <button className="back-btn" onClick={onBack} disabled={submitting}>
           Cancel
         </button>
-        <button className="submit-btn" disabled={!isComplete()} onClick={handleSubmit}>
-          Submit Bracket →
+        <button
+          className="submit-btn"
+          disabled={!isComplete() || submitting}
+          onClick={handleSubmit}
+        >
+          {submitting
+            ? 'Saving...'
+            : submitError
+              ? 'Retry Submission →'
+              : currentUser
+                ? 'Submit Bracket →'
+                : 'Export Bracket →'}
         </button>
       </div>
     </div>
