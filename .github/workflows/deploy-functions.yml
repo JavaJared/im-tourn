@@ -7,6 +7,9 @@ on:
       - 'im-tourn/src/lib/**'
       - 'im-tourn/src/services/interactiveSort.js'
       - 'im-tourn/firestore.indexes.json'
+      - 'im-tourn/package.json'
+      - 'im-tourn/package-lock.json'
+      - 'im-tourn/scripts/**'
       - '.github/workflows/deploy-functions.yml'
   workflow_dispatch:
 permissions:
@@ -38,6 +41,13 @@ jobs:
         run: printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/gcp-sa.json"
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      # Retain build artifacts; opt out of the interactive cleanup-policy prompt.
+      # --force is scoped to this policy command, never to function deletion.
+      - name: Retain Firebase build artifacts
+        working-directory: im-tourn
+        run: npx firebase functions:artifacts:setpolicy --none --force --location us-central1 --project "$FIREBASE_PROJECT_ID" --non-interactive
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json
       - name: Deploy functions and indexes
         working-directory: im-tourn
         run: npx firebase deploy --only functions,firestore:indexes --project "$FIREBASE_PROJECT_ID" --non-interactive
