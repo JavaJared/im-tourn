@@ -1,3 +1,4 @@
+import { weeklyVotingOpen, weekKey } from '../lib/weeklyState';
 // src/components/WeeklyBracketPage.jsx
 //
 // Revamped Weekly Bracket experience.
@@ -22,14 +23,14 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import {
-  getWeeklyBracket,
+  subscribeWeeklyBracket,
   submitWeeklyVote,
   hasUserVotedForRound,
   getUserVotesForRound,
 } from '../services/bracketService';
 
 // Transition phase durations (ms). One knob for tests and tuning.
-const PHASE_MS = { out: 420, travel: 520, in: 420 };
+const PHASE_MS = { out: 120, travel: 140, in: 120 };
 
 const prefersReducedMotion = () =>
   typeof window !== 'undefined'
@@ -122,7 +123,7 @@ function BracketMap({ matchups, votes, activeRound, userVotes, currentIdx, pulse
 
         if (!expanded) {
           return (
-            <g key={`b${r}-${m}`} onClick={tappable ? () => onTapBox(m) : undefined}>
+            <g role={tappable ? "button" : undefined} tabIndex={tappable ? 0 : undefined} aria-label={`Round ${r + 1}, matchup ${m + 1}`} onKeyDown={e => { if (tappable && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onTapBox(m); } }} key={`b${r}-${m}`} onClick={tappable ? () => onTapBox(m) : undefined}>
               <rect x={left} y={top} width={BOX_W} height={BOX_H} rx="5" className={cls} />
               {match.entry1 && match.entry2 && (
                 <text x={c.x} y={c.y + 3.5} textAnchor="middle" className={`wv-map-label ${isActive ? 'active' : ''}`}>
@@ -168,7 +169,7 @@ function BracketMap({ matchups, votes, activeRound, userVotes, currentIdx, pulse
           );
         };
         return (
-          <g key={`b${r}-${m}`} onClick={tappable ? () => onTapBox(m) : undefined}>
+          <g role={tappable ? "button" : undefined} tabIndex={tappable ? 0 : undefined} aria-label={`Round ${r + 1}, matchup ${m + 1}`} onKeyDown={e => { if (tappable && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onTapBox(m); } }} key={`b${r}-${m}`} onClick={tappable ? () => onTapBox(m) : undefined}>
             <rect x={left} y={top} width={BOX_W} height={BOX_H} rx="7" className={cls} />
             {row(match.entry1, 1, top)}
             <line x1={left + 4} x2={left + BOX_W - 4} y1={c.y} y2={c.y} className="wv-map-divider" />
@@ -243,31 +244,32 @@ const WeeklyBracketPage = () => {
   const later = (fn, ms) => { timers.current.push(setTimeout(fn, ms)); };
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [currentUser?.uid]);
-
-  const load = async () => {
-    try {
-      const data = await getWeeklyBracket();
-      setBracket(data);
-      if (data && currentUser) {
-        const round = data.currentRound ?? 0;
-        const voted = await hasUserVotedForRound(currentUser.uid, round);
-        setHasVoted(voted);
-        if (voted) {
-          const votes = await getUserVotesForRound(currentUser.uid, round);
-          setUserVotes(votes || {});
-          setFlow('results');
-        } else {
-          setFlow('vote'); setIdx(0); setPhase('card');
-        }
-      } else if (data) {
-        setFlow('vote'); setIdx(0); setPhase('card');   // signed-out: browse cards; picking prompts login
-      }
-    } catch (e) {
-      console.error('Error loading weekly bracket:', e);
-    }
-    setLoading(false);
-  };
+  const [loadError, setLoadError] = useState(null);
+  const [now, setNow] = useState(new Date());
+  useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
+  useEffect(() => subscribeWeeklyBracket(data => { setBracket(data); setLoading(false); setLoadError(null); }, e => { setLoadError(e.message); setLoading(false); }), []);
+  const identity = `${weekKey(bracket)}:${bracket?.currentRound || 0}:${currentUser?.uid || 'anon'}`;
+  const draftKey = `weekly-draft:${identity}`;
+  useEffect(() => {
+    let active = true;
+    timers.current.forEach(clearTimeout); timers.current = [];
+    setHasVoted(false); setUserVotes({}); setIdx(0); setResultsIdx(0); setPhase('card'); setPulse(null); setReturnToReview(false); setFlow('results');
+    if (!bracket) return;
+    const load = async () => {
+      try {
+        const votes = currentUser ? await getUserVotesForRound(currentUser.uid, bracket.currentRound || 0, bracket) : null;
+        if (!active) return;
+        let draft = {};
+        try { draft = JSON.parse(localStorage.getItem(draftKey)) || {}; } catch {}
+        setHasVoted(!!votes); setUserVotes(votes || draft);
+        setFlow(votes || !weeklyVotingOpen(bracket) ? 'results' : 'vote');
+      } catch (e) { if (active) setLoadError(e.message); }
+    };
+    load();
+    return () => { active = false; };
+  }, [identity]);
+  const votingOpen = weeklyVotingOpen(bracket, now);
+  useEffect(() => { if (!votingOpen) setFlow('results'); }, [votingOpen]);
 
   const activeRound = bracket?.currentRound ?? 0;
   const matchups = bracket?.matchups?.[activeRound] || [];
@@ -292,9 +294,10 @@ const WeeklyBracketPage = () => {
   // ---- voting flow -------------------------------------------------------
   const handlePick = (side) => {
     if (!currentUser) { alert('Please log in to vote'); return; }
-    if (phase !== 'card' || hasVoted) return;
+    if (phase !== 'card' || hasVoted || !votingOpen || submitting) return;
     const next = { ...userVotes, [`r${activeRound}-m${idx}`]: side };
     setUserVotes(next);
+    try { localStorage.setItem(draftKey, JSON.stringify(next)); } catch {}
 
     const lastIdx = matchups.length - 1;
     const goingToReview = returnToReview || idx >= lastIdx;
@@ -324,29 +327,18 @@ const WeeklyBracketPage = () => {
   const allPicked = matchups.length > 0 && matchups.every((_, m) => userVotes[`r${activeRound}-m${m}`]);
 
   const handleSubmit = async () => {
-    if (!currentUser || !allPicked) return;
+    if (!currentUser || !allPicked || !votingOpen || submitting) return;
     setSubmitting(true);
     try {
-      await submitWeeklyVote(currentUser.uid, activeRound, userVotes);
+      await submitWeeklyVote(currentUser.uid, activeRound, userVotes, weekKey(bracket));
       setHasVoted(true);
-      // Optimistic tally merge: the cloud trigger lands in a second or two;
-      // show the voter their own vote immediately.
-      setBracket((prev) => {
-        if (!prev) return prev;
-        const votes = { ...(prev.votes || {}) };
-        Object.entries(userVotes).forEach(([mid, sel]) => {
-          const t = votes[mid] ? { ...votes[mid] } : { entry1: 0, entry2: 0 };
-          if (sel === 1) t.entry1 += 1; else t.entry2 += 1;
-          votes[mid] = t;
-        });
-        return { ...prev, votes };
-      });
+      try { localStorage.removeItem(draftKey); } catch {}
       setResultsIdx(0);
       setFlow('results');
       setShowFullBracket(false);
     } catch (e) {
       console.error('Error submitting votes:', e);
-      alert('Failed to submit votes. Please try again.');
+      alert(e.message || 'Failed to submit votes. Please try again.');
     }
     setSubmitting(false);
   };
@@ -357,13 +349,14 @@ const WeeklyBracketPage = () => {
       <div className="home-container"><div className="loading-state"><div className="spinner"></div><p>Loading weekly bracket...</p></div></div>
     );
   }
+  if (loadError) return <div role="alert" className="home-container">{loadError}<button onClick={() => window.location.reload()}>Retry</button></div>;
   if (!bracket || !bracket.matchups?.length) {
     return (
       <div className="home-container"><div className="empty-state"><p>No weekly bracket is running right now. Check back soon!</p></div></div>
     );
   }
 
-  const votingMode = flow === 'vote' && !hasVoted;
+  const votingMode = flow === 'vote' && !hasVoted && votingOpen;
   const showCard = votingMode && matchups[idx];
   const frac = showCard ? slotFraction(idx) : { x: 0.5, y: 0.5 };
   const cardStyle = phase === 'out'
@@ -420,7 +413,7 @@ const WeeklyBracketPage = () => {
       )}
 
       {/* ---------------- REVIEW ---------------- */}
-      {flow === 'review' && !hasVoted && (
+      {flow === 'review' && !hasVoted && votingOpen && (
         <div className="wv-review">
           <p className="wv-review-hint">Here's your round. Tap any matchup to change your pick.</p>
           <div className="wv-review-map">
@@ -442,9 +435,10 @@ const WeeklyBracketPage = () => {
       {(flow === 'results' || hasVoted) && flow !== 'review' && !votingMode && (
         <div className="wv-results">
           {!currentUser && <p className="wv-review-hint">Log in to vote in this round.</p>}
-          {!hasVoted && currentUser && flow === 'results' && (
+          {!hasVoted && currentUser && votingOpen && flow === 'results' && (
             <p className="wv-review-hint">Results are hidden until you vote.</p>
           )}
+          {!votingOpen && !champion && <p className="wv-review-hint">Voting is closed for this round. Results will update automatically.</p>}
           {showFullBracket ? (
             <>
               <div className="wv-full-map">

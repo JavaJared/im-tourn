@@ -1,3 +1,8 @@
+import { callServer } from './server';
+import { requirePredictionsOpen } from '../lib/poolLifecycle';
+import { normalizeSleeper } from '../lib/legacyPoolAdapter';
+import { weekKey, standardWeeklyMatchups } from '../lib/weeklyState';
+import { onSnapshot } from 'firebase/firestore';
 // src/services/bracketService.js
 import { 
   collection, 
@@ -132,21 +137,7 @@ export async function getBracketSubmissions(bracketId) {
 
 // Toggle upvote on a submission
 export async function toggleSubmissionUpvote(submissionId, userId, hasUpvoted) {
-  const submissionRef = doc(db, SUBMISSIONS_COLLECTION, submissionId);
-  
-  if (hasUpvoted) {
-    // Remove upvote
-    await updateDoc(submissionRef, {
-      upvotes: increment(-1),
-      upvotedBy: arrayRemove(userId)
-    });
-  } else {
-    // Add upvote
-    await updateDoc(submissionRef, {
-      upvotes: increment(1),
-      upvotedBy: arrayUnion(userId)
-    });
-  }
+  return callServer('setSubmissionUpvote', { submissionId, liked: !hasUpvoted });
 }
 
 // Get user's submissions
@@ -211,6 +202,8 @@ export async function getLargeBrackets() {
     };
   });
   
+  const modern = await getDocs(query(collection(db, 'customBrackets'), where('status', '==', 'published')));
+  for (const d of modern.docs) { const data = d.data(); const matchups = standardWeeklyMatchups(data); if (matchups) brackets.push({ id: d.id, ...data, size: data.participantCount, matchups, createdAt: data.createdAt?.toDate?.()?.toLocaleDateString() || '' }); }
   // Sort by createdAt descending
   return brackets.sort((a, b) => {
     if (!a.createdAt || !b.createdAt) return 0;
@@ -237,274 +230,51 @@ export async function getWeeklyBracket() {
 
 // Set weekly bracket (admin only)
 export async function setWeeklyBracket(bracketData) {
-  const docRef = doc(db, WEEKLY_BRACKET_COLLECTION, 'current');
-  
-  // First, archive the existing bracket if it has a champion
-  const existingBracketSnap = await getDoc(docRef);
-  if (existingBracketSnap.exists()) {
-    const existingData = existingBracketSnap.data();
-    const existingMatchups = typeof existingData.matchups === 'string' 
-      ? JSON.parse(existingData.matchups) 
-      : existingData.matchups;
-    
-    // Check if there's a final round with a winner
-    const finalRound = existingMatchups[existingMatchups.length - 1];
-    const finalMatch = finalRound?.[0];
-    
-    if (finalMatch?.winner) {
-      const champion = finalMatch.winner === 1 ? finalMatch.entry1 : finalMatch.entry2;
-      
-      // Archive the bracket
-      await addDoc(collection(db, WEEKLY_ARCHIVE_COLLECTION), {
-        title: existingData.title,
-        category: existingData.category,
-        champion: champion ? { name: champion.name, seed: champion.seed } : null,
-        startDate: existingData.startDate,
-        archivedAt: serverTimestamp()
-      });
-    }
-  }
-  
-  // Clear all existing votes from previous bracket
-  const votesSnapshot = await getDocs(collection(db, WEEKLY_VOTES_COLLECTION));
-  const deletePromises = votesSnapshot.docs.map(doc => deleteDoc(doc.ref));
-  await Promise.all(deletePromises);
-  
-  // Initialize votes structure for all matchups
-  const votes = {};
-  bracketData.matchups.forEach((round, roundIndex) => {
-    round.forEach((match, matchIndex) => {
-      votes[`r${roundIndex}-m${matchIndex}`] = { entry1: 0, entry2: 0 };
-    });
-  });
-  
-  // Get Monday of this week at midnight EST
-  const now = new Date();
-  const dayOfWeek = now.getDay();
-  const daysUntilMonday = dayOfWeek === 0 ? 1 : (dayOfWeek === 1 ? 0 : 8 - dayOfWeek);
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-  monday.setHours(0, 0, 0, 0);
-  
-  const dataToSave = {
-    ...bracketData,
-    matchups: JSON.stringify(bracketData.matchups),
-    votes: JSON.stringify(votes),
-    startDate: monday,
-    currentRound: 0,
-    updatedAt: serverTimestamp()
-  };
-  
-  await setDoc(docRef, dataToSave);
+  return callServer('manageWeeklyBracket', { action: 'set', bracket: bracketData });
 }
 
 // Submit vote for weekly bracket
-export async function submitWeeklyVote(userId, roundIndex, votes) {
-  // Record the user's vote; the tallyWeeklyVote cloud function folds it
-  // into the shared tallies server-side (clients can't write weeklyBracket).
-  const voteDocRef = doc(db, WEEKLY_VOTES_COLLECTION, `${userId}_round${roundIndex}`);
-  await setDoc(voteDocRef, {
-    userId,
-    roundIndex,
-    votes: JSON.stringify(votes),
-    submittedAt: serverTimestamp()
-  });
+export async function submitWeeklyVote(userId, roundIndex, votes, weekId) {
+  return callServer('castWeeklyVotes', { weekId, roundIndex, votes });
 }
 
 // Check if user has voted for a round
-export async function hasUserVotedForRound(userId, roundIndex) {
-  const voteDocRef = doc(db, WEEKLY_VOTES_COLLECTION, `${userId}_round${roundIndex}`);
-  const docSnap = await getDoc(voteDocRef);
-  return docSnap.exists();
+export async function hasUserVotedForRound(userId, roundIndex, bracket) {
+  return !!(await getUserVotesForRound(userId, roundIndex, bracket));
 }
 
 // Get user's votes for a round
-export async function getUserVotesForRound(userId, roundIndex) {
-  const voteDocRef = doc(db, WEEKLY_VOTES_COLLECTION, `${userId}_round${roundIndex}`);
-  const docSnap = await getDoc(voteDocRef);
-  
-  if (docSnap.exists()) {
-    const data = docSnap.data();
-    return typeof data.votes === 'string' ? JSON.parse(data.votes) : data.votes;
-  }
-  return null;
+export async function getUserVotesForRound(userId, roundIndex, bracket) {
+  if (!bracket) bracket = await getWeeklyBracket();
+  if (!bracket) return null;
+  const prefix = bracket.weekId ? `${bracket.weekId}_${userId}` : userId;
+  const snap = await getDoc(doc(db, WEEKLY_VOTES_COLLECTION, `${prefix}_round${roundIndex}`));
+  if (!snap.exists()) return null;
+  const data = snap.data();
+  if (data.weekId && data.weekId !== weekKey(bracket)) return null;
+  if (!data.weekId && data.submittedAt?.toMillis() < +bracket.startDate) return null;
+  return typeof data.votes === 'string' ? JSON.parse(data.votes) : data.votes;
 }
 
 // Advance weekly bracket to next round (admin/automated)
 export async function advanceWeeklyBracket() {
-  const bracketRef = doc(db, WEEKLY_BRACKET_COLLECTION, 'current');
-  const bracketSnap = await getDoc(bracketRef);
-  
-  if (!bracketSnap.exists()) return null;
-  
-  const data = bracketSnap.data();
-  const matchups = typeof data.matchups === 'string' ? JSON.parse(data.matchups) : data.matchups;
-  const votes = typeof data.votes === 'string' ? JSON.parse(data.votes) : data.votes;
-  const currentRound = data.currentRound || 0;
-  
-  // Don't advance past the final round
-  if (currentRound >= matchups.length - 1) return null;
-  
-  // Determine winners for current round
-  const currentRoundMatchups = matchups[currentRound];
-  currentRoundMatchups.forEach((match, matchIndex) => {
-    const matchVotes = votes[`r${currentRound}-m${matchIndex}`];
-    if (matchVotes && !match.winner) {
-      // Determine winner (entry1 wins ties)
-      const winner = matchVotes.entry1 >= matchVotes.entry2 ? 1 : 2;
-      match.winner = winner;
-    }
-    
-    // Advance winner to next round
-    if (match.winner && currentRound < matchups.length - 1) {
-      const nextRoundMatchIndex = Math.floor(matchIndex / 2);
-      const entrySlot = matchIndex % 2 === 0 ? 'entry1' : 'entry2';
-      const winningEntry = match.winner === 1 ? match.entry1 : match.entry2;
-      matchups[currentRound + 1][nextRoundMatchIndex][entrySlot] = winningEntry;
-    }
-  });
-  
-  // Update bracket
-  await updateDoc(bracketRef, {
-    matchups: JSON.stringify(matchups),
-    currentRound: currentRound + 1,
-    lastAdvanced: serverTimestamp(),
-    updatedAt: serverTimestamp()
-  });
-  
-  return { matchups, currentRound: currentRound + 1 };
+  return callServer('manageWeeklyBracket', { action: 'advance' });
 }
 
 // Set manual winner for a specific matchup (admin only)
 export async function setManualWinner(roundIndex, matchIndex, winner) {
-  const bracketRef = doc(db, WEEKLY_BRACKET_COLLECTION, 'current');
-  const bracketSnap = await getDoc(bracketRef);
-  
-  if (!bracketSnap.exists()) return null;
-  
-  const data = bracketSnap.data();
-  const matchups = typeof data.matchups === 'string' ? JSON.parse(data.matchups) : data.matchups;
-  
-  // Set the winner
-  matchups[roundIndex][matchIndex].winner = winner;
-  
-  // Propagate to next round if not final
-  if (roundIndex < matchups.length - 1) {
-    const nextRoundMatchIndex = Math.floor(matchIndex / 2);
-    const entrySlot = matchIndex % 2 === 0 ? 'entry1' : 'entry2';
-    const winningEntry = winner === 1 
-      ? matchups[roundIndex][matchIndex].entry1 
-      : matchups[roundIndex][matchIndex].entry2;
-    matchups[roundIndex + 1][nextRoundMatchIndex][entrySlot] = winningEntry;
-  }
-  
-  await updateDoc(bracketRef, {
-    matchups: JSON.stringify(matchups),
-    updatedAt: serverTimestamp()
-  });
-  
-  return matchups;
+  await callServer('manageWeeklyBracket', { action: 'pick', roundIndex, matchIndex, winner });
+  return (await getWeeklyBracket())?.matchups || [];
 }
 
 // Check if bracket should auto-advance based on time
 export async function checkAndAutoAdvance() {
-  const bracketRef = doc(db, WEEKLY_BRACKET_COLLECTION, 'current');
-  const bracketSnap = await getDoc(bracketRef);
-  
-  if (!bracketSnap.exists()) return null;
-  
-  const data = bracketSnap.data();
-  const currentRound = data.currentRound || 0;
-  const matchups = typeof data.matchups === 'string' ? JSON.parse(data.matchups) : data.matchups;
-  
-  // Don't advance past final round
-  if (currentRound >= matchups.length - 1) return null;
-  
-  // Get current time in EST
-  const now = new Date();
-  const estOffset = -5; // EST is UTC-5 (ignoring DST for simplicity)
-  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-  const estTime = new Date(utc + (3600000 * estOffset));
-  
-  // Get day of week (0 = Sunday, 1 = Monday, etc.)
-  const dayOfWeek = estTime.getDay();
-  
-  // Map days to expected rounds
-  // Monday = round 0, Tuesday = round 1, etc.
-  const dayToExpectedRound = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 4, 0: 4 };
-  const expectedRound = dayToExpectedRound[dayOfWeek] ?? 0;
-  
-  // If we're behind, advance
-  if (currentRound < expectedRound) {
-    // Advance all missed rounds
-    let advancedMatchups = matchups;
-    for (let r = currentRound; r < expectedRound; r++) {
-      const votes = typeof data.votes === 'string' ? JSON.parse(data.votes) : data.votes;
-      
-      // Set winners for this round
-      advancedMatchups[r].forEach((match, matchIndex) => {
-        if (!match.winner) {
-          const matchVotes = votes[`r${r}-m${matchIndex}`];
-          // Default to entry1 if no votes or tie
-          const winner = (matchVotes && matchVotes.entry2 > matchVotes.entry1) ? 2 : 1;
-          match.winner = winner;
-        }
-        
-        // Propagate to next round
-        if (r < advancedMatchups.length - 1) {
-          const nextRoundMatchIndex = Math.floor(matchIndex / 2);
-          const entrySlot = matchIndex % 2 === 0 ? 'entry1' : 'entry2';
-          const winningEntry = match.winner === 1 ? match.entry1 : match.entry2;
-          advancedMatchups[r + 1][nextRoundMatchIndex][entrySlot] = winningEntry;
-        }
-      });
-    }
-    
-    await updateDoc(bracketRef, {
-      matchups: JSON.stringify(advancedMatchups),
-      currentRound: expectedRound,
-      lastAdvanced: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    });
-    
-    return { matchups: advancedMatchups, currentRound: expectedRound, autoAdvanced: true };
-  }
-  
-  return null;
+  return getWeeklyBracket(); // Scheduling is server-owned.
 }
 
 // Clear weekly bracket (admin) - archives before clearing
 export async function clearWeeklyBracket() {
-  const bracketRef = doc(db, WEEKLY_BRACKET_COLLECTION, 'current');
-  const bracketSnap = await getDoc(bracketRef);
-  
-  // Archive the bracket if it has a champion
-  if (bracketSnap.exists()) {
-    const data = bracketSnap.data();
-    const matchups = typeof data.matchups === 'string' ? JSON.parse(data.matchups) : data.matchups;
-    const finalRound = matchups[matchups.length - 1];
-    const finalMatch = finalRound?.[0];
-    
-    let champion = null;
-    if (finalMatch?.winner) {
-      champion = finalMatch.winner === 1 ? finalMatch.entry1 : finalMatch.entry2;
-    }
-    
-    await addDoc(collection(db, WEEKLY_ARCHIVE_COLLECTION), {
-      title: data.title,
-      category: data.category,
-      champion: champion ? { name: champion.name, seed: champion.seed } : null,
-      startDate: data.startDate,
-      archivedAt: serverTimestamp()
-    });
-  }
-  
-  await deleteDoc(bracketRef);
-  
-  // Also clear all votes
-  const votesSnapshot = await getDocs(collection(db, WEEKLY_VOTES_COLLECTION));
-  const deletePromises = votesSnapshot.docs.map(doc => deleteDoc(doc.ref));
-  await Promise.all(deletePromises);
+  return callServer('manageWeeklyBracket', { action: 'clear' });
 }
 
 // Get archived weekly bracket champions
@@ -654,9 +424,7 @@ export async function joinBracketPool(poolId, userId, userDisplayName) {
   if (!pool) {
     throw new Error('Pool not found');
   }
-  if (pool.status !== 'open') {
-    throw new Error('This pool is no longer accepting entries');
-  }
+  requirePredictionsOpen(pool);
   
   // Create entry
   const entryRef = doc(db, POOL_ENTRIES_COLLECTION, `${poolId}_${userId}`);
@@ -696,9 +464,7 @@ export async function submitPoolPredictions(poolId, userId, predictions, champio
   if (!pool) {
     throw new Error('Pool not found');
   }
-  if (pool.status !== 'open') {
-    throw new Error('This pool is no longer accepting predictions');
-  }
+  requirePredictionsOpen(pool);
   
   const entryRef = doc(db, POOL_ENTRIES_COLLECTION, `${poolId}_${userId}`);
   const updateData = {
@@ -935,8 +701,8 @@ export async function getPoolEntries(poolId) {
       id: doc.id,
       ...data,
       predictions: data.predictions ? (typeof data.predictions === 'string' ? JSON.parse(data.predictions) : data.predictions) : null,
-      sleeper1: data.sleeper1 ? (typeof data.sleeper1 === 'string' ? JSON.parse(data.sleeper1) : data.sleeper1) : null,
-      sleeper2: data.sleeper2 ? (typeof data.sleeper2 === 'string' ? JSON.parse(data.sleeper2) : data.sleeper2) : null,
+      sleeper1: normalizeSleeper(data.sleeper1),
+      sleeper2: normalizeSleeper(data.sleeper2),
       sleeper1Hit: data.sleeper1Hit || false,
       sleeper2Hit: data.sleeper2Hit || false,
       joinedAt: data.joinedAt?.toDate?.() || null,
@@ -947,28 +713,7 @@ export async function getPoolEntries(poolId) {
 
 // Complete the pool (declare winner)
 export async function completePool(poolId, hostId) {
-  const pool = await getPoolById(poolId);
-  if (!pool) {
-    throw new Error('Pool not found');
-  }
-  if (pool.hostId !== hostId) {
-    throw new Error('Only the host can complete this pool');
-  }
-  
-  // Get the winner (highest score)
-  const entries = await getPoolEntries(poolId);
-  const winner = entries.length > 0 ? entries[0] : null;
-  
-  const poolRef = doc(db, POOLS_COLLECTION, poolId);
-  await updateDoc(poolRef, {
-    status: 'completed',
-    winnerId: winner?.userId || null,
-    winnerName: winner?.userDisplayName || null,
-    winnerScore: winner?.score || 0,
-    updatedAt: serverTimestamp()
-  });
-  
-  return { winner };
+  return callServer('managePoolResults', { poolId, action: 'complete' });
 }
 
 // Delete a pool (host only)
@@ -1120,9 +865,7 @@ export async function joinPredictionPool(poolId, userId, userDisplayName) {
   if (!pool) {
     throw new Error('Pool not found');
   }
-  if (pool.status !== 'open') {
-    throw new Error('This pool is no longer accepting entries');
-  }
+  requirePredictionsOpen(pool);
   
   const entryRef = doc(db, PREDICTION_ENTRIES_COLLECTION, `${poolId}_${userId}`);
   await setDoc(entryRef, {
@@ -1161,9 +904,7 @@ export async function submitPredictionPoolPredictions(poolId, userId, prediction
   if (!pool) {
     throw new Error('Pool not found');
   }
-  if (pool.status !== 'open') {
-    throw new Error('This pool is no longer accepting predictions');
-  }
+  requirePredictionsOpen(pool);
   
   const entryRef = doc(db, PREDICTION_ENTRIES_COLLECTION, `${poolId}_${userId}`);
   await updateDoc(entryRef, {
@@ -1355,4 +1096,14 @@ export async function deletePredictionPool(poolId, hostId) {
   await deleteDoc(doc(db, PREDICTION_POOLS_COLLECTION, poolId));
   
   return true;
+}
+
+export function subscribeWeeklyBracket(onChange, onError) {
+  return onSnapshot(doc(db, WEEKLY_BRACKET_COLLECTION, 'current'), snap => {
+    if (!snap.exists()) { onChange(null); return; }
+    try {
+      const data = snap.data();
+      onChange({ ...data, matchups: typeof data.matchups === 'string' ? JSON.parse(data.matchups) : data.matchups, votes: typeof data.votes === 'string' ? JSON.parse(data.votes) : data.votes || {}, startDate: data.startDate?.toDate?.() || new Date(data.startDate) });
+    } catch { onError?.(new Error('Weekly bracket data could not be loaded.')); }
+  }, onError);
 }

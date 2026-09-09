@@ -1,5 +1,9 @@
+const FeedbackInbox = lazy(() => import('./components/FeedbackInbox'));
+import { useDialog } from './lib/useDialog';
+import { useViewNavigation, readSession, saveSession } from './lib/useViewNavigation';
+import { submitFeedback } from './services/feedbackService';
 // src/App.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import {  
   getAllBrackets, 
@@ -52,33 +56,28 @@ import {
   completePredictionPool,
   deletePredictionPool
 } from './services/bracketService';
-import {
-  RankingsBrowsePage,
-  CreateRankingPage,
-  RankingDetailPage,
-  RankingVotePage,
-  MyRankingsPage
-} from './components/RankingPages';
-import {
-  PrivacyPolicyPage,
-  TermsOfServicePage
-} from './components/LegalPages';
-import {
-  DraftsBrowsePage,
-  CreateDraftPage,
-  DraftLobbyPage,
-  MyDraftsPage
-} from './components/DraftPages';
+const RankingsBrowsePage = lazy(() => import('./components/RankingPages').then(m => ({ default: m.RankingsBrowsePage })));
+const CreateRankingPage = lazy(() => import('./components/RankingPages').then(m => ({ default: m.CreateRankingPage })));
+const RankingDetailPage = lazy(() => import('./components/RankingPages').then(m => ({ default: m.RankingDetailPage })));
+const RankingVotePage = lazy(() => import('./components/RankingPages').then(m => ({ default: m.RankingVotePage })));
+const MyRankingsPage = lazy(() => import('./components/RankingPages').then(m => ({ default: m.MyRankingsPage })));
+const PrivacyPolicyPage = lazy(() => import('./components/LegalPages').then(m => ({ default: m.PrivacyPolicyPage })));
+const TermsOfServicePage = lazy(() => import('./components/LegalPages').then(m => ({ default: m.TermsOfServicePage })));
+const DraftsBrowsePage = lazy(() => import('./components/DraftPages').then(m => ({ default: m.DraftsBrowsePage })));
+const CreateDraftPage = lazy(() => import('./components/DraftPages').then(m => ({ default: m.CreateDraftPage })));
+const DraftLobbyPage = lazy(() => import('./components/DraftPages').then(m => ({ default: m.DraftLobbyPage })));
+const MyDraftsPage = lazy(() => import('./components/DraftPages').then(m => ({ default: m.MyDraftsPage })));
 import { useMemo } from 'react';  // if useMemo isn't already imported alongside useState etc.
 import { analyzePool, shouldShowWinningPaths } from './lib/elimination';
 import { StatusBadge, WhatNeedsToHappen } from './components/EliminationStatus';
 import './App.css';
-import CustomBracketPage from './components/CustomBracketPage';
+const CustomBracketPage = lazy(() => import('./components/CustomBracketPage'));
 import { createCustomBracket, createStandardBracket, getUserCustomBrackets, getCustomStructureForPool, getPublicCustomBrackets, deleteBracket as deleteCustomBracket } from './services/customBracketService';
 import { generateSeededBracket, structureFromState } from './lib/standardBracket';
-import CustomPoolDetail from './components/CustomPoolDetail';
-import WeeklyBracketPage from './components/WeeklyBracketPage';
-import { KristinTiersPage, KristinTiersDetailPage } from './components/TierPages';
+const CustomPoolDetail = lazy(() => import('./components/CustomPoolDetail'));
+const WeeklyBracketPage = lazy(() => import('./components/WeeklyBracketPage'));
+const KristinTiersPage = lazy(() => import('./components/TierPages').then(m => ({ default: m.KristinTiersPage })));
+const KristinTiersDetailPage = lazy(() => import('./components/TierPages').then(m => ({ default: m.KristinTiersDetailPage })));
 
 // Admin user IDs (add your Firebase user ID here)
 const ADMIN_USER_IDS = ['VBbDwj6gkVgW7gBcs3vTmt0ulLF2'];
@@ -102,6 +101,7 @@ const CUSTOM_BADGE_STYLE = { display: 'inline-block', marginLeft: 8, padding: '2
 
 // Auth Modal Component
 const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
+  const dialogRef = useDialog(isOpen, onClose);
   const [mode, setMode] = useState(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -149,8 +149,8 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose}>×</button>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Account sign in" className="modal-content" onClick={e => e.stopPropagation()}>
+        <button aria-label="Close dialog" className="modal-close" onClick={onClose}>×</button>
         <h2 className="modal-title">{mode === 'login' ? 'Welcome Back' : 'Create Account'}</h2>
         
         {error && <div className="error-message">{error}</div>}
@@ -162,7 +162,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
               <input
                 type="text"
                 className="form-input"
-                value={displayName}
+                aria-label="Display name" value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 placeholder="Your name"
                 required
@@ -175,7 +175,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
             <input
               type="email"
               className="form-input"
-              value={email}
+              aria-label="Email" maxLength={254} value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               required
@@ -187,7 +187,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
             <input
               type="password"
               className="form-input"
-              value={password}
+              aria-label="Password" value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
@@ -289,7 +289,7 @@ const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
     const hasUpvoted = userUpvotes[submission.id];
     
     try {
-      await toggleSubmissionUpvote(submission.id, currentUser.uid, hasUpvoted);
+      const result = await toggleSubmissionUpvote(submission.id, currentUser.uid, hasUpvoted);
       
       // Update local state
       setSubmissions(prev => {
@@ -300,7 +300,7 @@ const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
               : [...sub.upvotedBy, currentUser.uid];
             return {
               ...sub,
-              upvotes: hasUpvoted ? sub.upvotes - 1 : sub.upvotes + 1,
+              upvotes: result.upvotes,
               upvotedBy: newUpvotedBy
             };
           }
@@ -332,7 +332,7 @@ const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="submissions-modal" onClick={e => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose}>×</button>
+        <button aria-label="Close dialog" className="modal-close" onClick={onClose}>×</button>
         
         <div className="submissions-header">
           <h2>Submissions for "{bracket?.title}"</h2>
@@ -590,6 +590,8 @@ const Header = ({ onNavigate, currentView }) => {
 
 // Feedback Modal Component
 const FeedbackModal = ({ isOpen, onClose }) => {
+  const dialogRef = useDialog(isOpen, onClose);
+  const [feedbackError, setFeedbackError] = useState('');
   const [feedbackType, setFeedbackType] = useState('bug');
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
@@ -613,22 +615,13 @@ const FeedbackModal = ({ isOpen, onClose }) => {
 
     setSubmitting(true);
     
-    // In a real app, you'd send this to a backend/email service
-    // For now, we'll simulate the submission and log it
-    console.log('Feedback submitted:', {
-      type: feedbackType,
-      subject,
-      description,
-      email,
-      userId: currentUser?.uid,
-      timestamp: new Date().toISOString()
-    });
+    setFeedbackError('');
+    try {
+      await submitFeedback({ type: feedbackType, subject, description, email });
+      setSubmitted(true);
+    } catch (error) { setFeedbackError(error.message || 'Feedback could not be sent. Please try again.'); }
+    finally { setSubmitting(false); }
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    setSubmitting(false);
-    setSubmitted(true);
   };
 
   const handleClose = () => {
@@ -643,8 +636,8 @@ const FeedbackModal = ({ isOpen, onClose }) => {
 
   return (
     <div className="modal-overlay" onClick={handleClose}>
-      <div className="feedback-modal" onClick={e => e.stopPropagation()}>
-        <button className="modal-close" onClick={handleClose}>×</button>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Send feedback" className="feedback-modal" onClick={e => e.stopPropagation()}>
+        <button aria-label="Close dialog" className="modal-close" onClick={handleClose}>×</button>
         
         {submitted ? (
           <div className="feedback-success">
@@ -656,7 +649,8 @@ const FeedbackModal = ({ isOpen, onClose }) => {
         ) : (
           <>
             <h2>Send Feedback</h2>
-            <p className="feedback-subtitle">Help us improve I'm Tourn</p>
+            <p className="feedback-subtitle">Help us improve I'm Tourn{!currentUser && " · Log in to send feedback"}</p>
+            {feedbackError && <p role="alert">{feedbackError}</p>}
             
             <form onSubmit={handleSubmit}>
               <div className="feedback-type-selector">
@@ -689,7 +683,7 @@ const FeedbackModal = ({ isOpen, onClose }) => {
                   type="text"
                   className="form-input"
                   placeholder={feedbackType === 'bug' ? 'Brief description of the issue' : 'What would you like to see?'}
-                  value={subject}
+                  maxLength={200} aria-label="Subject" value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   required
                 />
@@ -702,7 +696,7 @@ const FeedbackModal = ({ isOpen, onClose }) => {
                   placeholder={feedbackType === 'bug' 
                     ? 'Please describe the bug in detail. What did you expect to happen? What actually happened?' 
                     : 'Please describe your idea in detail. How would this feature help you?'}
-                  value={description}
+                  maxLength={5000} aria-label="Description" value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={5}
                   required
@@ -715,7 +709,7 @@ const FeedbackModal = ({ isOpen, onClose }) => {
                   type="email"
                   className="form-input"
                   placeholder="your@email.com"
-                  value={email}
+                  aria-label="Email" maxLength={254} value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
                 <p className="form-hint">We'll only use this to follow up on your feedback</p>
@@ -2846,7 +2840,7 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
       {analyzingParticipant && (
         <div className="modal-overlay" onClick={() => setAnalyzingParticipant(null)}>
           <div className="analysis-modal" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setAnalyzingParticipant(null)}>×</button>
+            <button aria-label="Close dialog" className="modal-close" onClick={() => setAnalyzingParticipant(null)}>×</button>
             <div className="analysis-header">
               <span className="analysis-seed">#{analyzingParticipant.seed}</span>
               <h2>{analyzingParticipant.name}</h2>
@@ -3866,7 +3860,7 @@ const AdminPage = () => {
   };
 
   const handleClearBracket = async () => {
-    if (!confirm('Are you sure you want to clear the weekly bracket? This will delete all votes.')) {
+    if (!confirm('Clear the current weekly bracket? Completed results will be archived.')) {
       return;
     }
     
@@ -3927,6 +3921,7 @@ const AdminPage = () => {
         <p>Manage the weekly bracket</p>
       </div>
 
+      <FeedbackInbox />
       {/* Current Weekly Bracket Status */}
       <div className="admin-section">
         <h2 className="admin-section-title">Current Weekly Bracket</h2>
@@ -3999,7 +3994,7 @@ const AdminPage = () => {
                 onClick={handleConfirmBracket}
                 disabled={actionLoading}
               >
-                ✓ Confirm for This Week
+                ✓ Confirm next weekly bracket
               </button>
               <button 
                 className="admin-btn secondary" 
@@ -4016,13 +4011,14 @@ const AdminPage = () => {
       {currentWeekly && (
         <div className="admin-section">
           <h2 className="admin-section-title">Manual Winner Selection</h2>
-          <p className="admin-hint">Click on an entry to set it as the winner. Use this to fix rounds with no votes.</p>
+          <p className="admin-hint">Choose winners for the current round, then advance. Closed rounds stay fixed so existing ballots keep their meaning.</p>
           
           <div className="round-selector">
             {currentWeekly.matchups.map((round, roundIndex) => (
               <button
                 key={roundIndex}
                 className={`round-tab ${editingRound === roundIndex ? 'active' : ''}`}
+                disabled={roundIndex !== (currentWeekly.currentRound || 0)}
                 onClick={() => setEditingRound(editingRound === roundIndex ? null : roundIndex)}
               >
                 {getRoundName(roundIndex)}
@@ -4168,7 +4164,7 @@ const CreatePage = ({ onPublish, onNavigate }) => {
         
         <div className="form-group">
           <label className="form-label">Description (Optional)</label>
-          <textarea className="form-input form-textarea" placeholder="Add a short description..." value={description} onChange={(e) => setDescription(e.target.value)} />
+          <textarea className="form-input form-textarea" placeholder="Add a short description..." maxLength={5000} aria-label="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
         
         <div className="form-group">
@@ -4304,7 +4300,7 @@ const FillPage = ({ bracket, onSubmit, onBack }) => {
   };
 
   const downloadBlankBracket = async () => {
-    const { jsPDF } = await import('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/+esm');
+    const { jsPDF } = await import('jspdf');
     
     // Create landscape letter PDF
     const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'letter' });
@@ -4515,7 +4511,7 @@ const PDFPage = ({ bracket, onBack }) => {
   };
   
   const downloadPDF = async () => {
-    const { jsPDF } = await import('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/+esm');
+    const { jsPDF } = await import('jspdf');
     
     // Use larger page for 64-entry brackets
     const isLargeBracket = bracket.size >= 64;
@@ -4736,15 +4732,14 @@ const PDFPage = ({ bracket, onBack }) => {
 
 // Main App Component
 function AppContent() {
-  const [view, setView] = useState('home');
+  const [view, setView] = useViewNavigation();
   // Invite links: capture ?pool=CODE from the URL on first load
 const [pendingPoolCode, setPendingPoolCode] = useState(null);
 useEffect(() => {
   const code = new URLSearchParams(window.location.search).get('pool');
   if (code) {
     setPendingPoolCode(code.trim());
-    // Clean the URL so refreshes/bookmarks don't re-trigger the lookup
-    window.history.replaceState({}, '', window.location.pathname);
+
   }
 }, []);
 
@@ -4769,8 +4764,11 @@ useEffect(() => {
   return () => { cancelled = true; };
 }, [pendingPoolCode]);
   useEffect(() => { if (isHiddenView(view)) setView('home'); }, [view]);
-  const [currentBracket, setCurrentBracket] = useState(null);
-  const [fillingBracket, setFillingBracket] = useState(null);
+  const [currentBracket, setCurrentBracket] = useState(() => readSession('export-bracket'));
+  const [fillingBracket, setFillingBracket] = useState(() => readSession('filling-bracket'));
+  useEffect(() => { saveSession('export-bracket', currentBracket); }, [currentBracket]);
+  useEffect(() => { saveSession('filling-bracket', fillingBracket); }, [fillingBracket]);
+  useEffect(() => { if ((view === 'fill' && !fillingBracket) || (view === 'pdf' && !currentBracket)) setView('home'); }, [view, fillingBracket, currentBracket]);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const { currentUser } = useAuth();
@@ -4809,7 +4807,7 @@ useEffect(() => {
     <div className="bracket-app">
       <Header onNavigate={setView} currentView={view} />
       
-      <main className="main-content">
+      <main className="main-content"><Suspense fallback={<div role="status" className="loading-state">Loading page…</div>}>
         {view === 'home' && <HomePage onFillOut={handleFillOut} onNavigate={setView} />}
         {view === 'my-brackets' && <MyBracketsPage onFillOut={handleFillOut} onNavigate={setView} />}
         {view === 'create' && <CreatePage onNavigate={setView} />}
@@ -4842,7 +4840,7 @@ useEffect(() => {
         {view.startsWith('custom-bracket-') && (
   <CustomBracketPage bracketId={view.replace('custom-bracket-', '')} currentUserId={currentUser?.uid} currentUserName={currentUser?.displayName} onNavigate={setView} />
 )}
-      </main>
+      </Suspense></main>
       
       <Footer onOpenFeedback={() => setShowFeedbackModal(true)} onNavigate={setView} currentView={view} />
       

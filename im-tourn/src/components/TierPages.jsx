@@ -1,3 +1,5 @@
+import { createWriteQueue } from '../lib/writeQueue';
+const queuePlacement = createWriteQueue();
 // src/components/TierPages.jsx
 //
 // UI for the Kristin Tiers feature — a private tier maker where every list
@@ -345,6 +347,8 @@ export const KristinTiersDetailPage = ({ listId, onNavigate }) => {
   const pendingRef = useRef(null);
   const timerRef = useRef(null);
   const ownerIdRef = useRef(null);
+  const savedPlacementsRef = useRef(null);
+  const [saveError, setSaveError] = useState('');
 
   ownerIdRef.current = currentUser?.uid || null;
 
@@ -355,11 +359,12 @@ export const KristinTiersDetailPage = ({ listId, onNavigate }) => {
     pendingRef.current = null;
     setSaveState('saving');
     try {
-      await saveTierPlacements(listId, ownerId, toSave);
+      await queuePlacement(listId, async () => { savedPlacementsRef.current = await saveTierPlacements(listId, ownerId, toSave, savedPlacementsRef.current); });
       setSaveState('idle');
     } catch (err) {
+      if (!pendingRef.current) pendingRef.current = toSave;
       console.error('Failed to save placements:', err);
-      setSaveState('error');
+      setSaveError(err.message); setSaveState('error');
     }
   }, [listId]);
 
@@ -384,7 +389,7 @@ export const KristinTiersDetailPage = ({ listId, onNavigate }) => {
         const loaded = await getTierList(listId, currentUser.uid);
         if (cancelled) return;
         setList(loaded);
-        setPlacements(loaded.placements);
+        setPlacements(loaded.placements); savedPlacementsRef.current = loaded.placements;
         setTitleDraft(loaded.title);
       } catch (err) {
         if (!cancelled) setLoadError(err.message || 'Could not load this tier list');
@@ -557,7 +562,7 @@ export const KristinTiersDetailPage = ({ listId, onNavigate }) => {
         <p>
           {filled} / {TOTAL_SLOTS} slots filled
           {saveState === 'saving' && <span className="kt-save-note"> · saving…</span>}
-          {saveState === 'error' && <span className="kt-save-error"> · couldn’t save — check your connection</span>}
+          {saveState === 'error' && <span className="kt-save-error"> · {saveError || "Could not save"} <button onClick={flush}>Retry save</button></span>}
         </p>
       </div>
 

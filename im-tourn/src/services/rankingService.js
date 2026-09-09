@@ -1,3 +1,4 @@
+import { callServer } from './server';
 // src/services/rankingService.js
 //
 // Service layer for the public Rankings feature.
@@ -31,7 +32,7 @@ import {
   orderBy,
   where,
   serverTimestamp,
-  increment,
+  writeBatch,
 } from 'firebase/firestore';
 import {
   ref as storageRef,
@@ -143,8 +144,8 @@ export async function uploadEntryImage(rankingId, entryIndex, blob) {
   const path = `rankings/${rankingId}/entries/${entryIndex}-${suffix}.jpg`;
   const ref = storageRef(storage, path);
   await uploadBytes(ref, blob, { contentType: 'image/jpeg' });
-  const url = await getDownloadURL(ref);
-  return { url, path };
+  try { const url = await getDownloadURL(ref); return { url, path }; }
+  catch (error) { await deleteObject(ref).catch(() => {}); throw error; }
 }
 
 /**
@@ -212,56 +213,32 @@ export async function createRanking(rankingData, entries) {
     hostDisplayName: rankingData.hostDisplayName || 'Anonymous',
     entryCount: entries.length,
     voteCount: 0,
-    status: 'open',
+    status: 'draft',
     consensusRanking: null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
   const rankingId = rankingRef.id;
 
-  // Step 2: upload images in parallel. Each upload returns {url, path}
-  // or null if the entry had no image.
-  let uploadResults;
+  const uploaded = await Promise.allSettled(entries.map((entry, index) => entry.imageBlob ? uploadEntryImage(rankingId, index, entry.imageBlob) : null));
+  const uploadResults = uploaded.map(r => r.status === 'fulfilled' ? r.value : null);
   try {
-    uploadResults = await Promise.all(
-      entries.map(async (entry, index) => {
-        if (!entry.imageBlob) return null;
-        return uploadEntryImage(rankingId, index, entry.imageBlob);
-      })
-    );
-  } catch (uploadErr) {
-    // Upload failed — roll back the ranking doc so we don't leave a
-    // half-created ranking behind.
-    await deleteDoc(rankingRef).catch(() => {});
-    throw new Error('Image upload failed: ' + (uploadErr.message || 'unknown error'));
-  }
-
-  // Step 3: write entry docs with URLs.
-  try {
-    const entryWrites = entries.map((entry, index) => {
-      const entryId = `${rankingId}_${index}`;
-      const entryRef = doc(db, RANKING_ENTRIES_COLLECTION, entryId);
-      const uploaded = uploadResults[index];
-      return setDoc(entryRef, {
-        rankingId,
-        index,
-        text: entry.text.trim(),
-        imageUrl: uploaded?.url || null,
-        imagePath: uploaded?.path || null,
-        createdAt: serverTimestamp(),
+    const failed = uploaded.find(r => r.status === 'rejected');
+    if (failed) throw failed.reason;
+    const batch = writeBatch(db);
+    entries.forEach((entry, index) => {
+      batch.set(doc(db, RANKING_ENTRIES_COLLECTION, `${rankingId}_${index}`), {
+        rankingId, index, text: entry.text.trim(), imageUrl: uploadResults[index]?.url || null,
+        imagePath: uploadResults[index]?.path || null, createdAt: serverTimestamp(),
       });
     });
-    await Promise.all(entryWrites);
-  } catch (writeErr) {
-    // Entry write failed — clean up uploaded images and the ranking doc
-    // to avoid leaking Storage files.
-    await Promise.all(
-      uploadResults
-        .filter(Boolean)
-        .map(r => deleteEntryImage(r.path))
-    );
+    batch.update(rankingRef, { status: 'open', updatedAt: serverTimestamp() });
+    await batch.commit();
+  } catch (error) {
+    // Wait for all uploads before cleanup, while the parent still grants ownership.
+    await Promise.all(uploadResults.filter(Boolean).map(r => deleteEntryImage(r.path)));
     await deleteDoc(rankingRef).catch(() => {});
-    throw writeErr;
+    throw error;
   }
 
   return { id: rankingId };
@@ -307,6 +284,7 @@ export async function getRankingEntries(rankingId) {
 export async function getAllRankings() {
   const q = query(
     collection(db, RANKINGS_COLLECTION),
+    where('status', 'in', ['open', 'closed']),
     orderBy('createdAt', 'desc')
   );
   const snap = await getDocs(q);
@@ -481,73 +459,7 @@ export async function getUserRankingVote(rankingId, userId) {
  * Submit a user's final ranking. Recomputes the consensus.
  */
 export async function submitRankingVote(rankingId, userId, userDisplayName, ranking, comparisonsMade) {
-  const rankingDoc = await getRankingById(rankingId);
-  if (!rankingDoc) throw new Error('Ranking not found');
-  if (rankingDoc.status === 'closed') {
-    throw new Error('This ranking is closed and no longer accepting votes');
-  }
-  if (!Array.isArray(ranking) || ranking.length === 0) {
-    throw new Error('Ranking is empty');
-  }
-
-  const entryIds = new Set(rankingDoc.entries.map(e => e.id));
-  const rankingSet = new Set(ranking);
-  if (rankingSet.size !== entryIds.size) {
-    throw new Error('Ranking is incomplete');
-  }
-  for (const id of ranking) {
-    if (!entryIds.has(id)) {
-      throw new Error('Ranking contains unknown entry');
-    }
-  }
-
-  const voteRef = doc(db, RANKING_VOTES_COLLECTION, `${rankingId}_${userId}`);
-  const existing = await getDoc(voteRef);
-  const isNewVote = !existing.exists();
-
-  await setDoc(voteRef, {
-    rankingId,
-    userId,
-    userDisplayName: userDisplayName || 'Anonymous',
-    ranking: JSON.stringify(ranking),
-    comparisonsMade: comparisonsMade || 0,
-    submittedAt: serverTimestamp(),
-  });
-
-  const rankingRef = doc(db, RANKINGS_COLLECTION, rankingId);
-  if (isNewVote) {
-    await updateDoc(rankingRef, {
-      voteCount: increment(1),
-    });
-  }
-
-  await recomputeRankingConsensus(rankingId);
-}
-
-/**
- * Fetch all votes for a ranking, recompute the Borda consensus, and store it.
- */
-export async function recomputeRankingConsensus(rankingId) {
-  const q = query(
-    collection(db, RANKING_VOTES_COLLECTION),
-    where('rankingId', '==', rankingId)
-  );
-  const snap = await getDocs(q);
-
-  const rankings = snap.docs.map(d => {
-    const data = d.data();
-    return typeof data.ranking === 'string' ? JSON.parse(data.ranking) : data.ranking;
-  });
-
-  const consensus = computeConsensus(rankings);
-
-  const rankingRef = doc(db, RANKINGS_COLLECTION, rankingId);
-  await updateDoc(rankingRef, {
-    consensusRanking: JSON.stringify(consensus),
-    updatedAt: serverTimestamp(),
-  });
-
-  return consensus;
+  return callServer('castRankingVote', { rankingId, ranking, comparisonsMade: comparisonsMade || 0 });
 }
 
 /**

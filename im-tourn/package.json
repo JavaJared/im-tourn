@@ -6,15 +6,25 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:server": "node scripts/build-server.mjs",
+    "test": "vitest run",
+    "test:rules": "npm run build:server && firebase emulators:exec --project demo-im-tourn --only firestore,storage \"vitest run tests/rules.test.js tests/server.test.js\"",
+    "check": "npm run build:server && npm test && npm --prefix functions test && npm run build",
+    "prebuild": "node scripts/check-backend.mjs"
   },
   "dependencies": {
-    "firebase": "^10.7.1",
+    "firebase": "^12.18.0",
+    "jspdf": "^4.2.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.2.1",
-    "vite": "^5.0.10"
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "@vitejs/plugin-react": "^6.1.1",
+    "esbuild": "^0.28.2",
+    "firebase-tools": "^15.29.0",
+    "vite": "^8.2.2",
+    "vitest": "^5.0.0"
   }
 }

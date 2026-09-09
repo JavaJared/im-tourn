@@ -1,20 +1,15 @@
 {
-  "hosting": {
-    "public": "dist",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
-    "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
-    ]
-  },
   "firestore": {
-    "rules": "firestore.rules",
-    "indexes": "firestore.indexes.json"
+    "rules": "im-tourn/firestore.rules",
+    "indexes": "im-tourn/firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "im-tourn/storage.rules"
+  },
+  "functions": {
+    "source": "im-tourn/functions",
+    "predeploy": [
+      "npm --prefix im-tourn run build:server"
+    ]
   }
 }

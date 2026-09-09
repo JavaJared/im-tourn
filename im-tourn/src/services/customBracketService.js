@@ -1,3 +1,6 @@
+import { callServer } from './server';
+import { createWriteQueue } from '../lib/writeQueue';
+const queueWrite = createWriteQueue();
 import { adaptLegacyPool, adaptLegacyEntry } from '../lib/legacyPoolAdapter';
 import { generateSeededBracket } from '../lib/standardBracket';
 /**
@@ -157,7 +160,7 @@ const fillsCol = (bracketId) => collection(db, COLLECTION, bracketId, 'submissio
 /** Save a filled-out bracket (anyone signed in can fill a published bracket for fun). */
 export async function submitCustomFill(bracketId, { userId, displayName, picks, champion }) {
   if (!userId) throw new Error('Sign in to save your bracket');
-  const newRef = doc(fillsCol(bracketId));
+  const newRef = doc(fillsCol(bracketId), userId);
   await setDoc(newRef, {
     userId, displayName: displayName || 'Anonymous',
     picks: picks || {}, champion: champion || null,
@@ -203,50 +206,35 @@ export async function startCustomPool(poolId, hostId) {
   const pool = await getPoolById(poolId);
   if (!pool) throw new Error('Pool not found');
   if (pool.hostId !== hostId) throw new Error('Only the host can start this pool');
-  await updateDoc(doc(db, POOLS, poolId), { status: 'in_progress', customResults: {}, updatedAt: serverTimestamp() });
+  if (pool.status !== 'locked') throw new Error('Lock predictions before starting the pool');
+  await updateDoc(doc(db, POOLS, poolId), { status: 'in_progress', updatedAt: serverTimestamp() });
   return true;
 }
 
-async function recalcCustom(poolId, pool, resultsMap) {
-  const state = hydrateState(pool.bracketMatchups, resultsMap || {});
-  const roundPoints = pool.roundPoints || [];
-  const entries = await getPoolEntries(poolId);
-  await Promise.all(entries.map(async (entry) => {
-    if (!entry.predictions) return;
-    const { total } = scoreEntry(state, entry.predictions, roundPoints);
-    await updateDoc(doc(db, POOL_ENTRIES, `${poolId}_${entry.userId}`), { score: total });
-  }));
+/** Each result operation is applied to the latest server state, then atomically scored. */
+export function recordCustomPoolWinner(poolId, boxId, winnerId) {
+  return queueWrite(poolId, () => callServer('managePoolResults', { poolId, action: 'pick', boxId, winnerId }));
 }
-
-/** Record the host's official results map { boxId: winnerPid } and rescore. */
-export async function updateCustomPoolResults(poolId, hostId, resultsMap) {
-  const pool = await getPoolById(poolId);
-  if (!pool) throw new Error('Pool not found');
-  if (pool.hostId !== hostId) throw new Error('Only the host can update results');
-  await updateDoc(doc(db, POOLS, poolId), { customResults: resultsMap || {}, updatedAt: serverTimestamp() });
-  await recalcCustom(poolId, pool, resultsMap || {});
-  return true;
-}
-
-/** Re-run scoring for every entry against the stored results. */
-export async function recalculateCustomPoolScoresManual(poolId, hostId) {
-  const pool = await getPoolById(poolId);
-  if (!pool) throw new Error('Pool not found');
-  if (pool.hostId !== hostId) throw new Error('Only the host can recalculate scores');
-  await recalcCustom(poolId, pool, pool.customResults || {});
-  return true;
+export function recalculateCustomPoolScoresManual(poolId) {
+  return queueWrite(poolId, () => callServer('managePoolResults', { poolId, action: 'recalculate' }));
 }
 
 /**
  * Record per-matchup scores. `scoresMap` is { boxId: { a: number|null, b: number|null } }.
  * Scores are display-only (they never affect points), so this does not rescore.
  */
-export async function updateCustomPoolScores(poolId, hostId, scoresMap) {
-  const pool = await getPoolById(poolId);
-  if (!pool) throw new Error('Pool not found');
-  if (pool.hostId !== hostId) throw new Error('Only the host can record scores');
-  await updateDoc(doc(db, POOLS, poolId), { customScores: scoresMap || {}, updatedAt: serverTimestamp() });
-  return true;
+export async function updateCustomPoolScores(poolId, hostId, fields) {
+  return queueWrite(`scores:${poolId}`, async () => {
+    const pool = await getPoolById(poolId);
+    if (!pool || pool.hostId !== hostId || pool.status !== 'in_progress') throw new Error('Only the active host can record scores');
+    const updates = { updatedAt: serverTimestamp() };
+    for (const [key, value] of Object.entries(fields)) {
+      const match = /^(m[0-9]+):(a|b)$/.exec(key);
+      if (!match || (value != null && (!Number.isFinite(value) || value < 0))) throw new Error('Invalid score');
+      updates[`customScores.${match[1]}.${match[2]}`] = value == null ? deleteField() : value;
+    }
+    await updateDoc(doc(db, POOLS, poolId), updates);
+  });
 }
 
 /* ---- real-time pool subscriptions (custom pools) ---- */
@@ -277,6 +265,6 @@ export function subscribeToPool(poolId, onChange, onError) {
 export function subscribeToPoolEntries(poolId, onChange, onError) {
   const q = query(collection(db, POOL_ENTRIES), where('poolId', '==', poolId));
   return onSnapshot(q, (snap) => {
-    onChange(snap.docs.map((d) => parsePoolEntryDoc(d.id, d.data())).sort((a, b) => (b.score || 0) - (a.score || 0)));
+    onChange(snap.docs.filter(d => d.id === `${poolId}_${d.data().userId}`).map((d) => parsePoolEntryDoc(d.id, d.data())).sort((a, b) => (b.score || 0) - (a.score || 0)));
   }, onError);
 }

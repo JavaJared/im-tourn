@@ -1,0 +1,27 @@
+name: Verify repairs
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: im-tourn/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci
+        working-directory: im-tourn
+      - run: npm ci
+        working-directory: im-tourn/functions
+      - run: npm run check && npm run test:rules
+        working-directory: im-tourn

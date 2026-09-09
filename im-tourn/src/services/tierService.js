@@ -30,6 +30,7 @@ import {
   doc,
   deleteDoc,
   updateDoc,
+  runTransaction,
   query,
   orderBy,
   where,
@@ -210,12 +211,16 @@ export async function updateTierListMeta(listId, ownerId, { title, tierLabels })
  * arranging items, so it deliberately does the minimum work: one write of
  * one field, no reads beyond the ownership check.
  */
-export async function saveTierPlacements(listId, ownerId, placements) {
-  const { ref, data } = await loadOwnedList(listId, ownerId);
-  const items = Array.isArray(data.items) ? data.items : [];
-  await updateDoc(ref, {
-    placements: normalizePlacements(placements, items),
-    updatedAt: serverTimestamp(),
+export async function saveTierPlacements(listId, ownerId, placements, expected) {
+  const ref = doc(db, TIER_LISTS_COLLECTION, listId);
+  return runTransaction(db, async tx => {
+    const snap = await tx.get(ref);
+    if (!snap.exists() || snap.data().ownerId !== ownerId) throw new Error('Tier list not found');
+    const data = snap.data();
+    if (expected && JSON.stringify(data.placements) !== JSON.stringify(expected)) throw new Error('This list changed in another tab. Reload before saving more changes.');
+    const next = normalizePlacements(placements, data.items || []);
+    tx.update(ref, { placements: next, updatedAt: serverTimestamp() });
+    return next;
   });
 }
 

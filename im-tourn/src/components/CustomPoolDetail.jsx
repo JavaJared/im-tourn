@@ -1,10 +1,11 @@
+import { predictionsOpen } from '../lib/poolLifecycle';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Check, Clock, Loader2, AlertTriangle, Trophy, Lock, Users, RotateCcw, Send, X, Trash2 } from './customBracketIcons';
 import { SLOT, locate, slotDisplay, feederId, resolveParticipant, matchWinner, setResult, getChampion } from '../lib/customBracket';
-import { hydrateState, picksFromState, isEntryComplete, buildLeaderboard, defaultRoundPoints } from '../lib/customScoring';
+import { hydrateState, picksFromState, isEntryComplete, buildLeaderboard, defaultRoundPoints, predictedLosers } from '../lib/customScoring';
 import { analyzeCustomPool, summarizeWinningScenarios, shouldShowWinningPaths } from '../lib/customElimination';
 import { joinBracketPool, submitPoolPredictions, lockPool, completePool, updatePoolDescription, deletePool, getPoolById } from '../services/bracketService';
-import { startCustomPool, updateCustomPoolResults, updateCustomPoolScores, recalculateCustomPoolScoresManual, subscribeToPool, subscribeToPoolEntries } from '../services/customBracketService';
+import { startCustomPool, recordCustomPoolWinner, updateCustomPoolScores, recalculateCustomPoolScoresManual, subscribeToPool, subscribeToPoolEntries } from '../services/customBracketService';
 
 const COLW = 248, ROWH = 150, CARDW = 200, CARDH = 116, PADX = 60, PADTOP = 92, PADBOT = 56;
 function computeLayout(state) {
@@ -83,10 +84,10 @@ function Card({ id, pos, a, b, result, editable, onPick, official, sc, hl, boxSc
     const youPicked = picked && picked[side] && picked[side].pid !== sl.pid ? picked[side] : null;       // your bracket had someone else here
     return (
       <div style={S.slotCol}>
-        <div onClick={click ? () => onPick(id, sl.pid) : undefined} style={{ ...S.slot, ...winStyle, cursor: click ? 'pointer' : 'default' }}>
+        <div role={click ? "button" : undefined} tabIndex={click ? 0 : undefined} onKeyDown={e => { if (click && e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onPick(id, sl.pid); } }} onClick={click ? () => onPick(id, sl.pid) : undefined} style={{ ...S.slot, ...winStyle, cursor: click ? 'pointer' : 'default' }}>
           {isW && (graded && !pickRight ? <X size={14} strokeWidth={3} /> : <Check size={14} strokeWidth={3} />)}<span style={S.name}>{sl.name}</span>
           {editing
-            ? <input className="cb-score" value={sc.get(id, side)} inputMode="numeric" placeholder="–" onClick={(e) => e.stopPropagation()} onChange={(e) => sc.change(id, side, e.target.value)} onBlur={(e) => sc.blur(id, side, e.target.value)} />
+            ? <input aria-label={`Score for ${sl.name}`} className="cb-score" value={sc.get(id, side)} inputMode="numeric" placeholder="–" onClick={(e) => e.stopPropagation()} onChange={(e) => sc.change(id, side, e.target.value)} onBlur={(e) => sc.blur(id, side, e.target.value)} />
             : (roScore != null && <span style={S.scoreText}>{roScore}</span>)}
         </div>
         {youPicked && <div style={S.youPicked}>You picked: <span style={S.youPickedName}>{youPicked.name}</span></div>}
@@ -100,7 +101,7 @@ function StatusBadge({ status }) {
   if (!status) return null;
   if (status === 'clinched') return <span style={{ ...S.badge, ...S.badgeClinch }}><Trophy size={10} /> Clinched</span>;
   if (status === 'eliminated') return <span style={{ ...S.badge, ...S.badgeOut }}>Out</span>;
-  return <span style={{ ...S.badge, ...S.badgeAlive }}>Alive</span>;
+  return <span style={{ ...S.badge, ...S.badgeAlive }}>{status === 'unknown' ? 'Undetermined' : 'Alive'}</span>;
 }
 
 const STATUS_LABEL = { open: 'Predictions open', locked: 'Locked', in_progress: 'In progress', completed: 'Completed' };
@@ -117,6 +118,9 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
   const [tab, setTab] = useState('bracket');
   const [predState, setPredState] = useState(null);
   const [resState, setResState] = useState(null);
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
+  const [sleepers, setSleepers] = useState({ sleeper1: null, sleeper2: null });
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState(null);
   const [viewingEntry, setViewingEntry] = useState(null);   // another participant's bracket being viewed
@@ -162,9 +166,13 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
   const submittedKey = myEntry?.submittedAt ? +myEntry.submittedAt : (myEntry ? 'joined' : 'none');
   useEffect(() => {
     if (!pool?.bracketMatchups) { setPredState(null); return; }
-    setPredState(hydrateState(pool.bracketMatchups, (myEntry && myEntry.predictions) || {}));
+    let draft = null;
+    try { draft = JSON.parse(localStorage.getItem(`pool-draft:${poolId}:${currentUserId}`)); } catch {}
+    const resume = predictionsOpen(pool) && draft?.submittedKey === submittedKey ? draft : null;
+    setPredState(hydrateState(pool.bracketMatchups, resume?.picks || myEntry?.predictions || {}));
+    setSleepers(resume?.sleepers || { sleeper1: myEntry?.sleeper1 || null, sleeper2: myEntry?.sleeper2 || null });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [poolId, structureReady, submittedKey]);
+  }, [poolId, currentUserId, structureReady, submittedKey]);
 
   // The official-results board: viewers (and a not-yet-recording host) mirror
   // pool.customResults live; an actively-recording host keeps resState local and
@@ -178,18 +186,23 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
   const run = async (fn, ok) => { setBusy(true); try { await fn(); if (ok) flash(ok); } catch (e) { flash(e?.message || 'Something went wrong'); } setBusy(false); };
 
   // predictor picks
-  const canPredict = joined && status === 'open';
+  const canPredict = joined && predictionsOpen(pool, now);
+  useEffect(() => {
+    if (!canPredict || !predState) return;
+    try { localStorage.setItem(`pool-draft:${poolId}:${currentUserId}`, JSON.stringify({ submittedKey, picks: picksFromState(predState), sleepers })); } catch {}
+  }, [poolId, currentUserId, predState, sleepers, submittedKey, canPredict]);
+  const loserOptions = [0, 1].map(r => predState ? predictedLosers(pool.bracketMatchups, picksFromState(predState), r) : []);
   const pickPred = (boxId, pid) => { if (!canPredict || !predState) return; try { setPredState(setResult(predState, boxId, pid)); } catch (e) { flash(e.message); } };
   const submitPredictions = () => {
     if (!predState || !isEntryComplete(predState)) return;
-    run(() => submitPoolPredictions(poolId, currentUserId, picksFromState(predState), getChampion(predState)), 'Predictions submitted');
+    run(() => submitPoolPredictions(poolId, currentUserId, picksFromState(predState), getChampion(predState), pool.enableSleepers ? { sleeper1: loserOptions[0].includes(sleepers.sleeper1) ? sleepers.sleeper1 : null, sleeper2: loserOptions[1].includes(sleepers.sleeper2) ? sleepers.sleeper2 : null } : null), 'Predictions submitted');
   };
   // host results — optimistic local update + persist; snapshots keep everyone else live
   const pickResult = (boxId, pid) => {
-    if (!canRecord || !resState) return;
+    if (!canRecord || !resState || busy) return;
     let next; try { next = setResult(resState, boxId, pid); } catch (e) { flash(e.message); return; }
     setResState(next);
-    run(() => updateCustomPoolResults(poolId, currentUserId, picksFromState(next)));
+    run(async () => { try { await recordCustomPoolWinner(poolId, boxId, pid); } catch (e) { setResState(resState); throw e; } });
   };
 
   const leaderboard = useMemo(() => {
@@ -197,7 +210,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
     const official = hydrateState(pool.bracketMatchups, pool.customResults || {});
     // Pool entries carry their picks under `predictions`; buildLeaderboard reads `picks`.
     const scored = entries.filter((e) => e.predictions).map((e) => ({ ...e, picks: e.predictions, displayName: e.userDisplayName }));
-    return buildLeaderboard(official, scored, roundPoints);
+    return buildLeaderboard(official, scored, roundPoints, pool);
   }, [pool, entries, roundPoints]);
 
   // Official winner per box (pid), for grading any prediction board correct/incorrect.
@@ -236,7 +249,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
   // Elimination analysis (alive / clinched / eliminated) once results are live.
   const analysis = useMemo(() => {
     if (!pool?.bracketMatchups || (status !== 'in_progress' && status !== 'completed')) return null;
-    return analyzeCustomPool(pool.bracketMatchups, pool.customResults || {}, entries, roundPoints);
+    return analyzeCustomPool(pool.bracketMatchups, pool.customResults || {}, entries, roundPoints, { pool });
   }, [pool, entries, roundPoints, status]);
   const showPaths = useMemo(
     () => (analysis ? shouldShowWinningPaths(pool.bracketMatchups, pool.customResults || {}, analysis, entries) : false),
@@ -249,8 +262,8 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
   );
   const highlightBoxes = useMemo(() => (viewingSummary ? new Set(viewingSummary.required.map((r) => r.boxId)) : null), [viewingSummary]);
 
-  const copyLink = () => {
-    try { navigator.clipboard.writeText(`${window.location.origin}?pool=${pool.joinCode}`); flash('Invite link copied'); }
+  const copyLink = async () => {
+    try { await navigator.clipboard.writeText(`${window.location.origin}?pool=${pool.joinCode}`); flash('Invite link copied'); }
     catch { flash('Could not copy link'); }
   };
   const saveDesc = () => run(async () => { await updatePoolDescription(poolId, currentUserId, descDraft); setEditingDesc(false); }, 'Description saved');
@@ -272,23 +285,16 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
   // merge onto the latest customScores rather than a stale closure copy.
   const flushPendingScores = async () => {
     if (!canRecord) { pendingScoreWrites.current = {}; return; }
+    if (inflightFlush.current) { await inflightFlush.current; }
     const pending = pendingScoreWrites.current;
     if (Object.keys(pending).length === 0) return;
     pendingScoreWrites.current = {};                 // start a fresh batch before async work
     try {
-      const fresh = await getPoolById(poolId);
-      const scores = JSON.parse(JSON.stringify(fresh?.customScores || {}));
-      for (const key of Object.keys(pending)) {
-        const i = key.lastIndexOf(':'); if (i < 0) continue;
-        const boxId = key.slice(0, i), side = key.slice(i + 1);
-        if (!scores[boxId]) scores[boxId] = {};
-        scores[boxId][side] = pending[key];
-        if (scores[boxId].a == null && scores[boxId].b == null) delete scores[boxId];
-      }
-      await updateCustomPoolScores(poolId, currentUserId, scores);
+      await updateCustomPoolScores(poolId, currentUserId, pending);
     } catch (e) {
       // Re-queue on failure so edits aren't silently dropped.
       for (const key of Object.keys(pending)) if (!(key in pendingScoreWrites.current)) pendingScoreWrites.current[key] = pending[key];
+      flash('Scores could not be saved. Your edits are kept; change or leave the field to retry.');
     }
   };
   const scheduleFlush = () => {
@@ -348,6 +354,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
         </div>
       </header>
 
+      {pool.lockDate && <div style={S.note}>Predictions close {pool.lockDate.toLocaleString()}{!predictionsOpen(pool, now) ? " · Closed" : ""}</div>}
       {(pool.description || isHost) && (
         <div style={S.descWrap}>
           {editingDesc ? (
@@ -418,7 +425,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
           <>
         {tab === 'bracket' && (
           !joined ? (
-            status === 'open'
+            predictionsOpen(pool, now)
               ? <div style={S.joinWrap}>
                   <div style={S.note}>{isHost ? 'Join your own pool to enter a prediction bracket.' : 'Join the pool to fill out your prediction.'}</div>
                   <button style={S.primary} disabled={busy} onClick={() => { if (!currentUserId) { flash('Please log in to join this pool'); return; } run(() => joinBracketPool(poolId, currentUserId, currentUserName || 'Anonymous'), 'Joined — make your picks'); }}><Users size={14} /> Join pool</button>
@@ -427,6 +434,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
           ) : (
             <>
               {canPredict && predState && !isEntryComplete(predState) && <div style={S.note}>Pick a winner in every matchup, then submit.{submitted ? ' Re-submitting replaces your entry.' : ''}</div>}
+              {canPredict && pool.enableSleepers && <div style={S.actionBar}>{[1, 2].map((n) => pool.bracketMatchups.rounds.length > n + 1 && <label key={n}>Sleeper {n} ({pool[`sleeper${n}Points`] || 0} bonus pts)<select aria-label={`Sleeper ${n}`} value={loserOptions[n - 1].includes(sleepers[`sleeper${n}`]) ? sleepers[`sleeper${n}`] : ''} onChange={e => setSleepers(old => ({ ...old, [`sleeper${n}`]: e.target.value || null }))}><option value="">No sleeper</option>{loserOptions[n - 1].map(pid => <option key={pid} value={pid}>{nameMap[pid] || pid}</option>)}</select></label>)}</div>}
               {canPredict && <div style={S.actionBar}><button style={{ ...S.primary, ...(predState && isEntryComplete(predState) ? {} : S.primaryOff) }} disabled={busy || !(predState && isEntryComplete(predState))} onClick={submitPredictions}><Send size={14} /> {submitted ? 'Update prediction' : 'Submit prediction'}</button></div>}
               {!canPredict && submitted && <div style={S.note}>Your prediction is in.{status === 'open' ? '' : ' Predictions are locked.'}</div>}
               {predState && <Board state={predState} nameMap={nameMap} editable={canPredict} onPick={pickPred} official={status === 'open' ? null : officialWinners} scores={scoresByBox} />}
@@ -437,7 +445,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
           <>
             {canRecord && <div style={S.note}>Tap a player to record the official winner. Scores update automatically.</div>}
             {!canRecord && status !== 'in_progress' && status !== 'completed' && <div style={S.note}>Official results appear once the host starts the pool.</div>}
-            {resState && <Board state={resState} nameMap={nameMap} editable={canRecord} onPick={pickResult} sc={scoreUI} scores={scoresByBox} pickedState={submitted ? predState : null} />}
+            {resState && <Board state={resState} nameMap={nameMap} editable={canRecord && !busy} onPick={pickResult} sc={scoreUI} scores={scoresByBox} pickedState={submitted ? predState : null} />}
           </>
         )}
         {tab === 'leaderboard' && (

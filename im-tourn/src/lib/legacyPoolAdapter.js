@@ -51,8 +51,8 @@ export function adaptLegacyPool(pool) {
   const structure = structureFromState(state);
 
   let customResults = pool.customResults || {};
-  if (Array.isArray(pool.results) && pool.results.length) {
-    customResults = { ...legacyResultsToMap(pool.results), ...customResults };
+  if (!Object.hasOwn(pool, 'customResults') && Array.isArray(pool.results) && pool.results.length) {
+    customResults = legacyResultsToMap(pool.results);
   }
 
   return {
@@ -88,7 +88,7 @@ export function normalizeSleeper(value) {
 }
 
 export function adaptLegacyEntry(entry) {
-  if (!isLegacyEntry(entry)) return entry;
+  if (!isLegacyEntry(entry)) return { ...entry, sleeper1: normalizeSleeper(entry.sleeper1), sleeper2: normalizeSleeper(entry.sleeper2) };
   const { state } = convertLegacyMatchups(entry.predictions);
   return {
     ...entry,

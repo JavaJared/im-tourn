@@ -99,12 +99,12 @@ function Card({ id, pos, a, b, result, editable, onPick, official, sc, hl }) {
     const winStyle = isW ? (graded ? (pickRight ? BS.slotWin : BS.slotWrong) : BS.slotWin) : (isL ? BS.slotLose : click ? BS.slotPick : BS.slotIdle);
     const scoreVal = showScore ? sc.get(id, side) : '';
     return (
-      <div onClick={click ? () => onPick(id, sl.pid) : undefined} style={{ ...BS.slot, ...winStyle, cursor: click ? 'pointer' : 'default' }}>
+      <div role={click ? "button" : undefined} tabIndex={click ? 0 : undefined} onKeyDown={e => { if (click && e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onPick(id, sl.pid); } }} onClick={click ? () => onPick(id, sl.pid) : undefined} style={{ ...BS.slot, ...winStyle, cursor: click ? 'pointer' : 'default' }}>
         {isW && (graded && !pickRight ? <X size={14} strokeWidth={3} /> : <Check size={14} strokeWidth={3} />)}
         {sl.seed != null && <span style={BS.seed}>{sl.seed}</span>}
         <span style={BS.name}>{sl.name}</span>
         {showScore && (sc.editable
-          ? <input className="cb-score" value={scoreVal} inputMode="numeric" placeholder="–" onClick={(e) => e.stopPropagation()} onChange={(e) => sc.change(id, side, e.target.value)} onBlur={(e) => sc.blur(id, side, e.target.value)} />
+          ? <input aria-label={`Score for ${sl.name}`} className="cb-score" value={scoreVal} inputMode="numeric" placeholder="–" onClick={(e) => e.stopPropagation()} onChange={(e) => sc.change(id, side, e.target.value)} onBlur={(e) => sc.blur(id, side, e.target.value)} />
           : (scoreVal !== '' && <span style={BS.scoreText}>{scoreVal}</span>))}
       </div>
     );

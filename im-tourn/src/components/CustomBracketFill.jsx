@@ -1,9 +1,10 @@
+import { exportBracketPdf } from '../lib/exportBracketPdf';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Check, Clock, Loader2, AlertTriangle, Send } from './customBracketIcons';
 import { SLOT, setResult, getChampion } from '../lib/customBracket';
 import BracketBoard from './BracketBoard';
 import { isEntryComplete, picksFromState, blankPrediction, applyPicks } from '../lib/customScoring';
-import { subscribeToBracket, submitCustomFill } from '../services/customBracketService';
+import { subscribeToBracket, submitCustomFill, getCustomFills } from '../services/customBracketService';
 
 function nameMapOf(state) { const m = {}; for (const id of Object.keys(state.boxes)) for (const k of ['slotA', 'slotB']) { const s = state.boxes[id][k]; if (s.type === SLOT.NAMED) m[s.participantId] = s.name; } return m; }
 
@@ -19,6 +20,9 @@ export default function CustomBracketFill({ bracketId, currentUserId, currentUse
   const [status, setStatus] = useState(null);
   const [pred, setPred] = useState(null);      // local prediction engine state
   const [saved, setSaved] = useState(false);
+  const [fills, setFills] = useState([]);
+  const [viewing, setViewing] = useState('');
+  const [title, setTitle] = useState('My bracket');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [sending, setSending] = useState(false);
@@ -33,25 +37,31 @@ export default function CustomBracketFill({ bracketId, currentUserId, currentUse
     let initialized = false;
     const unsub = subscribeToBracket(bracketId, async (state, meta) => {
       if (!meta.exists || !state) { setError('This bracket could not be found.'); setLoading(false); return; }
-      setBracket(state); setStatus(meta.raw.status); setError(null); setLoading(false);
+      setBracket(state); setTitle(meta.raw.title || 'My bracket'); setStatus(meta.raw.status); setError(null); setLoading(false);
       if (initialized) return; // seed local fill state once
       initialized = true;
       let resume = null;
       try { const raw = localStorage.getItem(lsKey); resume = raw ? JSON.parse(raw) : null; } catch { resume = null; }
       setPred(applyPicks(blankPrediction(state), resume || {}));
+      setSaved(false); setViewing('');
+      try {
+        const all = await getCustomFills(bracketId); setFills(all);
+        const mine = all.filter(f => f.userId === currentUserId).sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))[0];
+        if (!resume && mine) { setPred(applyPicks(blankPrediction(state), mine.picks)); setSaved(true); }
+      } catch (e) { flash('Saved brackets could not be loaded. Try reopening this bracket.'); }
     }, (err) => { setError(err?.message || 'Connection error.'); setLoading(false); });
     return unsub;
   }, [bracketId, currentUserId, lsKey]);
 
   const nameMap = useMemo(() => (pred ? nameMapOf(pred) : {}), [pred]);
   const complete = useMemo(() => (pred ? isEntryComplete(pred) : false), [pred]);
-  const canEdit = status === 'published';
+  const canEdit = status === 'published' && !viewing && !sending;
 
   const pick = (boxId, pid) => {
     if (!canEdit) return;
     const cur = predRef.current; let next;
     try { next = setResult(cur, boxId, pid); } catch (e) { flash(e.message); return; }
-    setPred(next);
+    setPred(next); setSaved(false);
     try { localStorage.setItem(lsKey, JSON.stringify(picksFromState(next))); } catch { /* ignore */ }
   };
 
@@ -64,6 +74,7 @@ export default function CustomBracketFill({ bracketId, currentUserId, currentUse
       await submitCustomFill(bracketId, { userId: currentUserId, displayName: currentUserName || 'Anonymous', picks: picksFromState(cur), champion: getChampion(cur) });
       setSaved(true);
       flash('Bracket saved');
+      setFills(await getCustomFills(bracketId));
     } catch (e) { flash(`Couldn't save — ${e?.message || 'try again'}`); }
     setSending(false);
   };
@@ -79,11 +90,18 @@ export default function CustomBracketFill({ bracketId, currentUserId, currentUse
     <Shell onExit={onExit}>
       <header style={S.top}>
         <div style={S.brand}>
-          <span style={S.title}>Fill it out</span>
+          <span style={S.title}>{title}</span>
           <span style={S.sub}>Tap a player to advance them — just for fun</span>
         </div>
         <div style={S.topRight}>
-          <button style={{ ...S.primary, ...(complete ? {} : S.primaryOff) }} disabled={!complete || sending} onClick={save}>
+          <button style={S.ghost} onClick={() => exportBracketPdf(pred, nameMap, title).catch(e => flash(e.message))}>Download PDF</button>
+          {fills.length > 0 && <select aria-label="View a saved bracket" value={viewing} onChange={e => {
+            const value = e.target.value; setViewing(value);
+            if (value) setPred(applyPicks(blankPrediction(bracket), fills.find(f => f.id === value)?.picks || {}));
+            else { let draft = {}; try { draft = JSON.parse(localStorage.getItem(lsKey)) || {}; } catch {} setPred(applyPicks(blankPrediction(bracket), draft)); setSaved(false); }
+          }}><option value="">My current picks</option>{fills.map(f => <option key={f.id} value={f.id}>{f.displayName || 'Anonymous'} — saved</option>)}</select>}
+
+          <button style={{ ...S.primary, ...(complete ? {} : S.primaryOff) }} disabled={!complete || sending || !!viewing} onClick={save}>
             {saved ? <><Check size={14} strokeWidth={3} /> Saved</> : <><Send size={14} strokeWidth={2.5} /> {sending ? 'Saving…' : 'Save my bracket'}</>}
           </button>
         </div>

@@ -22,7 +22,7 @@
  *   - maxScenariosPerEntry (5000): per-entrant cap on stored winning scenarios.
  */
 import { locate, matchWinner, resolveParticipant, setResult } from './customBracket';
-import { hydrateState, scoreEntry } from './customScoring';
+import { hydrateState, scoreEntry, gradeSleepers } from './customScoring';
 
 const ptsFor = (rp, r) => (rp && rp[r] != null ? rp[r] : r + 1);
 
@@ -36,7 +36,7 @@ const ptsFor = (rp, r) => (rp && rp[r] != null ? rp[r] : r + 1);
 export function analyzeCustomPool(structure, resultsMap, entries, roundPoints, options = {}) {
   const maxScenariosPerEntry = options.maxScenariosPerEntry ?? 5000;
   const maxUndecided = options.maxUndecidedForFullSearch ?? 14;
-  const deadlineMs = options.deadlineMs ?? 2000;
+  const deadlineMs = options.deadlineMs ?? 40;
   const deadline = Date.now() + deadlineMs;
 
   const submitted = entries.filter((e) => e.predictions);
@@ -56,7 +56,7 @@ export function analyzeCustomPool(structure, resultsMap, entries, roundPoints, o
 
   // Locked base score from already-decided boxes.
   const base = {};
-  for (const e of submitted) base[e.userId] = scoreEntry(official, e.predictions, roundPoints).total;
+  for (const e of submitted) base[e.userId] = scoreEntry(official, e.predictions, roundPoints).total + gradeSleepers(official, e, options.pool).sleeperBonus;
 
   const out = { byUserId: {}, analysisComplete: true, undecidedMatchupCount: undecided.length };
 
@@ -78,7 +78,7 @@ export function analyzeCustomPool(structure, resultsMap, entries, roundPoints, o
         const pick = e.predictions[id];
         if (pick != null && !eliminatedPids.has(pick)) mx += ptsFor(roundPoints, loc[id].r); // pick could still be right
       }
-      maxPossible[e.userId] = mx;
+      maxPossible[e.userId] = mx + (options.pool?.enableSleepers ? Math.max(0, Number(options.pool.sleeper1Points) || 0) + Math.max(0, Number(options.pool.sleeper2Points) || 0) : 0);
     }
     for (const e of submitted) {
       let elim = false;
@@ -87,7 +87,7 @@ export function analyzeCustomPool(structure, resultsMap, entries, roundPoints, o
         if (maxPossible[e.userId] < base[o.userId]) { elim = true; break; } // can't catch their locked score
       }
       out.byUserId[e.userId] = {
-        status: elim ? 'eliminated' : 'alive',
+        status: elim ? 'eliminated' : 'unknown',
         currentScore: base[e.userId],
         maxPossibleScore: maxPossible[e.userId],
         winningScenarios: elim ? null : [],
@@ -109,12 +109,15 @@ export function analyzeCustomPool(structure, resultsMap, entries, roundPoints, o
 
   const recurse = (working, idx) => {
     if (deadlineHit) return;
+    if (Date.now() >= deadline) { deadlineHit = true; return; }
     if (idx === undecided.length) {
       if (((++timeCheck) & 0xff) === 0 && Date.now() > deadline) { deadlineHit = true; return; }
+      const finalTotals = {};
+      for (const e of submitted) finalTotals[e.userId] = scoreEntry(working, e.predictions, roundPoints).total + gradeSleepers(working, e, options.pool).sleeperBonus;
       let mx = -Infinity;
-      for (const e of submitted) if (totals[e.userId] > mx) mx = totals[e.userId];
+      for (const e of submitted) if (finalTotals[e.userId] > mx) mx = finalTotals[e.userId];
       for (const e of submitted) {
-        if (totals[e.userId] === mx) {               // tied for 1st or better -> a win
+        if (finalTotals[e.userId] === mx) {               // tied for 1st or better -> a win
           won[e.userId] = true;
           if (scenarios[e.userId].length < maxScenariosPerEntry) scenarios[e.userId].push({ outcomes: { ...outcome } });
           else scnTrunc[e.userId] = true;
@@ -146,7 +149,8 @@ export function analyzeCustomPool(structure, resultsMap, entries, roundPoints, o
   for (const e of submitted) {
     const w = !!won[e.userId], l = !!lost[e.userId];
     let status, scns;
-    if (!w) { status = 'eliminated'; scns = null; }
+    if (deadlineHit) { status = w ? 'alive' : 'unknown'; scns = scenarios[e.userId]; }
+    else if (!w) { status = 'eliminated'; scns = null; }
     else if (!l) { status = 'clinched'; scns = []; }     // won every completion
     else { status = 'alive'; scns = scenarios[e.userId]; }
     out.byUserId[e.userId] = {
@@ -166,7 +170,7 @@ export function analyzeCustomPool(structure, resultsMap, entries, roundPoints, o
  *   - rootFor  : boxes whose outcome varies, with the per-winner distribution
  */
 export function summarizeWinningScenarios(status, nameMap) {
-  if (!status || status.status !== 'alive' || !status.winningScenarios || status.winningScenarios.length === 0) return null;
+  if (!status || status.scenariosTruncated || status.status !== 'alive' || !status.winningScenarios || status.winningScenarios.length === 0) return null;
   const scenarios = status.winningScenarios;
   const name = (pid) => (nameMap && nameMap[pid]) || pid;
 

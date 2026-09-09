@@ -1,14 +1,12 @@
-name: Deploy Firebase Backend
+name: Deploy Firebase Rules (after frontend)
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'im-tourn/functions/**'
-      - 'im-tourn/src/lib/**'
-      - 'im-tourn/src/services/interactiveSort.js'
-      - 'im-tourn/firestore.indexes.json'
-      - '.github/workflows/deploy-functions.yml'
   workflow_dispatch:
+    inputs:
+      frontend_verified:
+        description: 'Confirm the new frontend is live and authenticated smoke tests passed'
+        required: true
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -18,6 +16,7 @@ env:
   FIREBASE_PROJECT_ID: i-m-tourn
 jobs:
   deploy:
+    if: inputs.frontend_verified
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,19 +31,14 @@ jobs:
         working-directory: im-tourn
       - run: npm ci
         working-directory: im-tourn/functions
-      - run: npm run check && npm run test:rules
+      - run: npm run test:rules
         working-directory: im-tourn
       - name: Write credentials
         run: printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/gcp-sa.json"
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-      - name: Deploy functions and indexes
+      - name: Deploy rules
         working-directory: im-tourn
-        run: npx firebase deploy --only functions,firestore:indexes --project "$FIREBASE_PROJECT_ID" --non-interactive
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json
-      - name: Allow Netlify production builds to proceed
-        working-directory: im-tourn
-        run: node scripts/mark-backend-ready.cjs
+        run: npx firebase deploy --only firestore:rules,storage --project "$FIREBASE_PROJECT_ID" --non-interactive
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json
