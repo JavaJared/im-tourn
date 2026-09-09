@@ -41,11 +41,10 @@ jobs:
         run: printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/gcp-sa.json"
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-      # Retain build artifacts; opt out of the interactive cleanup-policy prompt.
-      # --force is scoped to this policy command, never to function deletion.
+      # Retain artifacts without modifying cleanup policies or forcing deployment.
       - name: Retain Firebase build artifacts
         working-directory: im-tourn
-        run: npx firebase functions:artifacts:setpolicy --none --force --location us-central1 --project "$FIREBASE_PROJECT_ID" --non-interactive
+        run: node scripts/retain-build-artifacts.cjs
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json
       - name: Deploy functions and indexes
