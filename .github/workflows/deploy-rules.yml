@@ -14,6 +14,7 @@ concurrency:
   cancel-in-progress: false
 env:
   FIREBASE_PROJECT_ID: i-m-tourn
+  FIREBASE_STORAGE_BUCKET: i-m-tourn.firebasestorage.app
 jobs:
   deploy:
     if: inputs.frontend_verified
@@ -37,5 +38,9 @@ jobs:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
       - name: Deploy rules
         run: npx firebase deploy --only firestore:rules,storage --project "$FIREBASE_PROJECT_ID" --non-interactive
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json
+      - name: Verify active Firestore and Storage rules
+        run: node scripts/verify-deployed-rules.cjs
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json

@@ -2,7 +2,7 @@ import { beforeAll, beforeEach, afterAll, describe, test } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
 import { doc, setDoc, getDoc, updateDoc, Timestamp, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytes, deleteObject } from 'firebase/storage';
+import { ref, uploadBytes, deleteObject, getMetadata } from 'firebase/storage';
 const run = process.env.FIRESTORE_EMULATOR_HOST ? describe : describe.skip;
 run('Firestore and Storage trust boundaries', () => {
   let env;
@@ -69,4 +69,23 @@ run('Firestore and Storage trust boundaries', () => {
     await assertFails(deleteObject(ref(env.authenticatedContext('alice').storage(), path)));
     await assertSucceeds(deleteObject(ref(env.authenticatedContext('host').storage(), path)));
   });
+  test('tier images are readable and writable only by the matching list owner', async () => {
+    const path = 'tierLists/alice/t/item.jpg', bytes = new Uint8Array([1, 2, 3]), meta = { contentType: 'image/jpeg' };
+    const alice = env.authenticatedContext('alice').storage();
+    const bob = env.authenticatedContext('bob').storage();
+    await assertSucceeds(uploadBytes(ref(alice, path), bytes, meta));
+    await assertSucceeds(getMetadata(ref(alice, path)));
+    await assertFails(getMetadata(ref(bob, path)));
+    await assertFails(getMetadata(ref(env.unauthenticatedContext().storage(), path)));
+    await assertFails(uploadBytes(ref(bob, path), bytes, meta));
+    await assertFails(uploadBytes(ref(bob, 'tierLists/bob/t/item.jpg'), bytes, meta));
+    await assertFails(deleteObject(ref(bob, path)));
+    await assertSucceeds(deleteObject(ref(alice, path)));
+  });
+  test('even owners cannot upload oversized images or non-image content', async () => {
+    const storage = env.authenticatedContext('host').storage();
+    await assertFails(uploadBytes(ref(storage, 'rankings/r/entries/large.jpg'), new Uint8Array(2 * 1024 * 1024), { contentType: 'image/jpeg' }));
+    await assertFails(uploadBytes(ref(storage, 'rankings/r/entries/document.pdf'), new Uint8Array([1, 2, 3]), { contentType: 'application/pdf' }));
+  });
+
 });
