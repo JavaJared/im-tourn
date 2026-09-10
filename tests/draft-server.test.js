@@ -14,7 +14,7 @@ run('transactional draft controls', () => {
   });
   beforeEach(async () => {
     for (const name of ['drafts','draftInvites','draftInviteCodes']) await db.recursiveDelete(db.collection(name));
-    await db.doc('_system/features').set({ draftsReady: true });
+    await db.doc('_system/features').set({ draftsReady: true, draftsPublic: true });
   });
   const create = () => act('host', null, 'create', { title: 'Test draft', rounds: 2, timerSeconds: 30 });
   const started = async () => {
@@ -23,7 +23,7 @@ run('transactional draft controls', () => {
   };
   test('deployment gate and authentication prevent premature draft writes', async () => {
     await expect(act(null, null, 'create', {})).rejects.toMatchObject({ code: 'unauthenticated' });
-    await db.doc('_system/features').set({ draftsReady: false });
+    await db.doc('_system/features').set({ draftsReady: true, draftsPublic: false });
     await expect(create()).rejects.toMatchObject({ code: 'failed-precondition' });
   });
   test('invites are private, identity comes from auth, and concurrent joins preserve everyone', async () => {

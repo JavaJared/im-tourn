@@ -22,6 +22,7 @@ exports.browseCatalog = onCall(async req => {
   const source = sources[type], collection = db.collection(source.collection);
   let query = collection.orderBy('createdAt', 'desc').orderBy(FieldPath.documentId(), 'desc').select(...source.fields).limit(25);
   if (type === 'draft') {
+    if (!(await db.doc('_system/features').get()).data()?.draftsPublic) return { items: [], nextCursor: null };
     query = query.where('schemaVersion', '==', 2);
     if (req.data.mine) {
       if (!req.auth) throw new HttpsError('unauthenticated', 'Please sign in.');

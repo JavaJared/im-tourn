@@ -7,7 +7,7 @@ export function useFeatureReadiness() {
   useEffect(() => {
     let active = true;
     callServer('featureReadiness', {}).then(result => {
-      if (active) FEATURES.drafts = result.draftsReady === true;
+      if (active) FEATURES.drafts = false;
     }).catch(() => { if (active) FEATURES.drafts = false; }).finally(() => { if (active) setReady(true); });
     return () => { active = false; };
   }, []);

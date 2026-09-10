@@ -26,10 +26,8 @@ vi.mock('../src/app/pages.jsx', async () => {
 describe('extracted routing', () => {
   it.each([
     ['pool-one-two', 'PoolDetailPage', 'one-two'],
-    ['prediction-pool-one-two', 'PredictionPoolDetailPage', 'one-two'],
     ['ranking-vote-one-two', 'RankingVotePage', 'one-two'],
     ['ranking-one-two', 'RankingDetailPage', 'one-two'],
-    ['draft-one-two', 'DraftLobbyPage', 'one-two'],
     ['kristin-tiers-one-two', 'KristinTiersDetailPage', 'one-two'],
     ['custom-bracket-one-two', 'CustomBracketPage', 'one-two'],
   ])('renders only the matching page for %s and preserves its full ID', (view, page, id) => {
@@ -75,4 +73,10 @@ it('renders graded pool picks and keyboard controls after the board split', () =
   const html = renderToStaticMarkup(createElement(PoolBoard, { state, nameMap: {}, editable: false, official: { [box]: winner === 'p1' ? 'p2' : 'p1' } }));
   expect(html).toContain('A'); expect(html).toContain('B');
   expect(html).not.toContain('role="button"');
+});
+
+it('blocks direct draft links while public access is disabled', () => {
+  const html = renderToStaticMarkup(createElement(AppRoutes, { view: 'draft-one-two' }));
+  expect(html).toContain('not publicly available');
+  expect(html).not.toContain('data-page="DraftLobbyPage"');
 });

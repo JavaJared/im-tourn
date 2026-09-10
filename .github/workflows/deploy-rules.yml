@@ -48,7 +48,7 @@ jobs:
         run: node scripts/verify-deployed-rules.cjs
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json
-      - name: Enable verified draft controls
+      - name: Record draft verification without public release
         run: node scripts/enable-verified-features.cjs
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json

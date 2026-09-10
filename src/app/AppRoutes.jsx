@@ -1,3 +1,4 @@
+import { isHiddenView } from '../config/app';
 import { Suspense } from 'react';
 import {
   RankingsBrowsePage,
@@ -38,6 +39,7 @@ export default function AppRoutes({
   currentBracket,
   currentUser,
 }) {
+  if (isHiddenView(view)) return <div className="home-container"><p>This feature is not publicly available.</p><button onClick={() => setView('home')}>Back to browse</button></div>;
   return (
     <Suspense
       fallback={

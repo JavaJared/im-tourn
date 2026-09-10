@@ -12,7 +12,7 @@ function snake(participants, rounds) {
   return Array.from({ length: rounds }, (_, r) => (r % 2 ? [...participants].reverse() : participants).map((p, i) => ({ round: r + 1, pickInRound: i + 1, userId: p.userId, userDisplayName: p.displayName }))).flat();
 }
 async function ready() {
-  if (!(await db.doc('_system/features').get()).data()?.draftsReady) fail('failed-precondition', 'Drafts are awaiting verified deployment.');
+  if (!(await db.doc('_system/features').get()).data()?.draftsPublic) fail('failed-precondition', 'Drafts are awaiting verified deployment.');
 }
 function checked(data) {
   if (data?.schemaVersion !== 2 || !Array.isArray(data.participants) || !Array.isArray(data.draftOrder) || !Array.isArray(data.picks)) fail('failed-precondition', 'This older draft is read-only. Create a new draft.');
@@ -111,4 +111,4 @@ exports.resolveDraftInvite = onCall(async req => {
   const invite = await codeRef(code).get(); return { id: invite.data()?.draftId || null };
 });
 exports.internal = { snake };
-exports.featureReadiness = onCall(async () => ({ draftsReady: (await db.doc('_system/features').get()).data()?.draftsReady === true }));
+exports.featureReadiness = onCall(async () => ({ draftsReady: (await db.doc('_system/features').get()).data()?.draftsPublic === true }));
