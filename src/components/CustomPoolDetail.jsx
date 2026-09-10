@@ -113,6 +113,8 @@ const STATUS_LABEL = { open: 'Predictions open', locked: 'Locked', in_progress: 
 export default function CustomPoolDetail({ poolId, currentUserId, currentUserName, onNavigate }) {
   const [pool, setPool] = useState(null);
   const [entries, setEntries] = useState([]);
+  const [entriesError, setEntriesError] = useState('');
+  const entryWatch = useRef(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [tab, setTab] = useState('bracket');
@@ -141,13 +143,15 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
   // entry (predictions + scores). All viewers see results and standings update
   // in real time without reloading.
   useEffect(() => {
+    setPool(null); setEntries([]); setViewingEntry(null); setLoading(true);
     const unsubPool = subscribeToPool(poolId, (p) => {
       if (!p) { setError('Pool not found.'); setLoading(false); return; }
-      setPool(p); setError(null); setLoading(false);
+      setPool(p); setError(null); setLoading(false); entryWatch.current?.refresh();
     }, (e) => { setError(e?.message || 'Failed to load pool.'); setLoading(false); });
-    const unsubEntries = subscribeToPoolEntries(poolId, (all) => setEntries(all), () => {});
+    const unsubEntries = subscribeToPoolEntries(poolId, all => { setEntries(all); setEntriesError(''); }, e => setEntriesError(e.message || 'Could not load participants.'));
+    entryWatch.current = unsubEntries;
     return () => { unsubPool(); unsubEntries(); };
-  }, [poolId]);
+  }, [poolId, currentUserId]);
 
   const myEntry = useMemo(() => entries.find((e) => e.userId === currentUserId) || null, [entries, currentUserId]);
   const isHost = !!(pool && currentUserId && pool.hostId === currentUserId);
@@ -183,7 +187,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
     else setResState(hydrateState(pool.bracketMatchups, pool.customResults || {}));
   }, [pool, canRecord]);
 
-  const run = async (fn, ok) => { setBusy(true); try { await fn(); if (ok) flash(ok); } catch (e) { flash(e?.message || 'Something went wrong'); } setBusy(false); };
+  const run = async (fn, ok) => { setBusy(true); try { await fn(); await entryWatch.current?.refresh(); if (ok) flash(ok); } catch (e) { flash(e?.message || 'Something went wrong'); } setBusy(false); };
 
   // predictor picks
   const canPredict = joined && predictionsOpen(pool, now);
@@ -210,7 +214,8 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
     const official = hydrateState(pool.bracketMatchups, pool.customResults || {});
     // Pool entries carry their picks under `predictions`; buildLeaderboard reads `picks`.
     const scored = entries.filter((e) => e.predictions).map((e) => ({ ...e, picks: e.predictions, displayName: e.userDisplayName }));
-    return buildLeaderboard(official, scored, roundPoints, pool);
+    const scoredById = new Map(buildLeaderboard(official, scored, roundPoints, pool).map(e => [e.id, e]));
+    return entries.map(e => scoredById.get(e.id) || { ...e, total: e.score || 0, correct: 0 }).sort((a, b) => b.total - a.total);
   }, [pool, entries, roundPoints]);
 
   // Official winner per box (pid), for grading any prediction board correct/incorrect.
@@ -248,7 +253,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
 
   // Elimination analysis (alive / clinched / eliminated) once results are live.
   const analysis = useMemo(() => {
-    if (!pool?.bracketMatchups || (status !== 'in_progress' && status !== 'completed')) return null;
+    if (entries.nextCursor || entries.some(e => e.dataError) || !pool?.bracketMatchups || (status !== 'in_progress' && status !== 'completed')) return null;
     return analyzeCustomPool(pool.bracketMatchups, pool.customResults || {}, entries, roundPoints, { pool });
   }, [pool, entries, roundPoints, status]);
   const showPaths = useMemo(
@@ -343,7 +348,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
           <span style={S.pill}>{STATUS_LABEL[status] || status}</span>
         </div>
         <div style={S.topRight}>
-          {pool.joinCode && <div style={S.codeWrap}><span>Code</span><span style={S.codeVal}>{pool.joinCode}</span><button style={S.linkBtn} onClick={copyLink}>Copy link</button></div>}
+          {isHost && pool.joinCode && <div style={S.codeWrap}><span>Code</span><span style={S.codeVal}>{pool.joinCode}</span><button style={S.linkBtn} onClick={copyLink}>Copy link</button></div>}
           {isHost && status === 'open' && <button style={S.primary} disabled={busy} onClick={() => run(() => lockPool(poolId, currentUserId), 'Predictions locked')}><Lock size={14} /> Lock predictions</button>}
           {isHost && status === 'locked' && <button style={S.primary} disabled={busy} onClick={() => run(() => startCustomPool(poolId, currentUserId), 'Pool started')}><Trophy size={14} /> Start &amp; record results</button>}
           {isHost && status === 'in_progress' && <>
@@ -456,12 +461,12 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
               const champ = e.champion != null ? (nameMap[e.champion] || null) : null;
               const est = analysis?.byUserId?.[e.userId]?.status;
               return (
-                <div key={e.userId || i} onClick={() => e.predictions && setViewingEntry(e)} title={e.predictions ? 'View this bracket' : undefined} style={{ ...S.row, ...(me ? S.rowMe : {}), cursor: e.predictions ? 'pointer' : 'default' }}>
+                <div key={e.userId || i} role={e.predictions ? 'button' : undefined} tabIndex={e.predictions ? 0 : undefined} onKeyDown={event => { if (e.predictions && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setViewingEntry(e); } }} onClick={() => e.predictions && setViewingEntry(e)} title={e.predictions ? 'View this bracket' : undefined} style={{ ...S.row, ...(me ? S.rowMe : {}), cursor: e.predictions ? 'pointer' : 'default' }}>
                   <div style={{ ...S.rank, ...(i === 0 ? S.rankTop : {}) }}>{i + 1}</div>
                   <span style={{ ...S.lbName, ...(me ? { color: 'var(--teal)' } : {}), ...(est === 'eliminated' ? { opacity: 0.5 } : {}) }}>{e.userDisplayName || e.displayName || 'Anonymous'}{me ? ' (you)' : ''}</span>
                   {est && <StatusBadge status={est} />}
                   {champ && <span style={S.lbChamp} title={`Champion pick: ${champ}`}><Trophy size={12} /> {champ}</span>}
-                  <span style={S.correct}>{e.correct} correct</span>
+                  <span style={S.correct}>{e.predictionsHidden ? 'Picks private' : e.dataError ? 'Picks unavailable' : `${e.correct} correct`}</span>
                   <span style={S.pts}>{e.total} pts</span>
                 </div>
               );
@@ -471,6 +476,9 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
           </>
         )}
       </div>
+      {entriesError && <p role="alert">{entriesError} <button onClick={() => entryWatch.current?.refresh()}>Retry participants</button></p>}
+      {entries.predictionsHidden && <p style={S.note}>Other participants’ picks stay private until predictions close. Invite codes are visible only to the host.</p>}
+      {entries.nextCursor && <p style={S.note}>Showing a partial leaderboard. Winning-path analysis is available after all participants load. <button onClick={() => entryWatch.current?.loadMore()}>Load more participants</button></p>}
       {toast && <div style={S.toast}>{toast}</div>}
     </Shell>
   );

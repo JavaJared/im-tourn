@@ -36,6 +36,10 @@ jobs:
         run: printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/gcp-sa.json"
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      - name: Protect existing pool invitations
+        run: node scripts/migrate-pool-invites.cjs
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json
       - name: Deploy rules
         run: npx firebase deploy --only firestore:rules,storage --project "$FIREBASE_PROJECT_ID" --non-interactive
         env:

@@ -665,13 +665,13 @@ const PoolDetailPage = ({ poolId, onNavigate }) => {
         </div>
 
         <div className="pool-header-actions">
-          <div className="pool-code-display">
+          {isHost && pool.joinCode && <div className="pool-code-display">
             <span>Join Code:</span>
             <strong>{pool.joinCode}</strong>
             <button className="copy-btn" onClick={copyJoinLink}>
               Copy Link
             </button>
-          </div>
+          </div>}
 
           {isHost && (
             <div className="host-actions">

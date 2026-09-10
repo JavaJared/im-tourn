@@ -9,6 +9,27 @@ service cloud.firestore {
     function only(fields) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields); }
     function openPool(p) { return p.status == 'open' && (p.get('lockDate', null) == null || request.time < p.lockDate); }
     function pool(collection, id) { return get(/databases/$(database)/documents/$(collection)/$(id)).data; }
+    function revealed(p) {
+      return p.status in ['locked','in_progress','completed']
+        || (p.status == 'open' && p.get('lockDate', null) != null && request.time >= p.lockDate);
+    }
+    function member(collection, poolId, p) {
+      return signedIn() && (p.hostId == request.auth.uid
+        || exists(/databases/$(database)/documents/$(collection)/$(poolId + '_' + request.auth.uid)));
+    }
+    function readEntry(poolCollection, entryCollection) {
+      let p = pool(poolCollection, resource.data.poolId);
+      return owns('userId') || (revealed(p) && member(entryCollection, resource.data.poolId, p));
+    }
+    function validPoolTransition() {
+      return request.resource.data.status == resource.data.status
+        || (resource.data.status == 'open' && request.resource.data.status in ['locked','in_progress'])
+        || (resource.data.status == 'locked' && request.resource.data.status == 'in_progress')
+        || (resource.data.status == 'in_progress' && request.resource.data.status == 'completed');
+    }
+    match /poolInvites/{id} { allow read, write: if false; }
+    match /poolInviteCodes/{id} { allow read, write: if false; }
+    match /poolJoinAttempts/{id} { allow read, write: if false; }
     function validEntry(id, collection) {
       let d = request.resource.data;
       return signedIn() && d.userId == request.auth.uid && id == d.poolId + '_' + request.auth.uid
@@ -48,25 +69,25 @@ service cloud.firestore {
     match /weeklyVotes/{id} { allow read: if true; allow write: if false; }
     match /bracketPools/{id} {
       allow read: if true;
-      allow create: if signedIn() && request.resource.data.hostId == request.auth.uid && request.resource.data.status == 'open';
-      allow update: if owns('hostId') && only(['description','status','results','customResults','customScores','updatedAt','winnerId','winnerIds','winnerName','winnerScore']);
+      allow create: if false; // Trusted creation keeps invite codes out of public records.
+      allow update: if owns('hostId') && validPoolTransition() && only(['description','status','results','customResults','customScores','updatedAt','winnerId','winnerIds','winnerName','winnerScore']);
       allow delete: if owns('hostId');
     }
     match /poolEntries/{id} {
-      allow read: if true;
-      allow create: if validEntry(id, 'bracketPools');
+      allow read: if owns('userId') || readEntry('bracketPools', 'poolEntries');
+      allow create: if false; // Joining validates the invitation on the server.
       allow update: if editEntry('bracketPools');
       allow delete: if deleteEntry('bracketPools');
     }
     match /predictionPools/{id} {
       allow read: if true;
-      allow create: if signedIn() && request.resource.data.hostId == request.auth.uid && request.resource.data.status == 'open';
-      allow update: if owns('hostId') && only(['description','status','results','updatedAt','winnerId','winnerIds','winnerName','winnerScore']);
+      allow create: if false; // Trusted creation keeps invite codes out of public records.
+      allow update: if owns('hostId') && validPoolTransition() && only(['description','status','results','updatedAt','winnerId','winnerIds','winnerName','winnerScore']);
       allow delete: if owns('hostId');
     }
     match /predictionEntries/{id} {
-      allow read: if true;
-      allow create: if validEntry(id, 'predictionPools');
+      allow read: if owns('userId') || readEntry('predictionPools', 'predictionEntries');
+      allow create: if false; // Joining validates the invitation on the server.
       allow update: if editEntry('predictionPools');
       allow delete: if deleteEntry('predictionPools');
     }

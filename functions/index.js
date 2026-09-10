@@ -13,6 +13,7 @@ const S = require('./generated/scoring.cjs');
 const api = require('./api');
 const { parse, tallyRound } = api.internal;
 for (const [key, value] of Object.entries(api)) if (key !== 'internal') exports[key] = value;
+for (const [key, value] of Object.entries(require('./pool-privacy'))) if (key !== 'internal') exports[key] = value;
 const current = db.doc('weeklyBracket/current');
 const stamp = () => FieldValue.serverTimestamp();
 const unpack = snap => ({ ...snap.data(), matchups: parse(snap.data().matchups, []), votes: parse(snap.data().votes, {}) });

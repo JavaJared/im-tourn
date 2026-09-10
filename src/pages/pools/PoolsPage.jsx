@@ -151,7 +151,7 @@ const PoolsPage = ({ onNavigate }) => {
             placeholder="Enter join code"
             value={joinCode}
             onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-            maxLength={6}
+            maxLength={8}
             className="join-code-input"
           />
           <button className="join-btn" onClick={handleJoinPool} disabled={joining}>
@@ -195,7 +195,7 @@ const PoolsPage = ({ onNavigate }) => {
                   <h3 className="pool-title">{pool.name}</h3>
                   <p className="pool-bracket">{pool.bracketTitle}</p>
                   <div className="pool-meta">
-                    <span className="pool-code">Code: {pool.joinCode}</span>
+                    <span className="pool-code">Open pool to view its invitation</span>
                   </div>
                 </div>
               );
