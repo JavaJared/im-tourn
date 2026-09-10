@@ -51,6 +51,20 @@ Use Node 22 and Java 21+ for emulators. `npm run check` runs pure regressions, t
 
 The UUID override in Functions stays on CommonJS-compatible 11.x. The affected Google HTTP libraries use only its stable `v4()` API. Do not use `npm audit fix --force`: the suggested downgrade crosses unsupported Firebase SDK generations.
 
-This repair does **not** change existing public pools into private pools. Public join codes and picks remain part of the current data model (review S7). A private-pool/sealed-picks migration needs an explicit access model, membership-based queries and separate public metadata. Broader catalog pagination/search, a full mobile bracket redesign, audit-history UI and new competition features remain follow-up work. Initial feature code is split, but the shared Firebase chunk is still large.
+The privacy rollout separates host-only invitation codes from public pool metadata. Existing codes are moved, not rotated, by the repeatable migration in the gated rules workflow. Before predictions close, participant summaries omit other users' picks, including for hosts. After closure, only hosts and members may read them. Deploying the frontend alone does not enforce this against direct Firestore reads: the new rules and migration must also run.
+
+Catalogs load metadata in pages of 24; pool participants load in pages of 50. Submissions download full matchup data only on selection. Search and sorting currently apply to loaded catalog items, with an explicit message and load-more controls. Complete global text search and a full mobile bracket redesign remain future improvements. The shared Firebase SDK chunk is still large.
+
+Ranking, tier and draft pages are separate route modules; styles are divided by feature with the original cascade preserved. Pools now use one detail subscription path for both legacy and custom brackets. Winning-path searches run in a terminable worker and are withheld for incomplete or damaged participant lists. Dialog tests cover focus trapping, nested Escape handling and restoration.
+
+Draft creation, invites, joins, host controls, turn order, picks, expiry and scoring use authenticated server transactions. Expected turn numbers make retries safe at consecutive snake turns. Timers use server deadlines; connected participants request expiry advancement, and an expired offline room advances when a participant reconnects. New drafts use schema version 2; older drafts are preserved but not editable with the new controls. Drafts remain disabled until the gated rules workflow tests and verifies the active rules, then writes the feature readiness flag. Refresh the frontend after this workflow to expose drafts. Other previously disabled features remain disabled.
+
+### Release 3 deployment order
+
+1. Merge the verified changes to main. The backend workflow deploys additive callables and indexes, exercises each new query until indexes are ready, then marks backend release 3 ready.
+2. Publish/retry the Netlify build. Its guard blocks production publication until release 3 is ready, preserving the current live deployment during backend setup.
+3. Check signed-in pool creation, invitation joining, pick submission, results, rankings and tiers in your own browser.
+4. Run **Deploy Firebase Rules (after frontend)** on main with `frontend_verified` checked. This existing confirmation gate is intentional. The workflow moves invitation codes, deploys and verifies both rulesets, then enables the tested draft controls.
+5. Refresh and check a two-account draft (join, start, pick, timer and scoring). Never enable drafts by editing the client flag before rules verification.
 
 Live authenticated smoke tests and production security-rule deployment cannot be replaced by a successful build or an emulator run. Check the PR for actual completed validation and deployment status.

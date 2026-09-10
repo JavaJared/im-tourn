@@ -146,7 +146,7 @@ const HomePage = ({ onFillOut, onNavigate }) => {
       {/* Results count */}
       {!loading && brackets.length > 0 && (
         <div className="results-count">
-          Showing {filteredBrackets.length} of {brackets.length} brackets
+          Showing {filteredBrackets.length} of {brackets.length} loaded brackets
           {selectedCategory && ` in ${selectedCategory}`}
           {searchTerm && ` matching "${searchTerm}"`}
         </div>

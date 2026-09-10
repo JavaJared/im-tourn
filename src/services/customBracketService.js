@@ -1,3 +1,4 @@
+import { validateStructure, validateLegacyMatchups } from '../lib/recordValidation';
 import { hostInvite, watchEntries } from './pools/privacy';
 import { callServer } from './server';
 import { createWriteQueue } from '../lib/writeQueue';
@@ -240,8 +241,15 @@ export async function updateCustomPoolScores(poolId, hostId, fields) {
 
 /* ---- real-time pool subscriptions (custom pools) ---- */
 function parsePoolDoc(id, data) {
+  const raw = typeof data.bracketMatchups === 'string' ? JSON.parse(data.bracketMatchups) : data.bracketMatchups;
+  if (Array.isArray(raw)) validateLegacyMatchups(raw); else validateStructure(raw);
   return adaptLegacyPool({
     id, ...data,
+    name: typeof data.name === 'string' ? data.name : 'Untitled pool',
+    description: typeof data.description === 'string' ? data.description : '',
+    hostDisplayName: typeof data.hostDisplayName === 'string' ? data.hostDisplayName : 'Anonymous',
+    winnerName: typeof data.winnerName === 'string' ? data.winnerName : null,
+    roundPoints: Array.isArray(data.roundPoints) ? data.roundPoints.map(value => Number.isFinite(value) && value >= 0 ? value : 0) : [],
     bracketMatchups: typeof data.bracketMatchups === 'string' ? JSON.parse(data.bracketMatchups) : data.bracketMatchups,
     results: data.results ? (typeof data.results === 'string' ? JSON.parse(data.results) : data.results) : null,
     lockDate: data.lockDate?.toDate?.() || null,

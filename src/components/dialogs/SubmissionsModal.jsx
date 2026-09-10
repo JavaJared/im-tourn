@@ -1,3 +1,7 @@
+import { callServer } from '../../services/server';
+import { db } from '../../firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { validateLegacyMatchups } from '../../lib/recordValidation';
 import { useDialog } from '../../lib/useDialog';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -6,6 +10,10 @@ import { getBracketSubmissions, toggleSubmissionUpvote } from '../../services/br
 const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
   const dialogRef = useDialog(isOpen, onClose);
   const request = useRef(0);
+  const selectionRequest = useRef(0);
+  const votesPending = useRef(new Set());
+  const [nextCursor, setNextCursor] = useState(null);
+  const [opening, setOpening] = useState(false);
   const [error, setError] = useState('');
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,30 +33,18 @@ const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
       setSubmissions([]);
       setUserUpvotes({});
     }
-    return () => { request.current++; };
+    return () => { request.current++; selectionRequest.current++; };
   }, [isOpen, bracket?.id, currentUser?.uid]);
 
-  const loadSubmissions = async () => {
+  const loadSubmissions = async (cursor = null) => {
     const generation = ++request.current;
     setLoading(true); setError('');
     try {
-      const data = await getBracketSubmissions(bracket.id);
+      const page = await callServer('listSubmissionSummaries', { bracketId: bracket.id, cursor });
       if (generation !== request.current) return;
-      // Parse matchups for each submission
-      let invalid = 0;
-      const parsedData = data.flatMap(sub => {
-        try {
-          const matchups = typeof sub.matchups === 'string' ? JSON.parse(sub.matchups) : sub.matchups;
-          if (!Array.isArray(matchups) || !matchups.length || !matchups.every(round => Array.isArray(round) && round.every(match => match && typeof match === 'object'))) throw new Error('Invalid bracket');
-          return [{ ...sub, matchups, userDisplayName: typeof sub.userDisplayName === 'string' ? sub.userDisplayName : 'Anonymous', upvotes: Number.isFinite(sub.upvotes) ? sub.upvotes : 0, upvotedBy: Array.isArray(sub.upvotedBy) ? sub.upvotedBy : [] }];
-        } catch { invalid++; return []; }
-      });
-      if (invalid) setError(`${invalid} damaged submission${invalid === 1 ? '' : 's'} could not be displayed. Other submissions are available.`);
-      // Sort by upvotes (most first), then by date
-      parsedData.sort(
-        (a, b) => b.upvotes - a.upvotes || new Date(b.submittedAt) - new Date(a.submittedAt),
-      );
-      setSubmissions(parsedData);
+      const parsedData = page.items.map(sub => ({ ...sub, submittedAt: sub.submittedAt ? new Date(sub.submittedAt).toLocaleDateString() : 'Recently', upvotedBy: sub.liked && currentUser ? [currentUser.uid] : [] }));
+      setSubmissions(previous => cursor ? [...new Map([...previous, ...parsedData].map(item => [item.id, item])).values()] : parsedData);
+      setNextCursor(page.nextCursor);
 
       // Track which submissions current user has upvoted
       if (currentUser) {
@@ -58,12 +54,26 @@ const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
             upvoted[sub.id] = true;
           }
         });
-        setUserUpvotes(upvoted);
+        setUserUpvotes(previous => cursor ? { ...previous, ...upvoted } : upvoted);
       }
     } catch (error) {
       if (generation === request.current) setError('Submissions could not be loaded. Please retry.');
     }
     if (generation === request.current) setLoading(false);
+  };
+
+  const selectSubmission = async summary => {
+    const generation = ++selectionRequest.current;
+    setOpening(true); setError(''); setSelectedSubmission(null);
+    try {
+      const snap = await getDoc(doc(db, 'submissions', summary.id));
+      if (!snap.exists()) throw Error('This submission was removed.');
+      const data = snap.data();
+      const matchups = validateLegacyMatchups(typeof data.matchups === 'string' ? JSON.parse(data.matchups) : data.matchups);
+      if (generation === selectionRequest.current) setSelectedSubmission({ ...summary, matchups });
+    } catch {
+      if (generation === selectionRequest.current) setError('This submission could not be opened. Select it to retry, or choose another submission.');
+    } finally { if (generation === selectionRequest.current) setOpening(false); }
   };
 
   const handleUpvote = async (e, submission) => {
@@ -74,6 +84,8 @@ const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
       return;
     }
 
+    if (votesPending.current.has(submission.id)) return;
+    votesPending.current.add(submission.id);
     const hasUpvoted = userUpvotes[submission.id];
 
     try {
@@ -104,7 +116,7 @@ const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
       }));
     } catch (error) {
       setError('Your vote could not be saved. Please retry.');
-    }
+    } finally { votesPending.current.delete(submission.id); }
   };
 
   const getRoundName = (roundIndex, totalRounds) => {
@@ -131,8 +143,8 @@ const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
           </p>
         </div>
 
-        {error && <p role="alert">{error} <button type="button" onClick={loadSubmissions}>Retry</button></p>}
-        {loading ? (
+        {error && <p role="alert">{error} <button type="button" onClick={() => loadSubmissions()}>Retry</button></p>}
+        {loading && !submissions.length ? (
           <div className="loading-state">
             <div className="spinner"></div>
             <p>Loading submissions...</p>
@@ -151,8 +163,8 @@ const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
               {submissions.map((submission) => (
                 <div
                   key={submission.id}
-                  role="button" tabIndex={0} onKeyDown={event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setSelectedSubmission(submission); } }} className={`submission-item ${selectedSubmission?.id === submission.id ? 'selected' : ''}`}
-                  onClick={() => setSelectedSubmission(submission)}
+                  role="button" tabIndex={0} onKeyDown={event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); selectSubmission(submission); } }} className={`submission-item ${selectedSubmission?.id === submission.id ? 'selected' : ''}`}
+                  onClick={() => selectSubmission(submission)}
                 >
                   <div className="submission-top-row">
                     <div className="submission-user">
@@ -198,6 +210,8 @@ const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
               ))}
             </div>
 
+            {nextCursor && <button disabled={loading} onClick={() => loadSubmissions(nextCursor)}>Load more submissions</button>}
+            {opening && <p role="status">Opening submission…</p>}
             {/* Selected Submission Bracket View */}
             {selectedSubmission && (
               <div className="submission-bracket-view">

@@ -665,10 +665,12 @@ export async function getPredictionPoolById(poolId) {
   if (!docSnap.exists()) return null;
   
   const data = docSnap.data();
+  const categories = poolPrivacy.parsePoolField(data.categories);
+  if (!Array.isArray(categories) || !categories.length || categories.some(category => !category || typeof category.name !== 'string' || !Array.isArray(category.options) || category.options.some(option => typeof option !== 'string'))) throw new Error('This pool contains damaged categories. Please contact its host.');
   return poolPrivacy.hostInvite('prediction', {
     id: docSnap.id,
     ...data,
-    categories: poolPrivacy.parsePoolField(data.categories),
+    categories,
     results: poolPrivacy.parsePoolField(data.results),
     lockDate: data.lockDate?.toDate?.() || null,
     createdAt: data.createdAt?.toDate?.() || null
@@ -815,57 +817,7 @@ export async function startPredictionPool(poolId, hostId) {
 }
 
 // Update prediction pool results
-export async function updatePredictionPoolResults(poolId, hostId, results) {
-  const pool = await getPredictionPoolById(poolId);
-  if (!pool) {
-    throw new Error('Pool not found');
-  }
-  if (pool.hostId !== hostId) {
-    throw new Error('Only the host can update results');
-  }
-  
-  const poolRef = doc(db, PREDICTION_POOLS_COLLECTION, poolId);
-  await updateDoc(poolRef, {
-    results: JSON.stringify(results),
-    updatedAt: serverTimestamp()
-  });
-  
-  // Recalculate scores
-  await recalculatePredictionPoolScores(poolId, results, pool);
-  
-  return true;
-}
-
-// Calculate score for a prediction entry
-function calculatePredictionEntryScore(predictions, results, pool) {
-  let score = 0;
-  
-  pool.categories.forEach((category, index) => {
-    const result = results[index];
-    const prediction = predictions[index];
-    
-    if (result !== null && prediction !== null && result === prediction) {
-      score += category.points || 1;
-    }
-  });
-  
-  return score;
-}
-
-// Recalculate scores for all entries
-async function recalculatePredictionPoolScores(poolId, results, pool) {
-  const entries = await getPredictionPoolEntries(poolId);
-  
-  const updatePromises = entries.map(async (entry) => {
-    if (!entry.predictions) return;
-    
-    const score = calculatePredictionEntryScore(entry.predictions, results, pool);
-    const entryRef = doc(db, PREDICTION_ENTRIES_COLLECTION, `${poolId}_${entry.userId}`);
-    await updateDoc(entryRef, { score });
-  });
-  
-  await Promise.all(updatePromises);
-}
+export async function updatePredictionPoolResults(poolId, _hostId, results) { return callServer('managePredictionResults', { poolId, action: 'results', results }); }
 
 // Get all entries for a prediction pool
 export async function getPredictionPoolEntries(poolId, cursor = null) {
@@ -873,29 +825,7 @@ export async function getPredictionPoolEntries(poolId, cursor = null) {
 }
 
 // Complete the prediction pool
-export async function completePredictionPool(poolId, hostId) {
-  const pool = await getPredictionPoolById(poolId);
-  if (!pool) {
-    throw new Error('Pool not found');
-  }
-  if (pool.hostId !== hostId) {
-    throw new Error('Only the host can complete this pool');
-  }
-  
-  const entries = await getPredictionPoolEntries(poolId);
-  const winner = entries.length > 0 ? entries[0] : null;
-  
-  const poolRef = doc(db, PREDICTION_POOLS_COLLECTION, poolId);
-  await updateDoc(poolRef, {
-    status: 'completed',
-    winnerId: winner?.userId || null,
-    winnerName: winner?.userDisplayName || null,
-    winnerScore: winner?.score || 0,
-    updatedAt: serverTimestamp()
-  });
-  
-  return { winner };
-}
+export async function completePredictionPool(poolId) { return callServer('managePredictionResults', { poolId, action: 'complete' }); }
 
 // Delete a prediction pool
 export async function deletePredictionPool(poolId, hostId) {

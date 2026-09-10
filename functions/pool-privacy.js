@@ -1,3 +1,4 @@
+const { validateLegacyMatchups, validateStructure } = require('./generated/scoring.cjs');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getFirestore, FieldValue, Timestamp, FieldPath } = require('firebase-admin/firestore');
 const { randomInt, createHash } = require('node:crypto');
@@ -51,6 +52,7 @@ exports.createPrivatePool = onCall(async req => {
   pool.lockDate = date ? Timestamp.fromDate(date) : null;
   if (type === 'bracket') {
     if (!input.bracketMatchups || typeof input.bracketMatchups !== 'object') throw new HttpsError('invalid-argument', 'Select a valid bracket.');
+    try { if (Array.isArray(input.bracketMatchups)) validateLegacyMatchups(input.bracketMatchups); else validateStructure(input.bracketMatchups); } catch { throw new HttpsError('invalid-argument', 'Select a valid bracket.'); }
     pool.bracketMatchups = JSON.stringify(input.bracketMatchups);
     for (const field of ['bracketId', 'bracketTitle', 'bracketCategory', 'bracketType']) pool[field] = text(input[field] || '', 200);
     if (!Array.isArray(input.roundPoints) || input.roundPoints.length > 16 || input.roundPoints.some(p => !Number.isFinite(p) || p < 0 || p > 10000)) throw new HttpsError('invalid-argument', 'Invalid round points.');
@@ -63,6 +65,9 @@ exports.createPrivatePool = onCall(async req => {
     }
   } else {
     if (!Array.isArray(input.categories) || input.categories.length < 1 || input.categories.length > 50) throw new HttpsError('invalid-argument', 'Invalid categories.');
+    for (const category of input.categories) {
+      if (!category || typeof category.name !== 'string' || !category.name.trim() || category.name.length > 160 || !Array.isArray(category.options) || category.options.length < 2 || category.options.length > 100 || category.options.some(option => typeof option !== 'string' || !option.trim() || option.length > 200) || (category.points != null && (!Number.isFinite(category.points) || category.points < 0 || category.points > 10000))) throw new HttpsError('invalid-argument', 'Check category names, options and points.');
+    }
     pool.categories = JSON.stringify(input.categories);
   }
   if (Buffer.byteLength(JSON.stringify(pool)) > 500000) throw new HttpsError('invalid-argument', 'This pool is too large.');

@@ -1,3 +1,4 @@
+import { validateLegacyMatchups } from '../../lib/recordValidation';
 import { callServer } from '../server';
 import { auth } from '../../firebase';
 import { normalizeSleeper } from '../../lib/legacyPoolAdapter';
@@ -21,7 +22,10 @@ export function parseEntry(data) {
   data = { ...data, userDisplayName: typeof data.userDisplayName === 'string' ? data.userDisplayName : 'Anonymous', score: Number.isFinite(data.score) ? data.score : 0 };
   const convert = value => value?.toDate?.() || (value ? new Date(value) : null);
   try {
-    return { ...data, predictions: parsePoolField(data.predictions), sleeper1: normalizeSleeper(data.sleeper1), sleeper2: normalizeSleeper(data.sleeper2), joinedAt: convert(data.joinedAt), submittedAt: convert(data.submittedAt) };
+    const predictions = parsePoolField(data.predictions);
+    if (Array.isArray(predictions)) validateLegacyMatchups(predictions);
+    else if (predictions !== null && (typeof predictions !== 'object' || Object.values(predictions).some(value => value !== null && typeof value !== 'string' && !Number.isInteger(value)))) throw Error('Damaged predictions');
+    return { ...data, predictions, sleeper1: normalizeSleeper(data.sleeper1), sleeper2: normalizeSleeper(data.sleeper2), joinedAt: convert(data.joinedAt), submittedAt: convert(data.submittedAt) };
   } catch {
     // Keep the participant visible, but never score or display corrupt predictions.
     return { id: data.id, poolId: data.poolId, userId: data.userId, userDisplayName: data.userDisplayName || 'Anonymous', score: 0, predictions: null, dataError: true, submittedAt: convert(data.submittedAt) };

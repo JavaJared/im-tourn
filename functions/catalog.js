@@ -68,3 +68,20 @@ exports.listUserPools = onCall(async req => {
     return { id: doc.id, name: string(data.name, 'Untitled pool'), description: string(data.description).slice(0, 600), hostId: string(data.hostId), hostDisplayName: string(data.hostDisplayName, 'Anonymous'), status: string(data.status), bracketTitle: string(data.bracketTitle), createdAt: data.createdAt?.toMillis?.() || null };
   }), nextCursor: snap.size > 24 ? page.at(-1).id : null };
 });
+exports.listSubmissionSummaries = onCall(async req => {
+  const { bracketId, cursor } = req.data || {};
+  if (typeof bracketId !== 'string' || !/^[\w-]{1,200}$/.test(bracketId)) throw new HttpsError('invalid-argument', 'Invalid bracket.');
+  const collection = db.collection('submissions');
+  let query = collection.where('bracketId', '==', bracketId).orderBy('submittedAt', 'desc').orderBy(FieldPath.documentId(), 'desc').select('userDisplayName','champion','upvotes','upvotedBy','submittedAt').limit(25);
+  if (cursor) {
+    if (typeof cursor !== 'string' || !/^[\w-]{1,200}$/.test(cursor)) throw new HttpsError('invalid-argument', 'Invalid page.');
+    const last = await collection.doc(cursor).get();
+    if (!last.exists || last.data().bracketId !== bracketId) throw new HttpsError('failed-precondition', 'Refresh this list to continue.');
+    query = query.startAfter(last);
+  }
+  const snap = await query.get(), page = snap.docs.slice(0,24);
+  return { items: page.map(doc => {
+    const data = doc.data();
+    return { id: doc.id, userDisplayName: string(data.userDisplayName, 'Anonymous'), champion: typeof data.champion?.name === 'string' ? { name: data.champion.name } : null, upvotes: Number.isFinite(data.upvotes) ? data.upvotes : 0, liked: !!req.auth && Array.isArray(data.upvotedBy) && data.upvotedBy.includes(req.auth.uid), submittedAt: data.submittedAt?.toMillis?.() || null };
+  }), nextCursor: snap.size > 24 ? page.at(-1).id : null };
+});

@@ -94,4 +94,19 @@ run('protected pool invitations and predictions', () => {
     await expect(migrate(db, admin.FieldValue)).rejects.toThrow('Conflicting legacy invitation');
     expect((await db.doc('bracketPools/second').get()).data().joinCode).toBe('ABC234');
   });
+  test('prediction completion scores participants beyond the first browser page', async () => {
+    await db.doc('predictionPools/p').set({ hostId: 'host', status: 'in_progress', categories: JSON.stringify([{ name: 'Winner', options: ['A','B'], points: 3 }]), results: '{}' });
+    const batch = db.batch();
+    for (let index = 0; index < 61; index++) {
+      const uid = `user${String(index).padStart(3,'0')}`;
+      batch.set(db.doc(`predictionEntries/p_${uid}`), { poolId: 'p', userId: uid, userDisplayName: uid, predictions: JSON.stringify({ 0: index === 60 ? 1 : 0 }), submittedAt: admin.Timestamp.now(), score: 0 });
+    }
+    await batch.commit();
+    await expect(api.managePredictionResults.run(req('alice', { poolId: 'p', action: 'results', results: { 0: 1 } }))).rejects.toMatchObject({ code: 'permission-denied' });
+    await expect(api.managePredictionResults.run(req('host', { poolId: 'p', action: 'complete' }))).rejects.toMatchObject({ code: 'failed-precondition' });
+    await api.managePredictionResults.run(req('host', { poolId: 'p', action: 'results', results: { 0: 1 } }));
+    await api.managePredictionResults.run(req('host', { poolId: 'p', action: 'complete' }));
+    expect((await db.doc('predictionPools/p').get()).data()).toMatchObject({ winnerId: 'user060', winnerScore: 3, status: 'completed' });
+  });
+
 });
