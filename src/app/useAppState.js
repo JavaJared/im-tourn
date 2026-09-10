@@ -1,3 +1,4 @@
+import { useFeatureReadiness } from '../lib/useFeatureReadiness';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useViewNavigation, readSession, saveSession } from '../lib/useViewNavigation';
@@ -5,6 +6,7 @@ import { getPoolByJoinCode } from '../services/bracketService';
 import { isHiddenView } from '../config/app.js';
 
 export default function useAppState() {
+  const featuresReady = useFeatureReadiness();
   const [view, setView] = useViewNavigation();
   // Invite links: capture ?pool=CODE from the URL on first load
   const [pendingPoolCode, setPendingPoolCode] = useState(null);
@@ -38,8 +40,8 @@ export default function useAppState() {
     };
   }, [pendingPoolCode]);
   useEffect(() => {
-    if (isHiddenView(view)) setView('home');
-  }, [view]);
+    if (featuresReady && isHiddenView(view)) setView('home');
+  }, [view, featuresReady]);
   const [currentBracket, setCurrentBracket] = useState(() => readSession('export-bracket'));
   const [fillingBracket, setFillingBracket] = useState(() => readSession('filling-bracket'));
   useEffect(() => {
@@ -59,19 +61,21 @@ export default function useAppState() {
   // Check if user needs the guided tour (first time signup)
   useEffect(() => {
     if (currentUser) {
-      const tourCompleted = localStorage.getItem(`tour_completed_${currentUser.uid}`);
+      let tourCompleted = null;
+      try { tourCompleted = localStorage.getItem(`tour_completed_${currentUser.uid}`); } catch { /* Browsing still works with storage blocked. */ }
       const isNewUser = currentUser.metadata?.creationTime === currentUser.metadata?.lastSignInTime;
 
       if (!tourCompleted && isNewUser) {
         // Small delay to let the UI settle after login
-        setTimeout(() => setShowTour(true), 500);
+        const timer = setTimeout(() => setShowTour(true), 500);
+        return () => clearTimeout(timer);
       }
     }
   }, [currentUser]);
 
   const handleTourComplete = () => {
     if (currentUser) {
-      localStorage.setItem(`tour_completed_${currentUser.uid}`, 'true');
+      try { localStorage.setItem(`tour_completed_${currentUser.uid}`, 'true'); } catch { /* Optional preference. */ }
     }
     setShowTour(false);
   };

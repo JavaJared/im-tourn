@@ -3,7 +3,8 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Check, Clock, Loader2, AlertTriangle, Trophy, Lock, Users, RotateCcw, Send, X, Trash2 } from './customBracketIcons';
 import { SLOT, locate, slotDisplay, feederId, resolveParticipant, matchWinner, setResult, getChampion } from '../lib/customBracket';
 import { hydrateState, picksFromState, isEntryComplete, buildLeaderboard, defaultRoundPoints, predictedLosers } from '../lib/customScoring';
-import { analyzeCustomPool, summarizeWinningScenarios, shouldShowWinningPaths } from '../lib/customElimination';
+import { usePoolAnalysis } from '../lib/usePoolAnalysis';
+import { summarizeWinningScenarios, shouldShowWinningPaths } from '../lib/customElimination';
 import { joinBracketPool, submitPoolPredictions, lockPool, completePool, updatePoolDescription, deletePool, getPoolById } from '../services/bracketService';
 import { startCustomPool, recordCustomPoolWinner, updateCustomPoolScores, recalculateCustomPoolScoresManual, subscribeToPool, subscribeToPoolEntries } from '../services/customBracketService';
 
@@ -252,10 +253,11 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
   );
 
   // Elimination analysis (alive / clinched / eliminated) once results are live.
-  const analysis = useMemo(() => {
+  const analysisInput = useMemo(() => {
     if (entries.nextCursor || entries.some(e => e.dataError) || !pool?.bracketMatchups || (status !== 'in_progress' && status !== 'completed')) return null;
-    return analyzeCustomPool(pool.bracketMatchups, pool.customResults || {}, entries, roundPoints, { pool });
+    return { structure: pool.bracketMatchups, results: pool.customResults || {}, entries, roundPoints, pool };
   }, [pool, entries, roundPoints, status]);
+  const { analysis, error: analysisError, loading: analysisLoading } = usePoolAnalysis(analysisInput);
   const showPaths = useMemo(
     () => (analysis ? shouldShowWinningPaths(pool.bracketMatchups, pool.customResults || {}, analysis, entries) : false),
     [analysis, pool, entries]
@@ -320,7 +322,12 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
     pendingScoreWrites.current[key] = parseScoreInput(raw);
     if (scoreFlushTimer.current) { clearTimeout(scoreFlushTimer.current); scoreFlushTimer.current = null; }
     const p = flushPendingScores(); inflightFlush.current = p; await p; inflightFlush.current = null;
-    setScoreDrafts((prev) => { const n = { ...prev }; delete n[key]; return n; });   // clear draft once the live snapshot reflects it
+    if (!(key in pendingScoreWrites.current)) {
+      setScoreDrafts((prev) => {
+        if (prev[key] !== raw) return prev; // A newer edit must survive an older save.
+        const next = { ...prev }; delete next[key]; return next;
+      });
+    }
   };
   const getScoreInputValue = (boxId, side) => {
     const key = `${boxId}:${side}`;
@@ -477,7 +484,9 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
         )}
       </div>
       {entriesError && <p role="alert">{entriesError} <button onClick={() => entryWatch.current?.refresh()}>Retry participants</button></p>}
-      {entries.predictionsHidden && <p style={S.note}>Other participants’ picks stay private until predictions close. Invite codes are visible only to the host.</p>}
+      {analysisLoading && <p role="status">Calculating winning paths…</p>}
+        {analysisError && <p role="status">{analysisError}</p>}
+        {entries.predictionsHidden && <p style={S.note}>Other participants’ picks stay private until predictions close. Invite codes are visible only to the host.</p>}
       {entries.nextCursor && <p style={S.note}>Showing a partial leaderboard. Winning-path analysis is available after all participants load. <button onClick={() => entryWatch.current?.loadMore()}>Load more participants</button></p>}
       {toast && <div style={S.toast}>{toast}</div>}
     </Shell>

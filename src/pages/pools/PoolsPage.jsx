@@ -1,3 +1,5 @@
+import { usePagedCatalog } from '../../lib/usePagedCatalog';
+import CatalogControls from '../../components/CatalogControls';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
@@ -8,9 +10,7 @@ import {
 } from '../../services/bracketService';
 
 const PoolsPage = ({ onNavigate }) => {
-  const [hostedPools, setHostedPools] = useState([]);
-  const [joinedPools, setJoinedPools] = useState([]);
-  const [loading, setLoading] = useState(true);
+
   const [joinCode, setJoinCode] = useState('');
   const [joinError, setJoinError] = useState('');
   const [joining, setJoining] = useState(false);
@@ -24,6 +24,10 @@ const PoolsPage = ({ onNavigate }) => {
     }
   });
   const { currentUser } = useAuth();
+  const directory = usePagedCatalog(['hosted', 'joined'], { endpoint: 'listUserPools', params: { poolType: 'bracket' }, scope: currentUser?.uid, enabled: !!currentUser });
+  const hostedPools = directory.items.filter(p => p.catalogType === 'hosted');
+  const joinedPools = directory.items.filter(p => p.catalogType === 'joined' && p.hostId !== currentUser?.uid);
+  const loading = directory.loading && !directory.items.length;
 
   const changeFilter = (key) => {
     setStatusFilter(key);
@@ -32,29 +36,6 @@ const PoolsPage = ({ onNavigate }) => {
     } catch (e) {
       /* private mode etc. */
     }
-  };
-
-  useEffect(() => {
-    if (currentUser) {
-      loadPools();
-    } else {
-      setLoading(false);
-    }
-  }, [currentUser]);
-
-  const loadPools = async () => {
-    try {
-      const [hosted, joined] = await Promise.all([
-        getUserHostedPools(currentUser.uid),
-        getUserJoinedPools(currentUser.uid),
-      ]);
-      setHostedPools(hosted);
-      // Filter out pools the user hosts from joined pools
-      setJoinedPools(joined.filter((p) => p.hostId !== currentUser.uid));
-    } catch (error) {
-      console.error('Error loading pools:', error);
-    }
-    setLoading(false);
   };
 
   const matchesFilter = (pool) => {
@@ -189,6 +170,8 @@ const PoolsPage = ({ onNavigate }) => {
                 <div
                   key={pool.id}
                   className="pool-card"
+                  role="button" tabIndex={0}
+                  onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onNavigate(`pool-${pool.id}`); } }}
                   onClick={() => onNavigate(`pool-${pool.id}`)}
                 >
                   <span className={`pool-status ${badge.class}`}>{badge.text}</span>
@@ -214,6 +197,8 @@ const PoolsPage = ({ onNavigate }) => {
                 <div
                   key={pool.id}
                   className="pool-card"
+                  role="button" tabIndex={0}
+                  onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onNavigate(`pool-${pool.id}`); } }}
                   onClick={() => onNavigate(`pool-${pool.id}`)}
                 >
                   <span className={`pool-status ${badge.class}`}>{badge.text}</span>
@@ -246,6 +231,7 @@ const PoolsPage = ({ onNavigate }) => {
           <p>No pools yet. Create one or join with a code!</p>
         </div>
       )}
+      <CatalogControls catalog={directory} />
     </div>
   );
 };

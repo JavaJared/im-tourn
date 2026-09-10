@@ -1,3 +1,4 @@
+import { useDialog } from '../../lib/useDialog';
 export default function PoolParticipantAnalysis({
   setAnalyzingParticipant,
   analyzingParticipant,
@@ -5,9 +6,10 @@ export default function PoolParticipantAnalysis({
   pool,
   getRoundName,
 }) {
+  const dialogRef = useDialog(true, () => setAnalyzingParticipant(null));
   return (
     <div className="modal-overlay" onClick={() => setAnalyzingParticipant(null)}>
-      <div className="analysis-modal" onClick={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Participant analysis" className="analysis-modal" onClick={(e) => e.stopPropagation()}>
         <button
           aria-label="Close dialog"
           className="modal-close"

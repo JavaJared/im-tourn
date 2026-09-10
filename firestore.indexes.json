@@ -125,6 +125,98 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "customBrackets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "poolEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "joinedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "predictionEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "joinedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "drafts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "schemaVersion",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "drafts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "schemaVersion",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "hostId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "drafts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "schemaVersion",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "participantIds",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

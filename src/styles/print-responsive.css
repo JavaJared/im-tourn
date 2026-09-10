@@ -1,0 +1,280 @@
+
+
+/* PDF Page */
+.pdf-container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+.pdf-header { text-align: center; margin-bottom: 2rem; }
+.pdf-header h1 { font-family: 'Bebas Neue', sans-serif; font-size: 2.5rem; letter-spacing: 2px; color: var(--accent-teal); }
+.pdf-header p { color: var(--text-secondary); margin-top: 0.5rem; }
+
+.pdf-preview { background: white; border-radius: 12px; padding: 2rem; margin-bottom: 2rem; color: #1a1a1a; overflow-x: auto; }
+.pdf-title { font-family: 'Bebas Neue', sans-serif; font-size: 2.5rem; text-align: center; color: #1a1a1a; margin-bottom: 0.5rem; }
+.pdf-subtitle { text-align: center; color: #666; margin-bottom: 2rem; font-size: 1rem; }
+
+.pdf-bracket { display: flex; justify-content: center; gap: 0.5rem; padding: 1rem; }
+.pdf-round { display: flex; flex-direction: column; justify-content: space-around; gap: 0.5rem; min-width: 180px; }
+.pdf-round-title { font-family: 'Bebas Neue', sans-serif; font-size: 1rem; color: #666; text-align: center; margin-bottom: 0.5rem; }
+.pdf-matchup { border: 2px solid #e0e0e0; border-radius: 8px; overflow: hidden; background: #fafafa; }
+.pdf-entry { padding: 0.6rem 0.8rem; display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; }
+.pdf-entry:first-child { border-bottom: 1px solid #e0e0e0; }
+.pdf-entry.winner { background: #d4edda; font-weight: 600; }
+.pdf-seed { width: 22px; height: 22px; background: #ff6b35; color: white; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-family: 'Bebas Neue', sans-serif; font-size: 0.9rem; flex-shrink: 0; }
+.pdf-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.pdf-champion { text-align: center; margin: 1.5rem 0; padding: 1.5rem; background: linear-gradient(135deg, #d4edda, #fff3cd); border-radius: 12px; }
+.pdf-champion-label { font-family: 'Bebas Neue', sans-serif; font-size: 1rem; color: #666; margin-bottom: 0.3rem; }
+.pdf-champion-name { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; color: #1a1a1a; }
+
+.pdf-actions { display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; }
+
+/* PDF Preview Display (on-screen preview) */
+.pdf-preview-display {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.preview-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2rem;
+  letter-spacing: 2px;
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.preview-subtitle {
+  text-align: center;
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+}
+
+.preview-bracket {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 1rem 0;
+}
+
+.preview-round {
+  min-width: 160px;
+}
+
+.preview-round-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: 0.75rem;
+}
+
+.preview-matchups {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  height: 100%;
+  gap: 0.5rem;
+}
+
+.preview-matchup {
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.preview-entry {
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.preview-entry:last-child {
+  border-bottom: none;
+}
+
+.preview-entry.winner {
+  background: rgba(0, 212, 170, 0.15);
+}
+
+.preview-seed {
+  width: 20px;
+  height: 20px;
+  background: var(--accent-orange);
+  color: white;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.preview-champion {
+  text-align: center;
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: rgba(0, 212, 170, 0.1);
+  border-radius: 8px;
+  color: var(--accent-teal);
+}
+
+.preview-champion strong {
+  color: var(--text-primary);
+}
+
+.download-btn {
+  background: linear-gradient(135deg, var(--accent-orange), #ff8c5a);
+  color: white;
+  border: none;
+  padding: 1rem 2.5rem;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.5px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 20px var(--accent-orange-glow);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.download-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 30px var(--accent-orange-glow); }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .header { padding: 1rem 1.5rem; flex-wrap: wrap; gap: 1rem; }
+  .logo { font-size: 1.6rem; }
+  .hero h1 { font-size: 2.5rem; }
+  .brackets-grid { grid-template-columns: 1fr; }
+  .size-options { grid-template-columns: repeat(3, 1fr); }
+  .create-container, .fill-container, .pdf-container { padding: 1.5rem; }
+  .auth-buttons { flex-direction: column; }
+  .user-name { display: none; }
+  
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .search-box {
+    max-width: none;
+  }
+  
+  .filter-controls {
+    justify-content: space-between;
+  }
+  
+  .filter-select {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .header-nav {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .weekly-bracket-wrapper {
+    flex-direction: column;
+    min-height: auto;
+  }
+  
+  .weekly-round {
+    min-width: 100%;
+  }
+  
+  .weekly-matchups-container {
+    gap: 0.5rem;
+  }
+  
+  .weekly-info-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+  
+  .submit-votes-btn-inline {
+    margin-left: 0;
+    width: 100%;
+  }
+  
+  .submissions-content {
+    flex-direction: column;
+  }
+  
+  .submissions-list {
+    width: 100%;
+    max-height: 200px;
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  
+  .submission-bracket-view {
+    padding: 1rem;
+  }
+  
+  .bracket-buttons {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .view-submissions-btn, .bracket-buttons .fill-btn {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+/* Header Navigation */
+.header-nav {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.nav-link {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 0.6rem 1.2rem;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.nav-link:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-link.active {
+  color: var(--accent-orange);
+  background: rgba(255, 107, 53, 0.1);
+}
+
+.nav-link.weekly {
+  position: relative;
+}
+
+.nav-link.weekly::after {
+  content: 'LIVE';
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: var(--accent-teal);
+  color: var(--bg-dark);
+  font-size: 0.55rem;
+  font-weight: 700;
+  padding: 2px 4px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}

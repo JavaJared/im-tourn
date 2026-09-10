@@ -113,7 +113,9 @@ service cloud.firestore {
     }
     // Drafts are currently disabled. Keep existing drafts readable and owner
     // cleanup possible; do not expose an unvalidated participant write API.
-    match /drafts/{id} { allow read: if true; allow delete: if owns('hostId'); }
+    match /drafts/{id} { allow read: if true; }
+    match /draftInvites/{id} { allow read, write: if false; }
+    match /draftInviteCodes/{id} { allow read, write: if false; }
     match /customBrackets/{id} {
       allow read: if owns('hostId') || resource.data.status != 'draft';
       allow create: if signedIn() && request.resource.data.hostId == request.auth.uid

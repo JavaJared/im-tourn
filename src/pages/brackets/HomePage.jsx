@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getAllBrackets } from '../../services/bracketService';
-import { getPublicCustomBrackets } from '../../services/customBracketService';
+import { getBracketById } from '../../services/bracketService';
+import { usePagedCatalog } from '../../lib/usePagedCatalog';
+import CatalogControls from '../../components/CatalogControls';
 import { CUSTOM_BADGE_STYLE } from '../../components/brackets/customBracketPresentation.js';
 import SubmissionsModal from '../../components/dialogs/SubmissionsModal.jsx';
 
 const HomePage = ({ onFillOut, onNavigate }) => {
-  const [brackets, setBrackets] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const catalog = usePagedCatalog(['legacy', 'custom']);
+  const brackets = catalog.items, loading = catalog.loading && !brackets.length;
+  const [fillError, setFillError] = useState('');
+  const [openingId, setOpeningId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [sortBy, setSortBy] = useState('newest');
@@ -15,18 +18,15 @@ const HomePage = ({ onFillOut, onNavigate }) => {
   const [selectedBracketForSubmissions, setSelectedBracketForSubmissions] = useState(null);
   const { currentUser } = useAuth();
 
-  useEffect(() => {
-    loadBrackets();
-  }, []);
-
-  const loadBrackets = async () => {
+  const openLegacy = async bracket => {
+    if (openingId) return;
+    setOpeningId(bracket.id); setFillError('');
     try {
-      const [data, customData] = await Promise.all([getAllBrackets(), getPublicCustomBrackets()]);
-      setBrackets([...data, ...customData]);
-    } catch (error) {
-      console.error('Error loading brackets:', error);
-    }
-    setLoading(false);
+      const full = await getBracketById(bracket.id);
+      if (!full || !Array.isArray(full.matchups)) throw new Error('This bracket is unavailable.');
+      onFillOut(full);
+    } catch { setFillError('This bracket could not be opened. Please retry, or choose another bracket.'); }
+    finally { setOpeningId(null); }
   };
 
   // Get unique categories from brackets
@@ -42,9 +42,9 @@ const HomePage = ({ onFillOut, onNavigate }) => {
     .sort((a, b) => {
       switch (sortBy) {
         case 'newest':
-          return new Date(b.createdAt) - new Date(a.createdAt);
+          return (b.createdAtMs || 0) - (a.createdAtMs || 0);
         case 'oldest':
-          return new Date(a.createdAt) - new Date(b.createdAt);
+          return (a.createdAtMs || 0) - (b.createdAtMs || 0);
         case 'title-az':
           return a.title.localeCompare(b.title);
         case 'title-za':
@@ -163,7 +163,7 @@ const HomePage = ({ onFillOut, onNavigate }) => {
             <path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2z" />
             <path d="M3 9h18M9 21V9" />
           </svg>
-          <p>No brackets yet. Be the first to create one!</p>
+          <p>{catalog.error ? 'The bracket list could not be loaded.' : 'No brackets loaded yet.'}</p>
         </div>
       ) : filteredBrackets.length === 0 ? (
         <div className="empty-state">
@@ -185,9 +185,10 @@ const HomePage = ({ onFillOut, onNavigate }) => {
           {filteredBrackets.map((bracket) =>
             bracket.isCustom ? (
               <div
-                key={bracket.id}
+                key={`${bracket.catalogType}:${bracket.id}`}
                 className="bracket-card"
-                onClick={() => onNavigate(`custom-bracket-${bracket.id}`)}
+                role="group"
+                aria-label={bracket.title}
                 style={{ cursor: 'pointer' }}
               >
                 <span className="bracket-category">{bracket.category}</span>
@@ -217,7 +218,7 @@ const HomePage = ({ onFillOut, onNavigate }) => {
                 </div>
               </div>
             ) : (
-              <div key={bracket.id} className="bracket-card">
+              <div key={`${bracket.catalogType}:${bracket.id}`} className="bracket-card">
                 <span className="bracket-category">{bracket.category}</span>
                 <h3 className="bracket-title">{bracket.title}</h3>
                 {bracket.description && (
@@ -240,7 +241,7 @@ const HomePage = ({ onFillOut, onNavigate }) => {
                     >
                       Submissions
                     </button>
-                    <button className="fill-btn" onClick={() => onFillOut(bracket)}>
+                    <button className="fill-btn" disabled={!!openingId} onClick={() => openLegacy(bracket)}>
                       Fill Out →
                     </button>
                   </div>
@@ -251,6 +252,8 @@ const HomePage = ({ onFillOut, onNavigate }) => {
         </div>
       )}
 
+      {fillError && <p role="alert">{fillError}</p>}
+      <CatalogControls catalog={catalog} />
       <SubmissionsModal
         isOpen={showSubmissionsModal}
         onClose={() => {

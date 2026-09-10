@@ -1,8 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useDialog } from '../../lib/useDialog';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getBracketSubmissions, toggleSubmissionUpvote } from '../../services/bracketService';
 
 const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
+  const dialogRef = useDialog(isOpen, onClose);
+  const request = useRef(0);
+  const [error, setError] = useState('');
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSubmission, setSelectedSubmission] = useState(null);
@@ -21,19 +25,25 @@ const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
       setSubmissions([]);
       setUserUpvotes({});
     }
-  }, [isOpen, bracket?.id]);
+    return () => { request.current++; };
+  }, [isOpen, bracket?.id, currentUser?.uid]);
 
   const loadSubmissions = async () => {
-    setLoading(true);
+    const generation = ++request.current;
+    setLoading(true); setError('');
     try {
       const data = await getBracketSubmissions(bracket.id);
+      if (generation !== request.current) return;
       // Parse matchups for each submission
-      const parsedData = data.map((sub) => ({
-        ...sub,
-        matchups: typeof sub.matchups === 'string' ? JSON.parse(sub.matchups) : sub.matchups,
-        upvotes: sub.upvotes || 0,
-        upvotedBy: sub.upvotedBy || [],
-      }));
+      let invalid = 0;
+      const parsedData = data.flatMap(sub => {
+        try {
+          const matchups = typeof sub.matchups === 'string' ? JSON.parse(sub.matchups) : sub.matchups;
+          if (!Array.isArray(matchups) || !matchups.length || !matchups.every(round => Array.isArray(round) && round.every(match => match && typeof match === 'object'))) throw new Error('Invalid bracket');
+          return [{ ...sub, matchups, userDisplayName: typeof sub.userDisplayName === 'string' ? sub.userDisplayName : 'Anonymous', upvotes: Number.isFinite(sub.upvotes) ? sub.upvotes : 0, upvotedBy: Array.isArray(sub.upvotedBy) ? sub.upvotedBy : [] }];
+        } catch { invalid++; return []; }
+      });
+      if (invalid) setError(`${invalid} damaged submission${invalid === 1 ? '' : 's'} could not be displayed. Other submissions are available.`);
       // Sort by upvotes (most first), then by date
       parsedData.sort(
         (a, b) => b.upvotes - a.upvotes || new Date(b.submittedAt) - new Date(a.submittedAt),
@@ -51,9 +61,9 @@ const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
         setUserUpvotes(upvoted);
       }
     } catch (error) {
-      console.error('Error loading submissions:', error);
+      if (generation === request.current) setError('Submissions could not be loaded. Please retry.');
     }
-    setLoading(false);
+    if (generation === request.current) setLoading(false);
   };
 
   const handleUpvote = async (e, submission) => {
@@ -93,7 +103,7 @@ const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
         [submission.id]: !hasUpvoted,
       }));
     } catch (error) {
-      console.error('Error toggling upvote:', error);
+      setError('Your vote could not be saved. Please retry.');
     }
   };
 
@@ -109,7 +119,7 @@ const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="submissions-modal" onClick={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Bracket submissions" className="submissions-modal" onClick={(e) => e.stopPropagation()}>
         <button aria-label="Close dialog" className="modal-close" onClick={onClose}>
           ×
         </button>
@@ -121,6 +131,7 @@ const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
           </p>
         </div>
 
+        {error && <p role="alert">{error} <button type="button" onClick={loadSubmissions}>Retry</button></p>}
         {loading ? (
           <div className="loading-state">
             <div className="spinner"></div>
@@ -140,7 +151,7 @@ const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
               {submissions.map((submission) => (
                 <div
                   key={submission.id}
-                  className={`submission-item ${selectedSubmission?.id === submission.id ? 'selected' : ''}`}
+                  role="button" tabIndex={0} onKeyDown={event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setSelectedSubmission(submission); } }} className={`submission-item ${selectedSubmission?.id === submission.id ? 'selected' : ''}`}
                   onClick={() => setSelectedSubmission(submission)}
                 >
                   <div className="submission-top-row">
