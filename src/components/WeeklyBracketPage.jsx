@@ -470,7 +470,7 @@ const WeeklyBracketPage = () => {
               </div>
               <div className="wv-progress">
                 {matchups.map((_, m) => (
-                  <span key={m} className={`wv-dot ${m === resultsIdx ? 'now' : ''}`} onClick={() => setResultsIdx(m)} />
+                  <button type="button" key={m} className={`wv-dot ${m === resultsIdx ? 'now' : ''}`} aria-label={`Show matchup ${m + 1}`} aria-pressed={m === resultsIdx} onClick={() => setResultsIdx(m)} />
                 ))}
               </div>
               <button className="wv-toggle" onClick={() => setShowFullBracket(true)}>View full bracket</button>

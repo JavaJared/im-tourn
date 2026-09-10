@@ -49,6 +49,10 @@ jobs:
         run: npx firebase deploy --only functions,firestore:indexes --project "$FIREBASE_PROJECT_ID" --non-interactive
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json
+      - name: Wait for catalog query indexes
+        run: node scripts/verify-query-indexes.cjs
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json
       - name: Allow Netlify production builds to proceed
         run: node scripts/mark-backend-ready.cjs
         env:

@@ -1,3 +1,5 @@
+import { usePagedCatalog } from '../../lib/usePagedCatalog';
+import CatalogControls from '../../components/CatalogControls';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
@@ -8,35 +10,15 @@ import {
 } from '../../services/bracketService';
 
 const PredictionPoolsPage = ({ onNavigate }) => {
-  const [hostedPools, setHostedPools] = useState([]);
-  const [joinedPools, setJoinedPools] = useState([]);
-  const [loading, setLoading] = useState(true);
+
   const [joinCode, setJoinCode] = useState('');
   const [joinError, setJoinError] = useState('');
   const [joining, setJoining] = useState(false);
   const { currentUser } = useAuth();
-
-  useEffect(() => {
-    if (currentUser) {
-      loadPools();
-    } else {
-      setLoading(false);
-    }
-  }, [currentUser]);
-
-  const loadPools = async () => {
-    try {
-      const [hosted, joined] = await Promise.all([
-        getUserHostedPredictionPools(currentUser.uid),
-        getUserJoinedPredictionPools(currentUser.uid),
-      ]);
-      setHostedPools(hosted);
-      setJoinedPools(joined.filter((p) => p.hostId !== currentUser.uid));
-    } catch (error) {
-      console.error('Error loading prediction pools:', error);
-    }
-    setLoading(false);
-  };
+  const directory = usePagedCatalog(['hosted', 'joined'], { endpoint: 'listUserPools', params: { poolType: 'prediction' }, scope: currentUser?.uid, enabled: !!currentUser });
+  const hostedPools = directory.items.filter(p => p.catalogType === 'hosted');
+  const joinedPools = directory.items.filter(p => p.catalogType === 'joined' && p.hostId !== currentUser?.uid);
+  const loading = directory.loading && !directory.items.length;
 
   const handleJoinPool = async () => {
     if (!joinCode.trim()) {
@@ -120,7 +102,7 @@ const PredictionPoolsPage = ({ onNavigate }) => {
             placeholder="Enter join code"
             value={joinCode}
             onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-            maxLength={6}
+            maxLength={8}
             className="join-code-input"
           />
           <button className="join-btn" onClick={handleJoinPool} disabled={joining}>
@@ -146,7 +128,7 @@ const PredictionPoolsPage = ({ onNavigate }) => {
                   <h3 className="pool-title">{pool.name}</h3>
                   <p className="pool-bracket">{pool.categories?.length || 0} categories</p>
                   <div className="pool-meta">
-                    <span className="pool-code">Code: {pool.joinCode}</span>
+                    <span className="pool-code">Open pool to view its invitation</span>
                   </div>
                 </div>
               );
@@ -188,6 +170,7 @@ const PredictionPoolsPage = ({ onNavigate }) => {
           <p>No prediction pools yet. Create one or join with a code!</p>
         </div>
       )}
+      <CatalogControls catalog={directory} />
     </div>
   );
 };

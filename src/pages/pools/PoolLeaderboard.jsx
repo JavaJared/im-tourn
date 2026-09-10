@@ -10,6 +10,7 @@ export default function PoolLeaderboard({
 }) {
   return (
     <div className="pool-leaderboard">
+      {entries.predictionsHidden && <p>Picks stay private until predictions close, including from the host.</p>}
       {pool.status === 'completed' && pool.winnerId && (
         <div className="pool-winner-banner">
           <span className="trophy">🏆</span>
@@ -48,7 +49,7 @@ export default function PoolLeaderboard({
                 )}
               </span>
               <span className="lb-champion">
-                {participantEntry.champion?.name ||
+                {(participantEntry.predictionsHidden ? 'Private until lock' : participantEntry.dataError ? 'Unavailable' : participantEntry.champion?.name) ||
                   (participantEntry.submittedAt ? 'N/A' : 'Not submitted')}
               </span>
               {pool.enableSleepers && (
@@ -81,7 +82,7 @@ export default function PoolLeaderboard({
               )}
               <span className="lb-score">{participantEntry.score}</span>
               <span className="lb-action">
-                {participantEntry.submittedAt && (
+                {participantEntry.predictions && !participantEntry.dataError && (
                   <button
                     className="view-bracket-btn"
                     onClick={() => setViewingEntry(participantEntry)}

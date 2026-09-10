@@ -13,6 +13,8 @@ const S = require('./generated/scoring.cjs');
 const api = require('./api');
 const { parse, tallyRound } = api.internal;
 for (const [key, value] of Object.entries(api)) if (key !== 'internal') exports[key] = value;
+for (const [key, value] of Object.entries(require('./pool-privacy'))) if (key !== 'internal') exports[key] = value;
+for (const [key, value] of Object.entries(require('./catalog'))) if (key !== 'internal') exports[key] = value;
 const current = db.doc('weeklyBracket/current');
 const stamp = () => FieldValue.serverTimestamp();
 const unpack = snap => ({ ...snap.data(), matchups: parse(snap.data().matchups, []), votes: parse(snap.data().votes, {}) });
@@ -103,6 +105,8 @@ const { onRequest } = require('firebase-functions/v2/https');
 exports.repairReadiness = onRequest(async (_req, res) => {
   res.set('Cache-Control', 'no-store');
   const release = await db.doc('_system/backendRelease').get();
-  const ready = release.data()?.version === 2;
-  res.status(ready ? 200 : 503).json({ version: ready ? 2 : null });
+  const ready = release.data()?.version === 3;
+  res.status(ready ? 200 : 503).json({ version: ready ? 3 : null });
 });
+
+for (const [name, callable] of Object.entries(require("./drafts"))) { if (name !== "internal") exports[name] = callable; }

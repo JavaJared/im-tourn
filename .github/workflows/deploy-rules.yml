@@ -36,11 +36,19 @@ jobs:
         run: printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/gcp-sa.json"
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      - name: Protect existing pool invitations
+        run: node scripts/migrate-pool-invites.cjs
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json
       - name: Deploy rules
         run: npx firebase deploy --only firestore:rules,storage --project "$FIREBASE_PROJECT_ID" --non-interactive
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json
       - name: Verify active Firestore and Storage rules
         run: node scripts/verify-deployed-rules.cjs
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json
+      - name: Enable verified draft controls
+        run: node scripts/enable-verified-features.cjs
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json

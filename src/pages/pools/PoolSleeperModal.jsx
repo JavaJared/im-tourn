@@ -1,3 +1,4 @@
+import { useDialog } from '../../lib/useDialog';
 export default function PoolSleeperModal({
   setShowSleeperModal,
   pool,
@@ -11,9 +12,10 @@ export default function PoolSleeperModal({
   submittingSleepers,
   handleSubmitSleepers,
 }) {
+  const dialogRef = useDialog(true, () => setShowSleeperModal(false));
   return (
     <div className="modal-overlay" onClick={() => setShowSleeperModal(false)}>
-      <div className="sleeper-modal" onClick={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Sleeper picks" className="sleeper-modal" onClick={(e) => e.stopPropagation()}>
         <h2>Select Your Sleeper Picks</h2>
         <p className="sleeper-modal-desc">
           Choose participants you think will outperform their seeding!

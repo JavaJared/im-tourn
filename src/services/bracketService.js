@@ -1,3 +1,4 @@
+import * as poolPrivacy from './pools/privacy';
 import { callServer } from './server';
 import { requirePredictionsOpen } from '../lib/poolLifecycle';
 import { normalizeSleeper } from '../lib/legacyPoolAdapter';
@@ -312,19 +313,7 @@ function generateJoinCode() {
 
 // Create a new bracket pool
 export async function createBracketPool(poolData) {
-  const joinCode = generateJoinCode();
-  
-  const docRef = await addDoc(collection(db, POOLS_COLLECTION), {
-    ...poolData,
-    joinCode,
-    bracketMatchups: JSON.stringify(poolData.bracketMatchups),
-    results: null, // Will store host's results as matchups progress
-    status: 'open', // open, locked, in_progress, completed
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
-  });
-  
-  return { id: docRef.id, joinCode };
+  return poolPrivacy.createPool('bracket', poolData);
 }
 
 // Get pool by ID
@@ -335,36 +324,19 @@ export async function getPoolById(poolId) {
   if (!docSnap.exists()) return null;
   
   const data = docSnap.data();
-  return {
+  return poolPrivacy.hostInvite('bracket', {
     id: docSnap.id,
     ...data,
-    bracketMatchups: typeof data.bracketMatchups === 'string' ? JSON.parse(data.bracketMatchups) : data.bracketMatchups,
-    results: data.results ? (typeof data.results === 'string' ? JSON.parse(data.results) : data.results) : null,
+    bracketMatchups: poolPrivacy.parsePoolField(data.bracketMatchups),
+    results: poolPrivacy.parsePoolField(data.results),
     lockDate: data.lockDate?.toDate?.() || null,
     createdAt: data.createdAt?.toDate?.() || null
-  };
+  });
 }
 
 // Get pool by join code
 export async function getPoolByJoinCode(joinCode) {
-  const q = query(
-    collection(db, POOLS_COLLECTION),
-    where('joinCode', '==', joinCode.toUpperCase())
-  );
-  const snapshot = await getDocs(q);
-  
-  if (snapshot.empty) return null;
-  
-  const docSnap = snapshot.docs[0];
-  const data = docSnap.data();
-  return {
-    id: docSnap.id,
-    ...data,
-    bracketMatchups: typeof data.bracketMatchups === 'string' ? JSON.parse(data.bracketMatchups) : data.bracketMatchups,
-    results: data.results ? (typeof data.results === 'string' ? JSON.parse(data.results) : data.results) : null,
-    lockDate: data.lockDate?.toDate?.() || null,
-    createdAt: data.createdAt?.toDate?.() || null
-  };
+  return poolPrivacy.resolveInvite('bracket', joinCode);
 }
 
 // Get pools hosted by a user
@@ -413,49 +385,12 @@ export async function getUserJoinedPools(userId) {
 
 // Join a bracket pool
 export async function joinBracketPool(poolId, userId, userDisplayName) {
-  // Check if user already joined
-  const existingEntry = await getPoolEntry(poolId, userId);
-  if (existingEntry) {
-    throw new Error('You have already joined this pool');
-  }
-  
-  // Check if pool is still open
-  const pool = await getPoolById(poolId);
-  if (!pool) {
-    throw new Error('Pool not found');
-  }
-  requirePredictionsOpen(pool);
-  
-  // Create entry
-  const entryRef = doc(db, POOL_ENTRIES_COLLECTION, `${poolId}_${userId}`);
-  await setDoc(entryRef, {
-    poolId,
-    userId,
-    userDisplayName,
-    predictions: null, // Will be filled when user submits predictions
-    score: 0,
-    joinedAt: serverTimestamp(),
-    submittedAt: null
-  });
-  
-  return true;
+  return poolPrivacy.joinPool('bracket', poolId);
 }
 
 // Get a user's pool entry
 export async function getPoolEntry(poolId, userId) {
-  const entryRef = doc(db, POOL_ENTRIES_COLLECTION, `${poolId}_${userId}`);
-  const docSnap = await getDoc(entryRef);
-  
-  if (!docSnap.exists()) return null;
-  
-  const data = docSnap.data();
-  return {
-    id: docSnap.id,
-    ...data,
-    predictions: data.predictions ? (typeof data.predictions === 'string' ? JSON.parse(data.predictions) : data.predictions) : null,
-    joinedAt: data.joinedAt?.toDate?.() || null,
-    submittedAt: data.submittedAt?.toDate?.() || null
-  };
+  return poolPrivacy.ownEntry('bracket', poolId);
 }
 
 // Submit predictions for a pool
@@ -688,27 +623,8 @@ export async function recalculatePoolScoresManual(poolId, hostId) {
 }
 
 // Get all entries for a pool (leaderboard)
-export async function getPoolEntries(poolId) {
-  const q = query(
-    collection(db, POOL_ENTRIES_COLLECTION),
-    where('poolId', '==', poolId)
-  );
-  const snapshot = await getDocs(q);
-  
-  return snapshot.docs.map(doc => {
-    const data = doc.data();
-    return {
-      id: doc.id,
-      ...data,
-      predictions: data.predictions ? (typeof data.predictions === 'string' ? JSON.parse(data.predictions) : data.predictions) : null,
-      sleeper1: normalizeSleeper(data.sleeper1),
-      sleeper2: normalizeSleeper(data.sleeper2),
-      sleeper1Hit: data.sleeper1Hit || false,
-      sleeper2Hit: data.sleeper2Hit || false,
-      joinedAt: data.joinedAt?.toDate?.() || null,
-      submittedAt: data.submittedAt?.toDate?.() || null
-    };
-  }).sort((a, b) => b.score - a.score); // Sort by score descending
+export async function getPoolEntries(poolId, cursor = null) {
+  return poolPrivacy.poolEntries('bracket', poolId, cursor);
 }
 
 // Complete the pool (declare winner)
@@ -718,25 +634,7 @@ export async function completePool(poolId, hostId) {
 
 // Delete a pool (host only)
 export async function deletePool(poolId, hostId) {
-  const pool = await getPoolById(poolId);
-  if (!pool) {
-    throw new Error('Pool not found');
-  }
-  if (pool.hostId !== hostId) {
-    throw new Error('Only the host can delete this pool');
-  }
-  
-  // Delete all entries
-  const entries = await getPoolEntries(poolId);
-  const deleteEntryPromises = entries.map(entry => 
-    deleteDoc(doc(db, POOL_ENTRIES_COLLECTION, `${poolId}_${entry.userId}`))
-  );
-  await Promise.all(deleteEntryPromises);
-  
-  // Delete the pool
-  await deleteDoc(doc(db, POOLS_COLLECTION, poolId));
-  
-  return true;
+  return poolPrivacy.removePool('bracket', poolId);
 }
 
 // ============ PREDICTION POOLS FUNCTIONS ============
@@ -756,19 +654,7 @@ function generatePredictionJoinCode() {
 
 // Create a new prediction pool
 export async function createPredictionPool(poolData) {
-  const joinCode = generatePredictionJoinCode();
-  
-  const docRef = await addDoc(collection(db, PREDICTION_POOLS_COLLECTION), {
-    ...poolData,
-    categories: JSON.stringify(poolData.categories),
-    results: null,
-    joinCode,
-    status: 'open', // open, locked, in_progress, completed
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
-  });
-  
-  return { id: docRef.id, joinCode };
+  return poolPrivacy.createPool('prediction', poolData);
 }
 
 // Get prediction pool by ID
@@ -779,36 +665,21 @@ export async function getPredictionPoolById(poolId) {
   if (!docSnap.exists()) return null;
   
   const data = docSnap.data();
-  return {
+  const categories = poolPrivacy.parsePoolField(data.categories);
+  if (!Array.isArray(categories) || !categories.length || categories.some(category => !category || typeof category.name !== 'string' || !Array.isArray(category.options) || category.options.some(option => typeof option !== 'string'))) throw new Error('This pool contains damaged categories. Please contact its host.');
+  return poolPrivacy.hostInvite('prediction', {
     id: docSnap.id,
     ...data,
-    categories: typeof data.categories === 'string' ? JSON.parse(data.categories) : data.categories,
-    results: data.results ? (typeof data.results === 'string' ? JSON.parse(data.results) : data.results) : null,
+    categories,
+    results: poolPrivacy.parsePoolField(data.results),
     lockDate: data.lockDate?.toDate?.() || null,
     createdAt: data.createdAt?.toDate?.() || null
-  };
+  });
 }
 
 // Get prediction pool by join code
 export async function getPredictionPoolByJoinCode(joinCode) {
-  const q = query(
-    collection(db, PREDICTION_POOLS_COLLECTION),
-    where('joinCode', '==', joinCode.toUpperCase())
-  );
-  const snapshot = await getDocs(q);
-  
-  if (snapshot.empty) return null;
-  
-  const docSnap = snapshot.docs[0];
-  const data = docSnap.data();
-  return {
-    id: docSnap.id,
-    ...data,
-    categories: typeof data.categories === 'string' ? JSON.parse(data.categories) : data.categories,
-    results: data.results ? (typeof data.results === 'string' ? JSON.parse(data.results) : data.results) : null,
-    lockDate: data.lockDate?.toDate?.() || null,
-    createdAt: data.createdAt?.toDate?.() || null
-  };
+  return poolPrivacy.resolveInvite('prediction', joinCode);
 }
 
 // Get prediction pools hosted by a user
@@ -856,46 +727,12 @@ export async function getUserJoinedPredictionPools(userId) {
 
 // Join a prediction pool
 export async function joinPredictionPool(poolId, userId, userDisplayName) {
-  const existingEntry = await getPredictionEntry(poolId, userId);
-  if (existingEntry) {
-    throw new Error('You have already joined this pool');
-  }
-  
-  const pool = await getPredictionPoolById(poolId);
-  if (!pool) {
-    throw new Error('Pool not found');
-  }
-  requirePredictionsOpen(pool);
-  
-  const entryRef = doc(db, PREDICTION_ENTRIES_COLLECTION, `${poolId}_${userId}`);
-  await setDoc(entryRef, {
-    poolId,
-    userId,
-    userDisplayName,
-    predictions: null,
-    score: 0,
-    joinedAt: serverTimestamp(),
-    submittedAt: null
-  });
-  
-  return true;
+  return poolPrivacy.joinPool('prediction', poolId);
 }
 
 // Get a user's prediction entry
 export async function getPredictionEntry(poolId, userId) {
-  const entryRef = doc(db, PREDICTION_ENTRIES_COLLECTION, `${poolId}_${userId}`);
-  const docSnap = await getDoc(entryRef);
-  
-  if (!docSnap.exists()) return null;
-  
-  const data = docSnap.data();
-  return {
-    id: docSnap.id,
-    ...data,
-    predictions: data.predictions ? (typeof data.predictions === 'string' ? JSON.parse(data.predictions) : data.predictions) : null,
-    joinedAt: data.joinedAt?.toDate?.() || null,
-    submittedAt: data.submittedAt?.toDate?.() || null
-  };
+  return poolPrivacy.ownEntry('prediction', poolId);
 }
 
 // Submit predictions for a prediction pool
@@ -980,122 +817,19 @@ export async function startPredictionPool(poolId, hostId) {
 }
 
 // Update prediction pool results
-export async function updatePredictionPoolResults(poolId, hostId, results) {
-  const pool = await getPredictionPoolById(poolId);
-  if (!pool) {
-    throw new Error('Pool not found');
-  }
-  if (pool.hostId !== hostId) {
-    throw new Error('Only the host can update results');
-  }
-  
-  const poolRef = doc(db, PREDICTION_POOLS_COLLECTION, poolId);
-  await updateDoc(poolRef, {
-    results: JSON.stringify(results),
-    updatedAt: serverTimestamp()
-  });
-  
-  // Recalculate scores
-  await recalculatePredictionPoolScores(poolId, results, pool);
-  
-  return true;
-}
-
-// Calculate score for a prediction entry
-function calculatePredictionEntryScore(predictions, results, pool) {
-  let score = 0;
-  
-  pool.categories.forEach((category, index) => {
-    const result = results[index];
-    const prediction = predictions[index];
-    
-    if (result !== null && prediction !== null && result === prediction) {
-      score += category.points || 1;
-    }
-  });
-  
-  return score;
-}
-
-// Recalculate scores for all entries
-async function recalculatePredictionPoolScores(poolId, results, pool) {
-  const entries = await getPredictionPoolEntries(poolId);
-  
-  const updatePromises = entries.map(async (entry) => {
-    if (!entry.predictions) return;
-    
-    const score = calculatePredictionEntryScore(entry.predictions, results, pool);
-    const entryRef = doc(db, PREDICTION_ENTRIES_COLLECTION, `${poolId}_${entry.userId}`);
-    await updateDoc(entryRef, { score });
-  });
-  
-  await Promise.all(updatePromises);
-}
+export async function updatePredictionPoolResults(poolId, _hostId, results) { return callServer('managePredictionResults', { poolId, action: 'results', results }); }
 
 // Get all entries for a prediction pool
-export async function getPredictionPoolEntries(poolId) {
-  const q = query(
-    collection(db, PREDICTION_ENTRIES_COLLECTION),
-    where('poolId', '==', poolId)
-  );
-  const snapshot = await getDocs(q);
-  
-  return snapshot.docs.map(doc => {
-    const data = doc.data();
-    return {
-      id: doc.id,
-      ...data,
-      predictions: data.predictions ? (typeof data.predictions === 'string' ? JSON.parse(data.predictions) : data.predictions) : null,
-      joinedAt: data.joinedAt?.toDate?.() || null,
-      submittedAt: data.submittedAt?.toDate?.() || null
-    };
-  }).sort((a, b) => b.score - a.score);
+export async function getPredictionPoolEntries(poolId, cursor = null) {
+  return poolPrivacy.poolEntries('prediction', poolId, cursor);
 }
 
 // Complete the prediction pool
-export async function completePredictionPool(poolId, hostId) {
-  const pool = await getPredictionPoolById(poolId);
-  if (!pool) {
-    throw new Error('Pool not found');
-  }
-  if (pool.hostId !== hostId) {
-    throw new Error('Only the host can complete this pool');
-  }
-  
-  const entries = await getPredictionPoolEntries(poolId);
-  const winner = entries.length > 0 ? entries[0] : null;
-  
-  const poolRef = doc(db, PREDICTION_POOLS_COLLECTION, poolId);
-  await updateDoc(poolRef, {
-    status: 'completed',
-    winnerId: winner?.userId || null,
-    winnerName: winner?.userDisplayName || null,
-    winnerScore: winner?.score || 0,
-    updatedAt: serverTimestamp()
-  });
-  
-  return { winner };
-}
+export async function completePredictionPool(poolId) { return callServer('managePredictionResults', { poolId, action: 'complete' }); }
 
 // Delete a prediction pool
 export async function deletePredictionPool(poolId, hostId) {
-  const pool = await getPredictionPoolById(poolId);
-  if (!pool) {
-    throw new Error('Pool not found');
-  }
-  if (pool.hostId !== hostId) {
-    throw new Error('Only the host can delete this pool');
-  }
-  
-  const entries = await getPredictionPoolEntries(poolId);
-  const deleteEntryPromises = entries.map(entry => 
-    deleteDoc(doc(db, PREDICTION_ENTRIES_COLLECTION, `${poolId}_${entry.userId}`))
-  );
-  await Promise.all(deleteEntryPromises);
-  
-  await deleteDoc(doc(db, PREDICTION_POOLS_COLLECTION, poolId));
-  
-  return true;
+  return poolPrivacy.removePool('prediction', poolId);
 }
 
 export function subscribeWeeklyBracket(onChange, onError) {

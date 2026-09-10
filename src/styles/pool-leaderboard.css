@@ -1,0 +1,308 @@
+
+
+/* Leaderboard */
+.pool-leaderboard {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.pool-winner-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  background: linear-gradient(135deg, rgba(0, 212, 170, 0.2), rgba(255, 107, 53, 0.2));
+  border: 2px solid var(--accent-teal);
+  border-radius: 12px;
+}
+
+.pool-winner-banner .trophy {
+  font-size: 2rem;
+}
+
+.pool-winner-banner .winner-text {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.5rem;
+  letter-spacing: 1px;
+  background: linear-gradient(135deg, var(--accent-teal), var(--accent-orange));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.leaderboard-table {
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.leaderboard-header {
+  display: grid;
+  grid-template-columns: 60px 1fr 1fr 80px 70px;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.leaderboard-row {
+  display: grid;
+  grid-template-columns: 60px 1fr 1fr 80px 70px;
+  padding: 1rem;
+  border-top: 1px solid var(--border-subtle);
+  transition: background 0.2s ease;
+}
+
+/* Leaderboard with sleepers column */
+.leaderboard-table.with-sleepers .leaderboard-header,
+.leaderboard-table.with-sleepers .leaderboard-row {
+  grid-template-columns: 50px 1fr 1fr 1fr 70px 60px;
+}
+
+.lb-sleepers {
+  font-size: 0.85rem;
+}
+
+.sleeper-picks-display {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.sleeper-pick-tag {
+  display: inline-block;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  background: rgba(255, 107, 53, 0.15);
+  border: 1px solid rgba(255, 107, 53, 0.3);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+.sleeper-pick-tag.hit {
+  background: rgba(0, 212, 170, 0.2);
+  border-color: var(--accent-teal);
+  color: var(--accent-teal);
+}
+
+.no-sleepers {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.leaderboard-row:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.leaderboard-row.current-user {
+  background: rgba(255, 107, 53, 0.1);
+}
+
+.lb-rank {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.1rem;
+  color: var(--text-muted);
+}
+
+.leaderboard-row:first-of-type .lb-rank {
+  color: var(--accent-orange);
+}
+
+.lb-name {
+  font-weight: 500;
+}
+
+.lb-champion {
+  color: var(--accent-teal);
+  font-size: 0.9rem;
+}
+
+.lb-score {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.2rem;
+  color: var(--accent-orange);
+  text-align: right;
+}
+
+.leaderboard-empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.scoring-info {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.scoring-info h4 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1rem;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.scoring-info p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.sleeper-scoring {
+  margin-top: 0.5rem;
+  color: var(--accent-teal) !important;
+}
+
+/* Round Points Grid */
+.round-points-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.round-points-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+}
+
+.round-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.round-points-input {
+  width: 60px;
+  padding: 0.4rem 0.5rem;
+  background: var(--bg-dark);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.round-points-input:focus {
+  outline: none;
+  border-color: var(--accent-orange);
+}
+
+.points-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Toggle Switch */
+.toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  position: relative;
+}
+
+.toggle-checkbox {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-switch {
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  background: var(--bg-dark);
+  border: 2px solid var(--border-subtle);
+  border-radius: 12px;
+  position: relative;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.toggle-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: var(--text-muted);
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.toggle-checkbox:checked + .toggle-switch {
+  background: var(--accent-teal);
+  border-color: var(--accent-teal);
+}
+
+.toggle-checkbox:checked + .toggle-switch::after {
+  left: 22px;
+  background: white;
+}
+
+.toggle-text {
+  display: inline-block;
+  vertical-align: middle;
+  user-select: none;
+}
+
+/* Sleeper Settings */
+.sleeper-settings {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(0, 212, 170, 0.05);
+  border: 1px solid rgba(0, 212, 170, 0.2);
+  border-radius: 10px;
+}
+
+.sleeper-setting {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+}
+
+.sleeper-setting:not(:last-child) {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.sleeper-info strong {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.sleeper-info p {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.sleeper-points-input {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}

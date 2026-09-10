@@ -1,3 +1,5 @@
+import { validateStructure, validateLegacyMatchups } from '../lib/recordValidation';
+import { hostInvite, watchEntries } from './pools/privacy';
 import { callServer } from './server';
 import { createWriteQueue } from '../lib/writeQueue';
 const queueWrite = createWriteQueue();
@@ -239,8 +241,15 @@ export async function updateCustomPoolScores(poolId, hostId, fields) {
 
 /* ---- real-time pool subscriptions (custom pools) ---- */
 function parsePoolDoc(id, data) {
+  const raw = typeof data.bracketMatchups === 'string' ? JSON.parse(data.bracketMatchups) : data.bracketMatchups;
+  if (Array.isArray(raw)) validateLegacyMatchups(raw); else validateStructure(raw);
   return adaptLegacyPool({
     id, ...data,
+    name: typeof data.name === 'string' ? data.name : 'Untitled pool',
+    description: typeof data.description === 'string' ? data.description : '',
+    hostDisplayName: typeof data.hostDisplayName === 'string' ? data.hostDisplayName : 'Anonymous',
+    winnerName: typeof data.winnerName === 'string' ? data.winnerName : null,
+    roundPoints: Array.isArray(data.roundPoints) ? data.roundPoints.map(value => Number.isFinite(value) && value >= 0 ? value : 0) : [],
     bracketMatchups: typeof data.bracketMatchups === 'string' ? JSON.parse(data.bracketMatchups) : data.bracketMatchups,
     results: data.results ? (typeof data.results === 'string' ? JSON.parse(data.results) : data.results) : null,
     lockDate: data.lockDate?.toDate?.() || null,
@@ -257,14 +266,16 @@ function parsePoolEntryDoc(id, data) {
 }
 /** Live updates for a custom pool document. */
 export function subscribeToPool(poolId, onChange, onError) {
-  return onSnapshot(doc(db, POOLS, poolId), (snap) => {
-    onChange(snap.exists() ? parsePoolDoc(snap.id, snap.data()) : null);
+  let active = true, generation = 0;
+  const unsubscribe = onSnapshot(doc(db, POOLS, poolId), async snap => {
+    const current = ++generation;
+    try {
+      const pool = snap.exists() ? await hostInvite('bracket', parsePoolDoc(snap.id, snap.data())) : null;
+      if (active && current === generation) onChange(pool);
+    } catch (error) { if (active && current === generation) onError?.(error); }
   }, onError);
+  return () => { active = false; unsubscribe(); };
 }
-/** Live updates for every entry in a pool (predictions + scores). */
 export function subscribeToPoolEntries(poolId, onChange, onError) {
-  const q = query(collection(db, POOL_ENTRIES), where('poolId', '==', poolId));
-  return onSnapshot(q, (snap) => {
-    onChange(snap.docs.filter(d => d.id === `${poolId}_${d.data().userId}`).map((d) => parsePoolEntryDoc(d.id, d.data())).sort((a, b) => (b.score || 0) - (a.score || 0)));
-  }, onError);
+  return watchEntries('bracket', poolId, onChange, onError, adaptLegacyEntry);
 }

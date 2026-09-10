@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   getPredictionPoolById,
@@ -15,6 +15,8 @@ import {
 } from '../../services/bracketService';
 
 const PredictionPoolDetailPage = ({ poolId, onNavigate }) => {
+  const generation = useRef(0);
+  const [loadError, setLoadError] = useState('');
   const [pool, setPool] = useState(null);
   const [entry, setEntry] = useState(null);
   const [entries, setEntries] = useState([]);
@@ -33,16 +35,22 @@ const PredictionPoolDetailPage = ({ poolId, onNavigate }) => {
   const isHost = currentUser && pool?.hostId === currentUser.uid;
 
   useEffect(() => {
+    setPool(null); setEntry(null); setEntries([]); setViewingEntry(null); setLoading(true);
     loadPoolData();
-  }, [poolId, currentUser]);
+    return () => { generation.current++; };
+  }, [poolId, currentUser?.uid]);
 
   const loadPoolData = async () => {
+    const request = ++generation.current;
+    setLoadError('');
     try {
       const poolData = await getPredictionPoolById(poolId);
+      if (request !== generation.current) return;
       setPool(poolData);
 
       if (currentUser) {
         const entryData = await getPredictionEntry(poolId, currentUser.uid);
+        if (request !== generation.current) return;
         setEntry(entryData);
 
         if (entryData?.predictions) {
@@ -51,11 +59,21 @@ const PredictionPoolDetailPage = ({ poolId, onNavigate }) => {
       }
 
       const entriesData = await getPredictionPoolEntries(poolId);
+      if (request !== generation.current) return;
       setEntries(entriesData);
     } catch (error) {
-      console.error('Error loading pool:', error);
+      if (request === generation.current) setLoadError('This pool could not be loaded. Please retry.');
     }
-    setLoading(false);
+    if (request === generation.current) setLoading(false);
+  };
+
+  const loadMore = async () => {
+    const request = generation.current;
+    try {
+      const page = await getPredictionPoolEntries(poolId, entries.nextCursor);
+      if (request !== generation.current) return;
+      setEntries(previous => Object.assign([...new Map([...previous, ...page].map(item => [item.id, item])).values()].sort((a,b) => b.score - a.score), { nextCursor: page.nextCursor, predictionsHidden: page.predictionsHidden }));
+    } catch { if (request === generation.current) setLoadError('More participants could not be loaded. Please retry.'); }
   };
 
   const handlePredictionSelect = (categoryIndex, optionIndex) => {
@@ -150,6 +168,7 @@ const PredictionPoolDetailPage = ({ poolId, onNavigate }) => {
     return 'neutral';
   };
 
+  if (loadError && !pool) return <div className="home-container"><p role="alert">{loadError}</p><button onClick={loadPoolData}>Retry</button></div>;
   if (loading) {
     return (
       <div className="home-container">
@@ -211,13 +230,13 @@ const PredictionPoolDetailPage = ({ poolId, onNavigate }) => {
         </div>
 
         <div className="pool-header-actions">
-          <div className="pool-code-display">
+          {isHost && pool.joinCode && <div className="pool-code-display">
             <span>Join Code:</span>
             <strong>{pool.joinCode}</strong>
             <button className="copy-btn" onClick={copyJoinLink}>
               Copy Link
             </button>
-          </div>
+          </div>}
 
           {isHost && (
             <div className="host-actions">
@@ -412,6 +431,9 @@ const PredictionPoolDetailPage = ({ poolId, onNavigate }) => {
             </div>
           )}
 
+          {loadError && <p role="alert">{loadError}<button onClick={loadPoolData}>Refresh</button></p>}
+          {entries.predictionsHidden && <p>Other participants’ predictions stay private until predictions close.</p>}
+          {entries.nextCursor && <p>Showing loaded participants. Load all pages for the complete leaderboard.</p>}
           <div className="leaderboard-table prediction-leaderboard">
             <div className="leaderboard-header">
               <span className="lb-rank">Rank</span>
@@ -430,7 +452,7 @@ const PredictionPoolDetailPage = ({ poolId, onNavigate }) => {
                 <span className="lb-name">{participantEntry.userDisplayName}</span>
                 <span className="lb-score">{participantEntry.score}</span>
                 <span className="lb-action">
-                  {participantEntry.submittedAt && (
+                  {participantEntry.submittedAt && participantEntry.predictions && !participantEntry.dataError && (
                     <button
                       className="view-bracket-btn"
                       onClick={() => setViewingEntry(participantEntry)}
@@ -444,6 +466,7 @@ const PredictionPoolDetailPage = ({ poolId, onNavigate }) => {
             {entries.length === 0 && <div className="leaderboard-empty">No participants yet</div>}
           </div>
 
+          {entries.nextCursor && <button onClick={loadMore}>Load more participants</button>}
           <div className="scoring-info">
             <h4>Scoring</h4>
             <p>

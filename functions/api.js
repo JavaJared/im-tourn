@@ -58,7 +58,7 @@ exports.setSubmissionUpvote = onCall(async req => {
   return db.runTransaction(async tx => {
     const snap = await tx.get(ref);
     if (!snap.exists) throw new HttpsError('not-found', 'Submission not found.');
-    const voters = new Set(snap.data().upvotedBy || []);
+    const voters = new Set(Array.isArray(snap.data().upvotedBy) ? snap.data().upvotedBy.filter(uid => typeof uid === 'string') : []);
     if (liked) voters.add(uid); else voters.delete(uid);
     tx.update(ref, { upvotedBy: [...voters], upvotes: voters.size });
     return { upvotes: voters.size, liked };
@@ -98,7 +98,7 @@ exports.managePoolResults = onCall(async req => {
     if (action === 'pick') { try { state = S.setResult(state, id(boxId), winnerId); } catch (e) { throw new HttpsError('invalid-argument', e.message); } }
     if (action === 'complete' && (!S.isEntryComplete(state) || !S.getChampion(state))) throw new HttpsError('failed-precondition', 'Record every result, including the final, before completing the pool.');
     const entries = await tx.get(db.collection('poolEntries').where('poolId', '==', poolId));
-    const normalized = entries.docs.filter(d => d.id === `${poolId}_${d.data().userId}`).map(d => S.adaptLegacyEntry({ id: d.id, ...d.data(), predictions: parse(d.data().predictions) })).filter(e => e.predictions);
+    const normalized = entries.docs.filter(d => d.id === `${poolId}_${d.data().userId}`).flatMap(d => { try { const predictions = parse(d.data().predictions); if (!predictions || typeof predictions !== 'object') return []; const entry = S.adaptLegacyEntry({ id: d.id, ...d.data(), predictions }); if (Object.values(entry.predictions).some(value => value !== null && typeof value !== 'string')) return []; return [entry]; } catch { return []; } }).filter(e => e.predictions);
     const board = S.buildLeaderboard(state, normalized.map(e => ({ ...e, picks: e.predictions, displayName: e.userDisplayName })), pool.roundPoints || [], pool);
     for (const e of board) tx.update(db.doc(`poolEntries/${e.id}`), { score: e.total, sleeper1Hit: e.sleeper1Hit, sleeper2Hit: e.sleeper2Hit });
     const updates = { customResults: S.picksFromState(state), updatedAt: stamp() };
@@ -111,3 +111,41 @@ exports.managePoolResults = onCall(async req => {
   });
 });
 module.exports.internal = { parse, belongsToWeek, tallyRound, isBallot };
+// Prediction-pool scores are computed from all canonical entries, never from a
+// paginated browser leaderboard. Results and scores commit together.
+exports.managePredictionResults = onCall(async req => {
+  const uid = requireAuth(req), { poolId, action, results } = req.data || {};
+  if (!['results','complete'].includes(action)) throw new HttpsError('invalid-argument', 'Unknown action.');
+  const ref = db.doc(`predictionPools/${id(poolId)}`);
+  return db.runTransaction(async tx => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new HttpsError('not-found', 'Pool not found.');
+    const pool = snap.data(); requireHost(pool, uid);
+    if (pool.status !== 'in_progress') throw new HttpsError('failed-precondition', 'Start the pool before recording results.');
+    const categories = parse(pool.categories, []), official = action === 'results' ? results : parse(pool.results, {});
+    if (!Array.isArray(categories) || !categories.length || !official || typeof official !== 'object' || Array.isArray(official)) throw new HttpsError('invalid-argument', 'Invalid categories or results.');
+    for (const [key, value] of Object.entries(official)) {
+      const index = Number(key), category = categories[index];
+      if (!/^(0|[1-9]\d*)$/.test(key) || !category || !Array.isArray(category.options) || (value !== null && (!Number.isInteger(value) || value < 0 || value >= category.options.length))) throw new HttpsError('invalid-argument', 'Choose a valid result for each category.');
+    }
+    if (action === 'complete' && !categories.every((_, index) => Number.isInteger(official[index]))) throw new HttpsError('failed-precondition', 'Record every category result before completing the pool.');
+    const entries = await tx.get(db.collection('predictionEntries').where('poolId','==',poolId));
+    const board = [];
+    for (const doc of entries.docs) {
+      const entry = doc.data(), predictions = parse(entry.predictions);
+      if (doc.id !== `${poolId}_${entry.userId}` || !entry.submittedAt || !predictions || typeof predictions !== 'object' || Array.isArray(predictions)) continue;
+      let score = 0;
+      categories.forEach((category, index) => {
+        if (Number.isInteger(official[index]) && predictions[index] === official[index]) score += Number.isFinite(category.points) && category.points >= 0 ? category.points : 1;
+      });
+      tx.update(doc.ref, { score }); board.push({ userId: entry.userId, userDisplayName: typeof entry.userDisplayName === 'string' ? entry.userDisplayName : 'Anonymous', score });
+    }
+    board.sort((a,b) => b.score - a.score || a.userId.localeCompare(b.userId));
+    const update = { results: JSON.stringify(official), updatedAt: stamp() };
+    if (action === 'complete') {
+      const winners = board.filter(entry => entry.score === board[0]?.score);
+      Object.assign(update, { status: 'completed', winnerId: winners[0]?.userId || null, winnerIds: winners.map(entry => entry.userId), winnerName: winners.map(entry => entry.userDisplayName).join(' & ') || null, winnerScore: winners[0]?.score || 0 });
+    }
+    tx.update(ref, update); return { winner: board[0] || null };
+  });
+});

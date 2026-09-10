@@ -1,3 +1,5 @@
+import PoolBoard from '../src/components/pools/PoolBoard.jsx';
+import { convertLegacyMatchups } from '../src/lib/standardBracket';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
@@ -65,4 +67,12 @@ describe('extracted pool controls', () => {
     expect(html).not.toContain('Submit Predictions');
     expect(html).not.toContain('Click on entries to set the actual results');
   });
+});
+
+it('renders graded pool picks and keyboard controls after the board split', () => {
+  const { state } = convertLegacyMatchups([[{ entry1: { name: 'A', seed: 1 }, entry2: { name: 'B', seed: 2 }, winner: 1 }]]);
+  const box = state.rounds[0][0], winner = state.boxes[box].result;
+  const html = renderToStaticMarkup(createElement(PoolBoard, { state, nameMap: {}, editable: false, official: { [box]: winner === 'p1' ? 'p2' : 'p1' } }));
+  expect(html).toContain('A'); expect(html).toContain('B');
+  expect(html).not.toContain('role="button"');
 });

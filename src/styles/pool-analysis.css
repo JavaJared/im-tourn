@@ -1,0 +1,501 @@
+
+
+/* ======================================================================
+   Elimination feature styles
+   Append these to src/App.css.
+   ====================================================================== */
+
+/* ---------- StatusBadge ---------- */
+
+.elim-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+  line-height: 1.3;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+
+.elim-badge-emoji { font-size: 0.8rem; }
+
+.status-alive {
+  background: rgba(34, 197, 94, 0.14);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.35);
+}
+.status-eliminated {
+  background: rgba(239, 68, 68, 0.14);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+.status-clinched {
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.2), rgba(245, 158, 11, 0.22));
+  color: #fde68a;
+  border: 1px solid rgba(234, 179, 8, 0.5);
+}
+
+/* ---------- Row expansion wrapper ---------- */
+
+/* The expansion breaks out of whatever flex/grid flow the row uses:
+   - flex-basis + width: 100% handles flexbox parents (wraps to new line)
+   - grid-column: 1/-1 handles CSS grid parents (spans all columns)
+   - order:999 pushes it after all cells regardless of source order */
+.leaderboard-row-expansion {
+  flex-basis: 100%;
+  width: 100%;
+  max-width: 100%;
+  padding: 4px 12px 12px 12px;
+  box-sizing: border-box;
+  grid-column: 1 / -1;
+  order: 999;
+}
+
+/* If parent row is flex but not wrapping, force it to wrap so the
+   expansion lands on a new line. This rule only targets rows that
+   actually contain an expansion, so existing rows are unaffected. */
+.leaderboard-row:has(> .leaderboard-row-expansion) {
+  flex-wrap: wrap;
+}
+
+/* ---------- WhatNeedsToHappen container ---------- */
+
+.wnth-container {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.wnth-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-family: inherit;
+  color: #cbd5e1;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.wnth-toggle:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #f1f5f9;
+}
+.wnth-toggle-icon {
+  font-size: 0.7rem;
+  display: inline-block;
+  width: 0.8em;
+}
+.wnth-toggle-text { font-weight: 500; }
+.wnth-toggle-count {
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Expanded panel ---------- */
+
+.wnth-panel {
+  margin-top: 10px;
+  padding: 16px 18px;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+}
+
+.wnth-section { margin-bottom: 20px; }
+.wnth-section:last-child { margin-bottom: 0; }
+
+.wnth-section-header {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.wnth-section-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+.wnth-section-title {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #e2e8f0;
+}
+.wnth-section-sub {
+  font-size: 0.72rem;
+  color: #64748b;
+  font-weight: 400;
+  font-style: italic;
+}
+
+/* ---------- Must happen list ---------- */
+
+.wnth-required-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wnth-required-item {
+  display: grid;
+  grid-template-columns: minmax(100px, auto) 1fr;
+  gap: 12px;
+  align-items: baseline;
+  padding: 8px 12px;
+  background: rgba(239, 68, 68, 0.08);
+  border-left: 3px solid rgba(239, 68, 68, 0.55);
+  border-radius: 4px;
+}
+
+.wnth-required-round {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #fca5a5;
+  white-space: nowrap;
+}
+
+.wnth-required-body {
+  color: #f1f5f9;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+.wnth-required-team { color: #fef2f2; font-weight: 600; }
+.wnth-required-verb { color: #cbd5e1; }
+
+/* ---------- Root for matchups ---------- */
+
+.wnth-rootfor-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.wnth-rootfor-matchup {
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+}
+
+.wnth-rootfor-round {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  margin-bottom: 8px;
+}
+
+.wnth-rootfor-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wnth-rootfor-option {
+  display: grid;
+  grid-template-columns: minmax(80px, 1.3fr) 2fr auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.86rem;
+}
+
+.wnth-team {
+  color: #f1f5f9;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wnth-bar-wrap {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.wnth-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #64748b, #94a3b8);
+  transition: width 0.25s ease;
+}
+
+.wnth-rootfor-option.intensity-strong .wnth-bar-fill {
+  background: linear-gradient(90deg, #22c55e, #4ade80);
+}
+.wnth-rootfor-option.intensity-strong .wnth-team { color: #86efac; }
+.wnth-rootfor-option.intensity-strong .wnth-pct { color: #86efac; font-weight: 600; }
+
+.wnth-rootfor-option.intensity-medium .wnth-bar-fill {
+  background: linear-gradient(90deg, #eab308, #fbbf24);
+}
+
+.wnth-rootfor-option.intensity-weak .wnth-bar-fill {
+  background: linear-gradient(90deg, #475569, #64748b);
+}
+.wnth-rootfor-option.intensity-weak .wnth-team,
+.wnth-rootfor-option.intensity-weak .wnth-pct { color: #94a3b8; }
+
+.wnth-pct {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.82rem;
+  min-width: 3em;
+  text-align: right;
+  color: #cbd5e1;
+  font-weight: 500;
+}
+
+/* ---------- Empty / truncated ---------- */
+
+.wnth-empty {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #cbd5e1;
+  font-style: italic;
+}
+.wnth-truncated-note {
+  margin: 12px 0 0 0;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+  font-size: 0.76rem;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+/* ======================================================================
+   Match score inputs & display (host-set results)
+   ====================================================================== */
+
+/* When in host-results mode, the pool-entry grid expands to fit a score
+   input column on the right. */
+.pool-entry.host-mode {
+  /* Shrink the score column so the name area dominates and stays clickable */
+  grid-template-columns: 22px 1fr 38px;
+}
+
+.pool-score-input {
+  background: var(--bg-dark);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 2px 4px;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-family: inherit;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  width: 100%;
+  max-width: 38px;
+  height: 22px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  -moz-appearance: textfield;
+  /* Keep the input above its row visually but DON'T let it expand the click target */
+  position: relative;
+  z-index: 1;
+}
+.pool-score-input::-webkit-inner-spin-button,
+.pool-score-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.pool-score-input:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+.pool-score-input:focus {
+  outline: none;
+  border-color: var(--accent-orange);
+  background: rgba(255, 107, 53, 0.05);
+}
+.pool-entry.winner .pool-score-input {
+  color: var(--accent-teal);
+  font-weight: 600;
+}
+
+/* Read-only score display (everyone except host setting results) */
+.pool-score {
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+  min-width: 1.6em;
+  text-align: right;
+  margin-left: 8px;
+  color: var(--text-muted);
+}
+.pool-entry.winner .pool-score {
+  color: var(--accent-teal);
+  font-weight: 700;
+}
+
+/* ======================================================================
+   Prediction-vs-actual display
+   When the user's predicted team didn't actually play in a matchup, the
+   row switches to a 2-row grid: actual team name on top, "You picked..."
+   on the bottom, score vertically centered on the right.
+
+   NOTE: the parent .pool-entry uses display: flex. We override to grid
+   ONLY for the mismatch variant. The !important on display is needed
+   because the original .pool-entry rule and this one have equal
+   specificity, and CSS doesn't merge `display: flex` and grid template
+   properties — grid templates require the parent to be display: grid.
+   ====================================================================== */
+
+.pool-entry.has-mismatch {
+  display: grid !important;
+  grid-template-columns: 22px 1fr auto;
+  grid-template-rows: auto auto;
+  column-gap: 0.4rem;     /* matches the original .pool-entry `gap: 0.4rem` */
+  row-gap: 1px;
+  padding: 0.6rem 0.5rem; /* matches original .pool-entry padding exactly */
+  align-items: center;
+}
+
+.pool-entry.has-mismatch .pool-seed {
+  grid-column: 1 / 2;
+  grid-row: 1 / 3;
+  align-self: center;
+}
+
+.pool-entry.has-mismatch .pool-entry-name {
+  grid-column: 2 / 3;
+  grid-row: 1 / 2;
+  flex: none;             /* override .pool-entry-name's flex: 1 */
+}
+
+.pool-entry.has-mismatch .predicted-row {
+  grid-column: 2 / 3;
+  grid-row: 2 / 3;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pool-entry.has-mismatch .pool-score,
+.pool-entry.has-mismatch .pool-score-input {
+  grid-column: 3 / 4;
+  grid-row: 1 / 3;
+  align-self: center;
+}
+
+.predicted-label {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+
+.predicted-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.predicted-name.you-got-it {
+  color: #ef4444;
+}
+
+/* ============================================================
+   Featured Ranking of the Day — append to src/App.css
+   ============================================================ */
+
+.featured-ranking-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  margin: 0 auto 2rem;
+  max-width: 720px;
+  padding: 1.4rem 1.5rem 1.25rem;
+  background:
+    linear-gradient(135deg, rgba(245, 158, 66, 0.10), rgba(43, 212, 192, 0.06)),
+    var(--surface, #161a22);
+  border: 1px solid rgba(245, 158, 66, 0.45);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.3);
+}
+
+.featured-ranking-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-orange, #f59e42);
+  box-shadow: 0 10px 28px rgba(245, 158, 66, 0.18);
+}
+
+.featured-ranking-badge {
+  position: absolute;
+  top: -11px;
+  left: 1.25rem;
+  background: var(--accent-orange, #f59e42);
+  color: #14161c;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.featured-ranking-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.featured-ranking-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.7rem;
+  letter-spacing: 0.03em;
+  margin: 0.35rem 0 0.3rem;
+  color: var(--text, #e8eaf0);
+}
+
+.featured-ranking-cta {
+  flex-shrink: 0;
+  align-self: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--accent-teal, #2bd4c0);
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .featured-ranking-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  .featured-ranking-cta {
+    align-self: flex-end;
+  }
+}
