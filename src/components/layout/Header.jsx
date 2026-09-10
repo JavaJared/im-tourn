@@ -24,6 +24,7 @@ const Header = ({ onNavigate, currentView }) => {
         </div>
 
         <nav className="header-nav">
+          {currentUser && <button className={`nav-link ${currentView === 'my-activities' ? 'active' : ''}`} onClick={() => onNavigate('my-activities')}>My Activities</button>}
           <button
             className={`nav-link ${currentView === 'home' ? 'active' : ''}`}
             onClick={() => onNavigate('home')}
@@ -88,6 +89,7 @@ const Header = ({ onNavigate, currentView }) => {
             currentView !== 'prediction-pools' &&
             currentView !== 'rankings' &&
             currentView !== 'my-rankings' &&
+            currentView !== 'my-activities' &&
             currentView !== 'privacy' &&
             currentView !== 'terms' &&
             !currentView.startsWith('pool-') &&
@@ -113,6 +115,7 @@ const Header = ({ onNavigate, currentView }) => {
 
               {showUserMenu && (
                 <div className="user-dropdown">
+                  <button onClick={() => { onNavigate('my-activities'); setShowUserMenu(false); }}>My Activities</button>
                   <button
                     onClick={() => {
                       onNavigate('my-brackets');

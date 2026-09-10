@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "build:server": "node scripts/build-server.mjs",
     "test": "vitest run",
-    "test:rules": "npm run build:server && firebase emulators:exec --project demo-im-tourn --only firestore,storage \"vitest run tests/rules.test.js tests/server.test.js tests/pool-privacy.test.js tests/draft-server.test.js tests/catalog-server.test.js\"",
+    "test:rules": "npm run build:server && firebase emulators:exec --project demo-im-tourn --only firestore,storage \"vitest run tests/rules.test.js tests/server.test.js tests/pool-privacy.test.js tests/draft-server.test.js tests/catalog-server.test.js tests/activities-server.test.js\"",
     "check": "npm run build:server && npm test && npm --prefix functions test && npm run build",
     "prebuild": "node scripts/check-backend.mjs"
   },
