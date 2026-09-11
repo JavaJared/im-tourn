@@ -4,7 +4,7 @@ import { Check, Clock, Loader2, AlertTriangle, Send } from './customBracketIcons
 import { SLOT, setResult, getChampion } from '../lib/customBracket';
 import BracketBoard from './BracketBoard';
 import { isEntryComplete, picksFromState, blankPrediction, applyPicks } from '../lib/customScoring';
-import { subscribeToBracket, submitCustomFill, getCustomFills } from '../services/customBracketService';
+import { subscribeToBracket, submitCustomFill, getCustomFills, getCustomFill } from '../services/customBracketService';
 
 function nameMapOf(state) { const m = {}; for (const id of Object.keys(state.boxes)) for (const k of ['slotA', 'slotB']) { const s = state.boxes[id][k]; if (s.type === SLOT.NAMED) m[s.participantId] = s.name; } return m; }
 
@@ -15,7 +15,7 @@ function nameMapOf(state) { const m = {}; for (const id of Object.keys(state.box
  * (when signed in) save it as a submission. No scoring, no competition — that
  * lives on pools.
  * ==================================================================== */
-export default function CustomBracketFill({ bracketId, currentUserId, currentUserName, onExit }) {
+export default function CustomBracketFill({ bracketId, currentUserId, currentUserName, onExit, openSaved = false }) {
   const [bracket, setBracket] = useState(null);
   const [status, setStatus] = useState(null);
   const [pred, setPred] = useState(null);      // local prediction engine state
@@ -45,13 +45,15 @@ export default function CustomBracketFill({ bracketId, currentUserId, currentUse
       setPred(applyPicks(blankPrediction(state), resume || {}));
       setSaved(false); setViewing('');
       try {
-        const all = await getCustomFills(bracketId); setFills(all);
+        const own = openSaved ? await getCustomFill(bracketId, currentUserId) : null;
+        const all = openSaved ? (own ? [own] : []) : await getCustomFills(bracketId); setFills(all);
         const mine = all.filter(f => f.userId === currentUserId).sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))[0];
-        if (!resume && mine) { setPred(applyPicks(blankPrediction(state), mine.picks)); setSaved(true); }
+        if ((!resume || openSaved) && mine) { setPred(applyPicks(blankPrediction(state), mine.picks)); setSaved(true); if (openSaved) setViewing(mine.id); }
+        if (openSaved && !mine) setError('Your saved bracket could not be found.');
       } catch (e) { flash('Saved brackets could not be loaded. Try reopening this bracket.'); }
     }, (err) => { setError(err?.message || 'Connection error.'); setLoading(false); });
     return unsub;
-  }, [bracketId, currentUserId, lsKey]);
+  }, [bracketId, currentUserId, lsKey, openSaved]);
 
   const nameMap = useMemo(() => (pred ? nameMapOf(pred) : {}), [pred]);
   const complete = useMemo(() => (pred ? isEntryComplete(pred) : false), [pred]);

@@ -279,3 +279,9 @@ export function subscribeToPool(poolId, onChange, onError) {
 export function subscribeToPoolEntries(poolId, onChange, onError) {
   return watchEntries('bracket', poolId, onChange, onError, adaptLegacyEntry);
 }
+
+export async function getCustomFill(bracketId, userId) {
+  if (!userId) return null;
+  const snap = await getDoc(doc(db, COLLECTION, bracketId, 'submissions', userId));
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+}

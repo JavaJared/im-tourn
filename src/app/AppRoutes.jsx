@@ -99,6 +99,7 @@ export default function AppRoutes({
       {view.startsWith('kristin-tiers-') && (
         <KristinTiersDetailPage listId={view.replace('kristin-tiers-', '')} onNavigate={setView} />
       )}
+      {view.startsWith('saved-custom-bracket-') && <CustomBracketPage bracketId={view.replace('saved-custom-bracket-', '')} currentUserId={currentUser?.uid} currentUserName={currentUser?.displayName} onNavigate={setView} openSaved />}
       {view.startsWith('custom-bracket-') && (
         <CustomBracketPage
           bracketId={view.replace('custom-bracket-', '')}

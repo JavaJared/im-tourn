@@ -42,7 +42,7 @@ run('personal activity feed', () => {
     await db.doc('customBrackets/b').set({ title: 'Custom bracket', status: 'published' });
     for (const uid of ['alice','bob']) await db.doc(`customBrackets/b/submissions/${uid}`).set({ userId: uid, createdAt: Timestamp.now(), picks: { final:'secret' } });
     const result = await api.listMyActivities.run(request('alice', { type: 'customSubmissions' }));
-    expect(result.items).toHaveLength(1); expect(result.items[0]).toMatchObject({ title:'Custom bracket', destination:'custom-bracket-b' });
+    expect(result.items).toHaveLength(1); expect(result.items[0]).toMatchObject({ title:'Custom bracket', destination:'saved-custom-bracket-b' });
     expect(JSON.stringify(result)).not.toContain('secret');
   });
 });

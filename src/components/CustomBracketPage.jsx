@@ -13,7 +13,7 @@ import CustomBracketFill from './CustomBracketFill';
  * layer (predictions, scoring, leaderboard, host-entered results) lives on a
  * pool that wraps the bracket — not here.
  */
-export default function CustomBracketPage({ bracketId, currentUserId, currentUserName, onNavigate }) {
+export default function CustomBracketPage({ bracketId, currentUserId, currentUserName, onNavigate, openSaved = false }) {
   const [status, setStatus] = useState(undefined); // undefined = loading, null = missing
   const [hostId, setHostId] = useState(null);
 
@@ -27,7 +27,7 @@ export default function CustomBracketPage({ bracketId, currentUserId, currentUse
     return unsub;
   }, [bracketId]);
 
-  const back = () => onNavigate('my-brackets');
+  const back = () => onNavigate(openSaved ? 'my-activities' : 'my-brackets');
 
   if (status === undefined) return <div className="create-container"><div className="empty-state"><p>Loading bracket…</p></div></div>;
   if (status === null) return <div className="create-container"><div className="empty-state"><p>This bracket could not be found.</p></div></div>;
@@ -38,6 +38,6 @@ export default function CustomBracketPage({ bracketId, currentUserId, currentUse
   }
 
   return (
-    <CustomBracketFill bracketId={bracketId} currentUserId={currentUserId} currentUserName={currentUserName} onExit={back} />
+    <CustomBracketFill openSaved={openSaved} bracketId={bracketId} currentUserId={currentUserId} currentUserName={currentUserName} onExit={back} />
   );
 }
