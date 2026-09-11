@@ -9,7 +9,7 @@ import PoolBracketPanel from '../src/pages/pools/PoolBracketPanel.jsx';
 vi.mock('../src/app/pages.jsx', async () => {
   const { createElement } = await import('react');
   const names = [
-    'HomePage', 'MyBracketsPage', 'CreatePage', 'FillPage', 'PDFPage',
+    'HomePage', 'MyActivitiesPage', 'MyBracketsPage', 'CreatePage', 'FillPage', 'PDFPage',
     'WeeklyBracketPage', 'PoolsPage', 'CreatePoolPage', 'PoolDetailPage',
     'PredictionPoolsPage', 'CreatePredictionPoolPage', 'PredictionPoolDetailPage',
     'RankingsBrowsePage', 'CreateRankingPage', 'MyRankingsPage', 'RankingVotePage',
@@ -79,4 +79,10 @@ it('blocks direct draft links while public access is disabled', () => {
   const html = renderToStaticMarkup(createElement(AppRoutes, { view: 'draft-one-two' }));
   expect(html).toContain('not publicly available');
   expect(html).not.toContain('data-page="DraftLobbyPage"');
+});
+
+it('routes the activity dashboard independently of older personal lists', () => {
+  const html = renderToStaticMarkup(createElement(AppRoutes, { view: 'my-activities' }));
+  expect(html).toContain('data-page="MyActivitiesPage"');
+  expect(html).not.toContain('data-page="MyBracketsPage"');
 });

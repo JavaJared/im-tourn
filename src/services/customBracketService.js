@@ -279,3 +279,9 @@ export function subscribeToPool(poolId, onChange, onError) {
 export function subscribeToPoolEntries(poolId, onChange, onError) {
   return watchEntries('bracket', poolId, onChange, onError, adaptLegacyEntry);
 }
+
+export async function getCustomFill(bracketId, userId) {
+  if (!userId) return null;
+  try { return await callServer('getMySavedActivity', { type: 'custom', id: bracketId }); }
+  catch (error) { if (error?.code === 'functions/not-found' || error?.code === 'not-found') return null; throw error; }
+}

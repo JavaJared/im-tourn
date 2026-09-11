@@ -5,6 +5,7 @@ const api = require('../functions/index.js');
 const auth = { uid: '__deployment_index_probe__', token: {} };
 async function verify() {
   const probes = [
+    ...Object.keys(require('../functions/activities').internal.sources).map(type => () => api.listMyActivities.run({ auth, data: { type } })),
     ...['legacy','custom','ranking','draft'].map(type => () => api.browseCatalog.run({ data: { type } })),
     ...['hosted','joined'].map(mine => () => api.browseCatalog.run({ auth, data: { type: 'draft', mine } })),
     ...['bracket','prediction'].flatMap(poolType => ['hosted','joined'].map(type => () => api.listUserPools.run({ auth, data: { type, poolType } }))),

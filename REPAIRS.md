@@ -57,14 +57,20 @@ Catalogs load metadata in pages of 24; pool participants load in pages of 50. Su
 
 Ranking, tier and draft pages are separate route modules; styles are divided by feature with the original cascade preserved. Pools now use one detail subscription path for both legacy and custom brackets. Winning-path searches run in a terminable worker and are withheld for incomplete or damaged participant lists. Dialog tests cover focus trapping, nested Escape handling and restoration.
 
-Draft creation, invites, joins, host controls, turn order, picks, expiry and scoring use authenticated server transactions. Expected turn numbers make retries safe at consecutive snake turns. Timers use server deadlines; connected participants request expiry advancement, and an expired offline room advances when a participant reconnects. New drafts use schema version 2; older drafts are preserved but not editable with the new controls. Drafts remain disabled until the gated rules workflow tests and verifies the active rules, then writes the feature readiness flag. Refresh the frontend after this workflow to expose drafts. Other previously disabled features remain disabled.
+Draft creation, invites, joins, host controls, turn order, picks, expiry and scoring use authenticated server transactions. Expected turn numbers make retries safe at consecutive snake turns. Timers use server deadlines; connected participants request expiry advancement, and an expired offline room advances when a participant reconnects. New drafts use schema version 2; older drafts are preserved but not editable with the new controls. Drafts remain disabled until the gated rules workflow tests and verifies the active rules, then records verification. Drafts are not approved for public release: the client stays hidden and the server requires a separate draftsPublic flag. Do not enable that flag without the owner’s explicit decision about integration. Other previously disabled features remain disabled.
 
 ### Release 3 deployment order
 
 1. Merge the verified changes to main. The backend workflow deploys additive callables and indexes, exercises each new query until indexes are ready, then marks backend release 3 ready.
 2. Publish/retry the Netlify build. Its guard blocks production publication until release 3 is ready, preserving the current live deployment during backend setup.
 3. Check signed-in pool creation, invitation joining, pick submission, results, rankings and tiers in your own browser.
-4. Run **Deploy Firebase Rules (after frontend)** on main with `frontend_verified` checked. This existing confirmation gate is intentional. The workflow moves invitation codes, deploys and verifies both rulesets, then enables the tested draft controls.
-5. Refresh and check a two-account draft (join, start, pick, timer and scoring). Never enable drafts by editing the client flag before rules verification.
+4. Run **Deploy Firebase Rules (after frontend)** on main with `frontend_verified` checked. This existing confirmation gate is intentional. The workflow moves invitation codes, deploys and verifies both rulesets, records verification without enabling public drafts.
+5. Keep drafts hidden. Verification is not permission to release the feature publicly.
 
 Live authenticated smoke tests and production security-rule deployment cannot be replaced by a successful build or an emulator run. Check the PR for actual completed validation and deployment status.
+
+## My Activities
+
+The signed-in dashboard unifies created standard/custom brackets, saved bracket submissions, hosted/joined pools, and created/voted rankings. It offers category, search, and needs-attention filters with paginated metadata and explicit retry states. Existing personal pages remain available. Saved standard submissions open in the read-only bracket/PDF viewer; custom saved picks reopen their bracket. Draft rooms and hidden prediction pools are excluded.
+
+The listMyActivities callable binds every query to the authenticated UID, including cursor validation. It never returns invite codes, prediction payloads, or other users’ activity. Release 4 waits for the activity indexes before publishing the dashboard. Filters apply to loaded results; the weekly bracket is a shortcut rather than an invented historical activity feed.

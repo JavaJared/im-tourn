@@ -18,6 +18,7 @@ import {
   KristinTiersDetailPage,
   HomePage,
   MyBracketsPage,
+  MyActivitiesPage,
   PoolsPage,
   CreatePoolPage,
   PoolDetailPage,
@@ -49,6 +50,7 @@ export default function AppRoutes({
       }
     >
       {view === 'home' && <HomePage onFillOut={handleFillOut} onNavigate={setView} />}
+      {view === 'my-activities' && <MyActivitiesPage key={currentUser?.uid || 'guest'} onNavigate={setView} onFillOut={handleFillOut} onViewSaved={handleSubmitFilled} />}
       {view === 'my-brackets' && <MyBracketsPage onFillOut={handleFillOut} onNavigate={setView} />}
       {view === 'create' && <CreatePage onNavigate={setView} />}
       {view === 'fill' && fillingBracket && (
@@ -97,6 +99,7 @@ export default function AppRoutes({
       {view.startsWith('kristin-tiers-') && (
         <KristinTiersDetailPage listId={view.replace('kristin-tiers-', '')} onNavigate={setView} />
       )}
+      {view.startsWith('saved-custom-bracket-') && <CustomBracketPage bracketId={view.replace('saved-custom-bracket-', '')} currentUserId={currentUser?.uid} currentUserName={currentUser?.displayName} onNavigate={setView} openSaved />}
       {view.startsWith('custom-bracket-') && (
         <CustomBracketPage
           bracketId={view.replace('custom-bracket-', '')}

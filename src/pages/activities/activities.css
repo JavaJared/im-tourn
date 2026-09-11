@@ -1,0 +1,26 @@
+.activities-page { max-width: 1160px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+.activities-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
+.activities-heading h1 { font-size: clamp(2rem, 5vw, 3rem); margin: .2rem 0 .6rem; }
+.activities-eyebrow { color: #ff6b35; font-size: .75rem; font-weight: 700; letter-spacing: .15em; }
+.activities-shortcuts, .activities-filters { display: flex; flex-wrap: wrap; gap: .5rem; }
+.activities-shortcuts { margin-bottom: 2rem; }
+.activities-shortcuts button, .activities-filters button { padding: .65rem .9rem; border: 1px solid #444; border-radius: 8px; background: transparent; color: inherit; cursor: pointer; min-height: 44px; }
+.activities-filters button[aria-pressed='true'] { background: #ff6b35; color: #111; border-color: #ff6b35; font-weight: 700; }
+.activities-controls { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between; }
+.activities-controls input { flex: 1 1 200px; max-width: 300px; padding: .75rem; border: 1px solid #666; border-radius: 8px; font: inherit; }
+.activities-count { margin: 1.25rem 0; opacity: .75; font-size: .875rem; }
+.activities-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr)); gap: 1rem; }
+.activity-card { display: flex; flex-direction: column; gap: .75rem; padding: 1.25rem; border: 1px solid #555; border-radius: 12px; min-width: 0; }
+.activity-card-meta { display: flex; gap: .5rem; flex-wrap: wrap; font-size: .75rem; }
+.activity-attention { color: #ffb489; font-weight: 700; }
+.activity-card h2 { font-size: 1.2rem; margin: 0; overflow-wrap: anywhere; }
+.activity-card p, .activity-card time { margin: 0; font-size: .85rem; opacity: .8; }
+.activity-card button { margin-top: auto; display: flex; justify-content: space-between; gap: 1rem; }
+.activities-empty { text-align: center; padding: 3rem 1rem; border: 1px dashed #777; border-radius: 12px; }
+.activities-empty p { margin: 1rem 0; }
+.activities-more { text-align: center; margin-top: 2rem; }
+.activities-more p { margin-bottom: .75rem; font-size: .85rem; }
+.activities-error { padding: 1rem; border: 1px solid #ed955e; border-radius: 8px; margin: 1rem 0; }
+@media (max-width: 600px) { .activities-heading { align-items: flex-start; } .activities-controls input { max-width: none; width: 100%; font-size: 16px; } }
+.activity-card { background: var(--bg-card, #12121a); }
+.activities-controls input { background: var(--bg-card, #12121a); color: var(--text-primary, #fff); }
