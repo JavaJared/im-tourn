@@ -14,6 +14,17 @@ const sources = {
 const millis = value => value?.toMillis?.() || 0;
 const title = (value, fallback) => typeof value === 'string' && value.trim() ? value : fallback;
 const validId = value => typeof value === 'string' && /^[\w-]{1,200}$/.test(value);
+exports.getMySavedActivity = onCall(async req => {
+  if (!req.auth) throw new HttpsError('unauthenticated', 'Sign in to open your saved activity.');
+  const { type, id } = req.data || {};
+  if (!['standard','custom'].includes(type) || !validId(id)) throw new HttpsError('invalid-argument', 'Invalid saved activity.');
+  const ref = type === 'standard' ? db.doc(`submissions/${id}`) : db.doc(`customBrackets/${id}/submissions/${req.auth.uid}`);
+  const snap = await ref.get();
+  if (!snap.exists || snap.data().userId !== req.auth.uid) throw new HttpsError('not-found', 'This saved activity is no longer available.');
+  const data = snap.data();
+  if (type === 'custom') return { id: snap.id, userId: req.auth.uid, displayName: title(data.displayName, 'Anonymous'), picks: data.picks || {}, champion: data.champion || null, createdAt: data.createdAt || null };
+  return { id: snap.id, title: title(data.title, 'Saved bracket'), category: title(data.category, 'Other'), size: Number.isFinite(data.size) ? data.size : null, champion: data.champion || null, matchups: data.matchups, bracketId: validId(data.bracketId) ? data.bracketId : null, submittedAt: data.submittedAt || null };
+});
 exports.listMyActivities = onCall(async req => {
   if (!req.auth) throw new HttpsError('unauthenticated', 'Sign in to view your activities.');
   const { type, cursor } = req.data || {};
@@ -22,7 +33,7 @@ exports.listMyActivities = onCall(async req => {
   const collection = type === 'customSubmissions' ? db.collectionGroup(collectionName) : db.collection(collectionName);
   let query = collection.where(ownerField, '==', uid).orderBy(dateField,'desc').orderBy(FieldPath.documentId(),'desc').select(...fields,dateField).limit(13);
   if (cursor) {
-    const validPath = type === 'customSubmissions' && typeof cursor === 'string' && /^(customBrackets\/[\w-]{1,200}\/)?submissions\/[\w-]{1,200}$/.test(cursor);
+    const validPath = type === 'customSubmissions' && typeof cursor === 'string' && /^customBrackets\/[\w-]{1,200}\/submissions\/[\w-]{1,200}$/.test(cursor);
     if (!(type === 'customSubmissions' ? validPath : validId(cursor))) throw new HttpsError('invalid-argument', 'Invalid activity page.');
     const last = await (type === 'customSubmissions' ? db.doc(cursor) : collection.doc(cursor)).get();
     if (!last.exists || last.data()[ownerField] !== uid) throw new HttpsError('failed-precondition', 'Refresh your activities to continue.');

@@ -45,4 +45,15 @@ run('personal activity feed', () => {
     expect(result.items).toHaveLength(1); expect(result.items[0]).toMatchObject({ title:'Custom bracket', destination:'saved-custom-bracket-b' });
     expect(JSON.stringify(result)).not.toContain('secret');
   });
+  test('saved activity payloads are bound to the authenticated account', async () => {
+    await db.doc('submissions/alice-save').set({ userId:'alice', title:'Alice save', matchups:'alice-secret', submittedAt:Timestamp.now(), upvotedBy:['bob'] });
+    await db.doc('customBrackets/b/submissions/alice').set({ userId:'alice', displayName:'Alice', picks:{final:'alice-secret'}, createdAt:Timestamp.now() });
+    await expect(api.getMySavedActivity.run(request(null,{type:'standard',id:'alice-save'}))).rejects.toMatchObject({code:'unauthenticated'});
+    await expect(api.getMySavedActivity.run(request('bob',{type:'standard',id:'alice-save'}))).rejects.toMatchObject({code:'not-found'});
+    await expect(api.getMySavedActivity.run(request('bob',{type:'custom',id:'b',userId:'alice'}))).rejects.toMatchObject({code:'not-found'});
+    const standard = await api.getMySavedActivity.run(request('alice',{type:'standard',id:'alice-save'}));
+    expect(standard).toMatchObject({id:'alice-save',title:'Alice save',matchups:'alice-secret'});
+    expect(JSON.stringify(standard)).not.toContain('upvotedBy');
+    expect(await api.getMySavedActivity.run(request('alice',{type:'custom',id:'b'}))).toMatchObject({id:'alice',picks:{final:'alice-secret'}});
+  });
 });

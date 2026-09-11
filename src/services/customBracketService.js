@@ -282,6 +282,6 @@ export function subscribeToPoolEntries(poolId, onChange, onError) {
 
 export async function getCustomFill(bracketId, userId) {
   if (!userId) return null;
-  const snap = await getDoc(doc(db, COLLECTION, bracketId, 'submissions', userId));
-  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+  try { return await callServer('getMySavedActivity', { type: 'custom', id: bracketId }); }
+  catch (error) { if (error?.code === 'functions/not-found' || error?.code === 'not-found') return null; throw error; }
 }

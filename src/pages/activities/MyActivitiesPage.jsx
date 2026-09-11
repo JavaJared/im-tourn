@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePagedCatalog } from '../../lib/usePagedCatalog';
 import { validateLegacyMatchups } from '../../lib/recordValidation';
 import { getBracketById } from '../../services/bracketService';
+import { callServer } from '../../services/server';
 import AuthModal from '../../components/dialogs/AuthModal';
 import './activities.css';
 
@@ -25,10 +24,9 @@ export default function MyActivitiesPage({ onNavigate, onFillOut, onViewSaved })
     openingRef.current = true; setOpening(`${item.catalogType}:${item.id}`); setError('');
     try {
       if (item.submissionId) {
-        const snap = await getDoc(doc(db,'submissions',item.submissionId));
-        if (!snap.exists() || snap.data().userId !== currentUser.uid) throw Error('This saved bracket is no longer available.');
-        const data = snap.data(), matchups = validateLegacyMatchups(typeof data.matchups === 'string' ? JSON.parse(data.matchups) : data.matchups);
-        if (version === generation.current) onViewSaved({ ...data, id: snap.id, title: typeof data.title === 'string' ? data.title : 'Saved bracket', category: typeof data.category === 'string' ? data.category : 'Other', size: Number.isFinite(data.size) ? data.size : matchups[0].length * 2, champion: typeof data.champion?.name === 'string' ? { name: data.champion.name } : null, matchups });
+        const data = await callServer('getMySavedActivity', { type: 'standard', id: item.submissionId });
+        const matchups = validateLegacyMatchups(typeof data.matchups === 'string' ? JSON.parse(data.matchups) : data.matchups);
+        if (version === generation.current) onViewSaved({ ...data, title: typeof data.title === 'string' ? data.title : 'Saved bracket', category: typeof data.category === 'string' ? data.category : 'Other', size: Number.isFinite(data.size) ? data.size : matchups[0].length * 2, champion: typeof data.champion?.name === 'string' ? { name: data.champion.name } : null, matchups });
       } else {
         const bracket = await getBracketById(item.bracketId);
         if (!bracket) throw Error('This bracket was removed.');

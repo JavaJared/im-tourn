@@ -110,4 +110,6 @@ exports.repairReadiness = onRequest(async (_req, res) => {
 });
 
 for (const [name, callable] of Object.entries(require("./drafts"))) { if (name !== "internal") exports[name] = callable; }
-exports.listMyActivities = require('./activities').listMyActivities;
+const activities = require('./activities');
+exports.listMyActivities = activities.listMyActivities;
+exports.getMySavedActivity = activities.getMySavedActivity;
