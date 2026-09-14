@@ -1,4 +1,6 @@
 import Board from './pools/PoolBoard';
+import PoolTabs from './pools/PoolTabs';
+import PoolRules from './pools/PoolRules';
 import Shell from './pools/PoolShell';
 import { S } from './pools/poolStyles';
 import { predictionsOpen } from '../lib/poolLifecycle';
@@ -32,6 +34,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [tab, setTab] = useState('bracket');
+  const [editingResults, setEditingResults] = useState(false);
   const [predState, setPredState] = useState(null);
   const [resState, setResState] = useState(null);
   const [now, setNow] = useState(Date.now());
@@ -74,7 +77,8 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
   const roundPoints = useMemo(() => (pool?.roundPoints && pool.roundPoints.length ? pool.roundPoints : defaultRoundPoints(pool?.bracketMatchups?.rounds?.length || 0)), [pool]);
   const joined = !!myEntry;
   const submitted = !!(myEntry && myEntry.predictions);
-  const canRecord = isHost && status === 'in_progress';
+  const canRecord = isHost && status === 'in_progress' && editingResults;
+  const changeTab = (next) => { setTab(next); setViewingEntry(null); setEditingResults(false); };
 
   // Initialize the current user's prediction board from their saved entry, but
   // only when that saved entry actually changes (first load, join, or their own
@@ -267,6 +271,11 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
           <span style={S.title}>{pool.name}</span>
           <span style={S.pill}>{STATUS_LABEL[status] || status}</span>
         </div>
+      </header>
+      {pool.lockDate && <div style={S.note}>Predictions close {pool.lockDate.toLocaleString()}{!predictionsOpen(pool, now) ? " · Closed" : ""}</div>}
+      {isHost && <details className="pool-host-controls">
+        <summary>Host controls</summary>
+        <div className="pool-host-body">
         <div style={S.topRight}>
           {isHost && pool.joinCode && <div style={S.codeWrap}><span>Code</span><span style={S.codeVal}>{pool.joinCode}</span><button style={S.linkBtn} onClick={copyLink}>Copy link</button></div>}
           {isHost && status === 'open' && <button style={S.primary} disabled={busy} onClick={() => run(() => lockPool(poolId, currentUserId), 'Predictions locked')}><Lock size={14} /> Lock predictions</button>}
@@ -277,14 +286,12 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
           </>}
           {isHost && <button style={S.danger} disabled={busy} onClick={removePool}><Trash2 size={14} /> Delete</button>}
         </div>
-      </header>
-
-      {pool.lockDate && <div style={S.note}>Predictions close {pool.lockDate.toLocaleString()}{!predictionsOpen(pool, now) ? " · Closed" : ""}</div>}
-      {(pool.description || isHost) && (
+          {status === 'in_progress' && <button style={S.ghost} disabled={busy} aria-pressed={editingResults} onClick={() => { setTab('results'); setViewingEntry(null); setEditingResults(!editingResults); }}>{editingResults ? 'Finish editing results' : 'Edit official results'}</button>}
+      {isHost && (
         <div style={S.descWrap}>
           {editingDesc ? (
             <div style={S.descEdit}>
-              <textarea style={S.descArea} rows={3} value={descDraft} onChange={(e) => setDescDraft(e.target.value)} placeholder="Add rules, prizes, or info for participants…" />
+              <textarea style={S.descArea} aria-label="Pool description and rules" rows={3} value={descDraft} onChange={(e) => setDescDraft(e.target.value)} placeholder="Add rules, prizes, or info for participants…" />
               <div style={S.descActions}>
                 <button style={S.ghost} disabled={busy} onClick={() => setEditingDesc(false)}>Cancel</button>
                 <button style={S.primary} disabled={busy} onClick={saveDesc}><Check size={14} strokeWidth={3} /> Save</button>
@@ -299,15 +306,14 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
         </div>
       )}
 
-      <div style={S.tabs}>
-        {['bracket', 'results', 'leaderboard'].map((t) => (
-          <button key={t} style={S.tab(tab === t)} onClick={() => { setTab(t); setViewingEntry(null); }}>{t === 'bracket' ? (isHost ? 'Bracket' : 'My picks') : t === 'results' ? 'Results' : 'Leaderboard'}</button>
-        ))}
-      </div>
+        </div>
+      </details>}
+
+      <PoolTabs activeTab={tab} onChange={changeTab} />
 
       {status === 'completed' && pool.winnerName && <div style={S.championBar}><Trophy size={18} strokeWidth={2.5} /> <b>{pool.winnerName}</b> wins with {pool.winnerScore} pts</div>}
 
-      <div style={S.scroll}>
+      <div style={S.scroll} role="tabpanel" id={`pool-panel-${tab}`} aria-labelledby={`pool-tab-${tab}`} tabIndex={0}>
         {viewingEntry ? (
           <>
             <div style={S.viewBanner}>
@@ -368,11 +374,12 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
         )}
         {tab === 'results' && (
           <>
-            {canRecord && <div style={S.note}>Tap a player to record the official winner. Scores update automatically.</div>}
+            {canRecord && <div style={S.note}>Editing official results. Tap a player to record the winner. Scores update automatically. <button style={S.ghost} onClick={() => setEditingResults(false)}>Finish editing</button></div>}
             {!canRecord && status !== 'in_progress' && status !== 'completed' && <div style={S.note}>Official results appear once the host starts the pool.</div>}
             {resState && <Board state={resState} nameMap={nameMap} editable={canRecord && !busy} onPick={pickResult} sc={scoreUI} scores={scoresByBox} pickedState={submitted ? predState : null} />}
           </>
         )}
+        {tab === 'rules' && <PoolRules pool={pool} roundPoints={roundPoints} />}
         {tab === 'leaderboard' && (
           <div style={S.lb}>
             <div style={S.legend}>{roundPoints.map((pt, i) => <span key={i} style={S.chip}>{i === roundPoints.length - 1 && roundPoints.length > 1 ? 'Final' : `Round ${i + 1}`} · <b style={{ fontWeight: 600 }}>{pt}</b></span>)}</div>
