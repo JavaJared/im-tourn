@@ -24,7 +24,7 @@ export default function MyActivitiesPage({ onNavigate, onFillOut, onViewSaved })
     openingRef.current = true; setOpening(`${item.catalogType}:${item.id}`); setError('');
     try {
       if (item.submissionId) {
-        const data = await callServer('getMySavedActivity', { type: 'standard', id: item.submissionId });
+        const data = { ...await callServer('getMySavedActivity', { type: 'standard', id: item.submissionId }), submissionId: item.submissionId };
         const matchups = validateLegacyMatchups(typeof data.matchups === 'string' ? JSON.parse(data.matchups) : data.matchups);
         if (version === generation.current) onViewSaved({ ...data, title: typeof data.title === 'string' ? data.title : 'Saved bracket', category: typeof data.category === 'string' ? data.category : 'Other', size: Number.isFinite(data.size) ? data.size : matchups[0].length * 2, champion: typeof data.champion?.name === 'string' ? { name: data.champion.name } : null, matchups });
       } else {

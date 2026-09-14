@@ -1,5 +1,6 @@
 import { isHiddenView } from '../config/app';
 import { Suspense } from 'react';
+import BracketUrlPage from '../pages/brackets/BracketUrlPage';
 import {
   RankingsBrowsePage,
   CreateRankingPage,
@@ -43,6 +44,7 @@ export default function AppRoutes({
   if (isHiddenView(view)) return <div className="home-container"><p>This feature is not publicly available.</p><button onClick={() => setView('home')}>Back to browse</button></div>;
   return (
     <Suspense
+      key={view + ':' + (currentUser?.uid || 'guest')}
       fallback={
         <div role="status" className="loading-state">
           Loading page…
@@ -53,6 +55,9 @@ export default function AppRoutes({
       {view === 'my-activities' && <MyActivitiesPage key={currentUser?.uid || 'guest'} onNavigate={setView} onFillOut={handleFillOut} onViewSaved={handleSubmitFilled} />}
       {view === 'my-brackets' && <MyBracketsPage onFillOut={handleFillOut} onNavigate={setView} />}
       {view === 'create' && <CreatePage onNavigate={setView} />}
+      {view.startsWith('fill-bracket-') && <BracketUrlPage id={view.slice('fill-bracket-'.length)} mode="fill" onSubmit={handleSubmitFilled} onBack={() => setView('home')} />}
+      {view.startsWith('saved-bracket-') && <BracketUrlPage id={view.slice('saved-bracket-'.length)} mode="saved" onBack={() => setView('home')} />}
+      {view.startsWith('local-bracket-') && <BracketUrlPage id={view.slice('local-bracket-'.length)} mode="local" fallback={currentBracket} onBack={() => setView('home')} />}
       {view === 'fill' && fillingBracket && (
         <FillPage
           bracket={fillingBracket}
