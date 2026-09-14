@@ -22,6 +22,7 @@
  * that need geometry (e.g. the builder's drag targets).
  */
 import React, { useMemo } from 'react';
+import RoundNavigator from './RoundNavigator';
 import { Check, Clock, X } from './customBracketIcons';
 import { SLOT, locate, slotDisplay, feederId, resolveParticipant } from '../lib/customBracket';
 
@@ -58,9 +59,13 @@ export function resolveSlot(state, loc, nameMap, boxId, slot, seedMap) {
 export default function BracketBoard({ state, nameMap, seedMap, editable, onPick, official, sc, highlight }) {
   const loc = useMemo(() => locate(state), [state]);
   const layout = useMemo(() => computeLayout(state), [state]);
+  const rounds = state.rounds.map(round => round.map(id => {
+    const a = resolveSlot(state, loc, nameMap, id, 'A', seedMap), b = resolveSlot(state, loc, nameMap, id, 'B', seedMap);
+    return { id, ready: a.kind === 'player' && b.kind === 'player', answered: state.boxes[id].result?.winnerId != null || a.kind === 'bye' || b.kind === 'bye' };
+  }));
   return (
-    <div style={{ position: 'relative', width: layout.width, height: layout.height }}>
-      {state.rounds.length >= 2 && layout.columns.map((c, i) => <div key={i} style={{ ...BS.colHead, left: c.x, width: CARDW }}>{c.label}</div>)}
+    <RoundNavigator rounds={rounds} editable={editable} label={r => layout.columns[r]?.label || 'Round 1'}>{({ roundProps, matchProps }) => <div className="engine-board" style={{ position: 'relative', width: layout.width, height: layout.height }}>
+      {state.rounds.length >= 2 && layout.columns.map((c, i) => <div className="engine-heading" key={i} style={{ ...BS.colHead, left: c.x, width: CARDW }}>{c.label}</div>)}
       <svg style={BS.svg} width={layout.width} height={layout.height}>
         {Object.keys(state.boxes).map((id) => {
           const { r, p } = loc[id]; const pos = layout.positions[id]; if (!pos) return null;
@@ -72,17 +77,17 @@ export default function BracketBoard({ state, nameMap, seedMap, editable, onPick
           });
         })}
       </svg>
-      {Object.keys(state.boxes).map((id) => (
-        <Card key={id} id={id} pos={layout.positions[id]}
+      {state.rounds.map((round, r) => <div key={r} className="engine-round" {...roundProps(r)}>{round.map((id) => (
+        <Card key={id} id={id} pos={layout.positions[id]} matchProps={matchProps(id)}
           a={resolveSlot(state, loc, nameMap, id, 'A', seedMap)} b={resolveSlot(state, loc, nameMap, id, 'B', seedMap)}
           result={state.boxes[id].result} editable={editable} onPick={onPick}
           official={official ? official[id] : null} sc={sc} hl={highlight ? highlight.has(id) : false} />
-      ))}
-    </div>
+      ))}</div>)}
+    </div>}</RoundNavigator>
   );
 }
 
-function Card({ id, pos, a, b, result, editable, onPick, official, sc, hl }) {
+function Card({ id, pos, a, b, result, editable, onPick, official, sc, hl, matchProps }) {
   if (!pos) return null;
   const decidable = a.kind === 'player' && b.kind === 'player';
   const hasBye = a.kind === 'bye' || b.kind === 'bye';
@@ -99,17 +104,17 @@ function Card({ id, pos, a, b, result, editable, onPick, official, sc, hl }) {
     const winStyle = isW ? (graded ? (pickRight ? BS.slotWin : BS.slotWrong) : BS.slotWin) : (isL ? BS.slotLose : click ? BS.slotPick : BS.slotIdle);
     const scoreVal = showScore ? sc.get(id, side) : '';
     return (
-      <div role={click ? "button" : undefined} tabIndex={click ? 0 : undefined} onKeyDown={e => { if (click && e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onPick(id, sl.pid); } }} onClick={click ? () => onPick(id, sl.pid) : undefined} style={{ ...BS.slot, ...winStyle, cursor: click ? 'pointer' : 'default' }}>
+      <div className="engine-slot" aria-pressed={click ? isW : undefined} role={click ? "button" : undefined} tabIndex={click ? 0 : undefined} onKeyDown={e => { if (click && e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onPick(id, sl.pid); } }} onClick={click ? () => onPick(id, sl.pid) : undefined} style={{ ...BS.slot, ...winStyle, cursor: click ? 'pointer' : 'default' }}>
         {isW && (graded && !pickRight ? <X size={14} strokeWidth={3} /> : <Check size={14} strokeWidth={3} />)}
         {sl.seed != null && <span style={BS.seed}>{sl.seed}</span>}
-        <span style={BS.name}>{sl.name}</span>
+        <span className="engine-name" style={BS.name}>{sl.name}</span>
         {showScore && (sc.editable
           ? <input aria-label={`Score for ${sl.name}`} className="cb-score" value={scoreVal} inputMode="numeric" placeholder="–" onClick={(e) => e.stopPropagation()} onChange={(e) => sc.change(id, side, e.target.value)} onBlur={(e) => sc.blur(id, side, e.target.value)} />
           : (scoreVal !== '' && <span style={BS.scoreText}>{scoreVal}</span>))}
       </div>
     );
   };
-  return <div style={{ ...BS.card, left: pos.x, top: pos.y, width: CARDW, ...(hl ? BS.cardHl : {}) }}><div style={BS.tag}>{id.toUpperCase()}{sc && result?.winnerId != null && <span style={BS.finalTag}> final</span>}</div>{slot(a, 'a')}<div style={BS.vs}>vs</div>{slot(b, 'b')}</div>;
+  return <div className="engine-card" {...matchProps} style={{ ...BS.card, left: pos.x, top: pos.y, width: CARDW, ...(hl ? BS.cardHl : {}) }}><div style={BS.tag}>{id.toUpperCase()}{sc && result?.winnerId != null && <span style={BS.finalTag}> final</span>}</div>{slot(a, 'a')}<div style={BS.vs}>vs</div>{slot(b, 'b')}</div>;
 }
 
 /* Board-scoped styles. Values match the CustomPoolDetail design system

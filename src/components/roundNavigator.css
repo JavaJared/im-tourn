@@ -1,0 +1,26 @@
+.round-navigator { min-width: 0; }
+.round-navigation { display: none; }
+.engine-round { display: contents; }
+@media (max-width: 700px) {
+  .round-navigation { display: block; padding: 12px; color: var(--text-primary, inherit); }
+  .round-navigation-buttons { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .round-navigation button, .round-navigation select { min-height: 44px; padding: 8px 12px; border: 1px solid #666; border-radius: 8px; background: var(--bg-card, #191c24); color: #fff; font: inherit; font-size: 16px; cursor: pointer; }
+  .round-navigation button:disabled { opacity: .5; cursor: default; }
+  .round-navigation p { margin: 8px 0; font-size: 14px; }
+  .round-navigation :focus-visible, .round-navigator [data-mobile-match]:focus { outline: 3px solid #ff9d57; outline-offset: 3px; }
+  .round-cards [data-mobile-round][data-active-round="false"] { display: none !important; }
+  .round-cards .bracket-wrapper, .round-cards .pool-bracket { display: block; min-width: 0; width: 100%; overflow: visible; padding: 8px; box-sizing: border-box; }
+  .round-cards .round, .round-cards .pool-round { width: 100%; min-width: 0; flex: none; margin: 0; box-sizing: border-box; }
+  .round-cards .matchups-container, .round-cards .pool-matchups { gap: 16px; }
+  .round-cards .matchup, .round-cards .pool-matchup { width: 100%; margin: 0 0 16px; box-sizing: border-box; }
+  .round-cards .matchup-entry, .round-cards .pool-entry { min-height: 48px; height: auto; }
+  .round-cards .entry-name, .round-cards .pool-entry-name { white-space: normal; overflow-wrap: anywhere; }
+  .round-cards .engine-board { width: 100% !important; height: auto !important; padding: 8px; box-sizing: border-box; }
+  .round-cards .engine-board > svg, .round-cards .engine-board > .engine-heading { display: none; }
+  .round-cards .engine-round[data-active-round="true"] { display: grid; gap: 16px; }
+  .round-cards .engine-card { position: relative !important; left: auto !important; top: auto !important; width: 100% !important; box-sizing: border-box; }
+  .round-cards .engine-slot { min-height: 48px; height: auto !important; padding-top: 8px !important; padding-bottom: 8px !important; }
+  .round-cards .engine-name { white-space: normal !important; overflow-wrap: anywhere; }
+  .round-overview { max-width: 100%; overflow-x: auto; }
+  .round-overview .bracket-wrapper, .round-overview .pool-bracket { justify-content: flex-start; }
+}

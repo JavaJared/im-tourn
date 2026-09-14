@@ -1,3 +1,4 @@
+import RoundNavigator, { legacyRounds } from '../../components/RoundNavigator';
 export default function PoolBracketPanel({
   pool,
   entry,
@@ -9,7 +10,7 @@ export default function PoolBracketPanel({
   isHost,
   entries,
   displayMatchups,
-  getRoundName,
+  getRoundName = r => 'Round ' + (r + 1),
   showingPredictions,
   getMatchStatus,
   handlePredictionSelect,
@@ -66,9 +67,9 @@ export default function PoolBracketPanel({
           </div>
         )}
 
-      <div className="pool-bracket">
+      <RoundNavigator rounds={legacyRounds(displayMatchups)} editable={!submitting && !viewingEntry && ((pool.status === 'open' && !!entry && !entry.submittedAt) || (activeTab === 'results' && isHost))} label={r => getRoundName(r, displayMatchups.length)}>{({ roundProps, matchProps }) => <div className="pool-bracket">
         {displayMatchups.map((round, roundIndex) => (
-          <div key={roundIndex} className="pool-round">
+          <div key={roundIndex} className="pool-round" {...roundProps(roundIndex)}>
             <div className="pool-round-title">
               {getRoundName(roundIndex, displayMatchups.length)}
             </div>
@@ -90,6 +91,7 @@ export default function PoolBracketPanel({
                   <div
                     key={`${roundIndex}-${matchIndex}`}
                     className={`pool-matchup ${matchStatus}`}
+                    {...matchProps(roundIndex + '-' + matchIndex)}
                   >
                     {[1, 2].map((slot) => {
                       // entryData is the team in this slot of the bracket
@@ -269,7 +271,7 @@ export default function PoolBracketPanel({
             </div>
           </div>
         ))}
-      </div>
+      </div>}</RoundNavigator>
     </div>
   );
 }
