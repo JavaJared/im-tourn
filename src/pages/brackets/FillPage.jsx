@@ -7,6 +7,7 @@ import {
   selectFillWinner,
 } from '../../lib/fillDraft';
 import { useAuth } from '../../contexts/AuthContext';
+import RoundNavigator, { legacyRounds } from '../../components/RoundNavigator';
 import { submitFilledBracket } from '../../services/bracketService';
 
 const FillPage = (props) => {
@@ -304,13 +305,13 @@ const FillEditor = ({ bracket, onSubmit, onBack, currentUser, draftKey }) => {
         </button>
       </div>
 
-      <div className="bracket-wrapper">
+      <RoundNavigator rounds={legacyRounds(matchups)} editable={!submitting} label={r => getRoundName(r, matchups.length)}>{({ roundProps, matchProps }) => <div className="bracket-wrapper">
         {matchups.map((round, roundIndex) => (
-          <div key={roundIndex} className="round">
+          <div key={roundIndex} className="round" {...roundProps(roundIndex)}>
             <div className="round-title">{getRoundName(roundIndex, matchups.length)}</div>
             <div className="matchups-container">
               {round.map((match, matchIndex) => (
-                <div key={match.id} className="matchup">
+                <div key={match.id || matchIndex} className="matchup" {...matchProps(roundIndex + '-' + matchIndex)}>
                   <button
                     type="button"
                     disabled={!match.entry1 || submitting}
@@ -348,7 +349,7 @@ const FillEditor = ({ bracket, onSubmit, onBack, currentUser, draftKey }) => {
             </div>
           </div>
         ))}
-      </div>
+      </div>}</RoundNavigator>
 
       {isComplete() && (
         <div className="champion-display">
