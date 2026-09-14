@@ -24,9 +24,9 @@ export default function useAppState() {
     (async () => {
       try {
         const pool = await getPoolByJoinCode(pendingPoolCode);
-        if (cancelled) return;
+        if (cancelled || new URLSearchParams(window.location.search).get('pool')?.trim() !== pendingPoolCode) return;
         if (pool) {
-          setView(`pool-${pool.id}`);
+          setView(`pool-${pool.id}`, { replace: true });
         } else {
           alert(`No pool found for code "${pendingPoolCode}" — it may have been deleted.`);
         }
@@ -85,12 +85,20 @@ export default function useAppState() {
       ...bracket,
       matchups: bracket.matchups.map((round) => round.map((match) => ({ ...match }))),
     });
-    setView('fill');
+    setView(bracket.id ? 'fill-bracket-' + bracket.id : 'fill');
   };
 
   const handleSubmitFilled = (filledBracket) => {
-    setCurrentBracket(filledBracket);
-    setView('pdf');
+    if (filledBracket.submissionId) {
+      setCurrentBracket(filledBracket);
+      setView('saved-bracket-' + filledBracket.submissionId);
+    } else {
+      const localId = crypto.randomUUID();
+      const snapshot = { ...filledBracket, localId };
+      try { localStorage.setItem('local-bracket:' + localId, JSON.stringify(snapshot)); } catch { /* The current result remains available in memory. */ }
+      setCurrentBracket(snapshot);
+      setView('local-bracket-' + localId);
+    }
   };
 
   return {

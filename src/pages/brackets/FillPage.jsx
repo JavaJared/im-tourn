@@ -80,8 +80,8 @@ const FillEditor = ({ bracket, onSubmit, onBack, currentUser, draftKey }) => {
     const filledBracket = { ...bracket, matchups, champion: getChampion() };
     try {
       if (currentUser) {
-        await submitFilledBracket(
-          { matchups, champion: filledBracket.champion },
+        filledBracket.submissionId = await submitFilledBracket(
+          { matchups, champion: filledBracket.champion, title: bracket.title || 'Saved bracket', category: bracket.category || 'Other', size: bracket.size || matchups[0].length * 2 },
           bracket.id,
           currentUser.uid,
           currentUser.displayName,
