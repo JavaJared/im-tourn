@@ -1,4 +1,16 @@
 const CSS = `
+.cbpd .pool-standings h2,.cbpd .pool-standings p{margin:0 0 8px}
+.cbpd .standings-entry{padding:16px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.cbpd .standings-entry-heading,.cbpd .standings-entry-footer{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.cbpd .standings-entry-heading h3{flex:1;min-width:120px;margin:0;overflow-wrap:anywhere}
+.cbpd .standings-rank{color:var(--teal)}
+.cbpd .standings-breakdown{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0}
+.cbpd .standings-breakdown dt,.cbpd .standings-help{font-size:13px;color:var(--muted);line-height:1.5}
+.cbpd .standings-breakdown dd{margin:4px 0 0;font-size:18px;font-weight:600}
+.cbpd .standings-entry-footer{margin-top:12px;font-size:13px}.cbpd .standings-entry-footer button{min-height:44px}
+.cbpd .standings-sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+@media(max-width:700px){.cbpd .standings-breakdown{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
 .cbpd .pool-tabs{flex-shrink:0}
 .cbpd .pool-tabs button{min-height:48px;padding:10px 6px;line-height:1.3}
 .cbpd .pool-tabs button:focus-visible,.cbpd .pool-host-controls summary:focus-visible{outline:2px solid var(--teal);outline-offset:-3px}

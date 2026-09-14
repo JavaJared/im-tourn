@@ -23,6 +23,7 @@
  */
 import { locate, matchWinner, resolveParticipant, setResult } from './customBracket';
 import { hydrateState, scoreEntry, gradeSleepers } from './customScoring';
+import { explainEntry, remainingContext } from './poolStandings';
 
 const ptsFor = (rp, r) => (rp && rp[r] != null ? rp[r] : r + 1);
 
@@ -62,24 +63,9 @@ export function analyzeCustomPool(structure, resultsMap, entries, roundPoints, o
 
   // ---- Fallback: too many undecided -> cheap bounds only -----------------
   if (undecided.length > maxUndecided) {
-    const eliminatedPids = new Set();
-    for (const id of boxIds) {
-      const w = matchWinner(official, loc, id);
-      if (w == null) continue;
-      for (const side of ['A', 'B']) {
-        const p = resolveParticipant(official, loc, id, side);
-        if (p != null && p !== w) eliminatedPids.add(p);
-      }
-    }
+    const context = remainingContext(official);
     const maxPossible = {};
-    for (const e of submitted) {
-      let mx = base[e.userId];
-      for (const id of undecided) {
-        const pick = e.predictions[id];
-        if (pick != null && !eliminatedPids.has(pick)) mx += ptsFor(roundPoints, loc[id].r); // pick could still be right
-      }
-      maxPossible[e.userId] = mx + (options.pool?.enableSleepers ? Math.max(0, Number(options.pool.sleeper1Points) || 0) + Math.max(0, Number(options.pool.sleeper2Points) || 0) : 0);
-    }
+    for (const e of submitted) maxPossible[e.userId] = explainEntry(official, e, roundPoints, options.pool, context).maxPossibleScore;
     for (const e of submitted) {
       let elim = false;
       for (const o of submitted) {
@@ -95,6 +81,7 @@ export function analyzeCustomPool(structure, resultsMap, entries, roundPoints, o
       };
     }
     out.analysisComplete = false;
+    out.incompleteReason = 'matchup_limit';
     return out;
   }
 
@@ -160,7 +147,7 @@ export function analyzeCustomPool(structure, resultsMap, entries, roundPoints, o
       scenariosTruncated: status === 'alive' && (deadlineHit || !!scnTrunc[e.userId]),
     };
   }
-  if (deadlineHit) out.analysisComplete = false;
+  if (deadlineHit) { out.analysisComplete = false; out.incompleteReason = 'time_limit'; }
   return out;
 }
 
