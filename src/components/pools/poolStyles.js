@@ -1,4 +1,19 @@
 const CSS = `
+.cbpd .pool-tabs{flex-shrink:0}
+.cbpd .pool-tabs button{min-height:48px;padding:10px 6px;line-height:1.3}
+.cbpd .pool-tabs button:focus-visible,.cbpd .pool-host-controls summary:focus-visible{outline:2px solid var(--teal);outline-offset:-3px}
+.cbpd .pool-host-controls{border-bottom:1px solid var(--line);padding:8px 18px}
+.cbpd .pool-host-controls summary{cursor:pointer;min-height:44px;align-content:center;font-weight:600}
+.cbpd .pool-host-body{display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding-bottom:12px}
+.cbpd .pool-host-body>div{max-width:100%;width:100%}
+.cbpd .pool-host-body button{min-height:44px}
+.cbpd .pool-rules{max-width:760px;padding:18px;line-height:1.6;overflow-wrap:anywhere}
+.cbpd .pool-rules h2{margin-top:0}.cbpd .pool-rules h3{margin-bottom:6px}
+.cbpd .pool-rules p{margin-top:6px}.cbpd .pool-rules-description{white-space:pre-wrap}
+.cbpd .pool-rules table{border-collapse:collapse;width:100%;max-width:400px}
+.cbpd .pool-rules caption{text-align:left;color:var(--muted)}
+.cbpd .pool-rules th,.cbpd .pool-rules td{text-align:left;padding:8px;border-bottom:1px solid var(--line)}
+
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&display=swap');
 .cbpd *{box-sizing:border-box}
 .cbpd ::-webkit-scrollbar{width:11px;height:11px}.cbpd ::-webkit-scrollbar-thumb{background:#2a3040;border-radius:6px;border:3px solid transparent;background-clip:padding-box}
