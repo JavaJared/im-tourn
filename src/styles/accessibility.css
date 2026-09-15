@@ -84,3 +84,14 @@
   white-space: nowrap;
   border: 0;
 }
+
+/* All navigation labels remain visible, including signed-in My Activities. */
+@media (max-width: 900px) {
+  .header { flex-wrap: wrap; gap: 12px; padding: 16px; }
+  .header-nav { order: 3; flex: 1 0 100%; width: 100%; min-width: 0; flex-wrap: wrap; justify-content: flex-start; gap: 6px; }
+  .header-nav .nav-link { display: flex; align-items: center; justify-content: center; flex: 1 1 auto; min-height: 44px; padding: 10px 12px; white-space: nowrap; font-size: 14px; }
+  .header-nav .nav-link.weekly::after { position: static; margin-left: 6px; }
+  .header-actions { flex-wrap: wrap; min-width: 0; gap: 8px; }
+  .header-actions .nav-btn, .header-actions .back-btn { padding: 10px 12px; }
+  .header-actions .auth-buttons { flex-direction: row; gap: 8px; }
+}
