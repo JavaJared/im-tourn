@@ -6,6 +6,10 @@
   .round-navigation-buttons { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
   .round-navigation button, .round-navigation select { min-height: 44px; padding: 8px 12px; border: 1px solid #666; border-radius: 8px; background: var(--bg-card, #191c24); color: #fff; font: inherit; font-size: 16px; cursor: pointer; }
   .round-navigation button:disabled { opacity: .5; cursor: default; }
+  .round-navigation-buttons label { display: flex; align-items: center; gap: 8px; flex: 1 1 140px; min-width: 0; }
+  .round-navigation select { width: 100%; min-width: 0; }
+  .round-navigation .round-next-unanswered { background: var(--accent-teal, #00d4aa); color: #0a0a0f; border-color: transparent; font-weight: 600; flex: 1 1 150px; }
+  .round-navigation .round-mode-toggle { background: transparent; border-color: transparent; color: var(--accent-teal, #00d4aa); padding: 8px 0; text-decoration: underline; text-underline-offset: 4px; }
   .round-navigation p { margin: 8px 0; font-size: 14px; }
   .round-navigation :focus-visible, .round-navigator [data-mobile-match]:focus { outline: 3px solid #ff9d57; outline-offset: 3px; }
   .round-cards [data-mobile-round][data-active-round="false"] { display: none !important; }

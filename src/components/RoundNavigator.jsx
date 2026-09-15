@@ -31,14 +31,10 @@ export default function RoundNavigator({ rounds, children, editable = true, labe
   return <section ref={root} className={'round-navigator ' + (overview ? 'round-overview' : 'round-cards')}>
     <div className="round-navigation" aria-label="Bracket round navigation">
       <div className="round-navigation-buttons">
-        <button type="button" disabled={activeRound === 0} onClick={() => setRound(activeRound - 1)}>Previous round</button>
-        <label>Round <select aria-label="Choose round" value={activeRound} onChange={e => setRound(Number(e.target.value))}>{rounds.map((_, r) => <option key={r} value={r}>{label(r)}</option>)}</select></label>
-        <button type="button" disabled={activeRound >= rounds.length - 1} onClick={() => setRound(activeRound + 1)}>Next round</button>
+        <label>Round <select aria-label="Choose round" value={activeRound} onChange={e => { setRound(Number(e.target.value)); setOverview(false); }}>{rounds.map((_, r) => <option key={r} value={r}>{label(r)}</option>)}</select></label>
+        {editable && <button className="round-next-unanswered" type="button" disabled={!next} onClick={jump}>Next unanswered</button>}
       </div>
-      <div className="round-navigation-buttons">
-        <button type="button" aria-pressed={overview} onClick={() => setOverview(value => !value)}>{overview ? 'Matchup cards' : 'Full bracket overview'}</button>
-        {editable && <button type="button" disabled={!next} onClick={jump}>Next unanswered</button>}
-      </div>
+      <button className="round-mode-toggle" type="button" aria-pressed={overview} onClick={() => setOverview(value => !value)}>{overview ? 'Matchup cards' : 'Full bracket overview'}</button>
       <p aria-live="polite">{label(activeRound)} · {rounds[activeRound]?.filter(match => match.answered).length || 0} of {rounds[activeRound]?.length || 0} decided{editable && (remaining === 0 ? ' · All matchups answered' : !next ? ' · Waiting for earlier matchups' : '')}</p>
     </div>
     {children({

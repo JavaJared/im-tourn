@@ -57,3 +57,14 @@ test('read-only boards omit next unanswered and cannot pick winners',()=>{
   expect(tree.root.findAllByProps({role:'button'})).toHaveLength(0);
   expect(tree.root.findAllByType('button').some(b=>b.children.includes('Next unanswered'))).toBe(false);
 });
+
+test('compact controls use one round selector and two distinct actions', () => {
+  const rounds = [[{id:'a',ready:true,answered:false}], [{id:'b',ready:false,answered:false}]];
+  act(()=>{tree=create(createElement(RoundNavigator,{rounds},()=>null));});
+  expect(tree.root.findAllByType('button')).toHaveLength(2);
+  expect(tree.root.findAllByType('select')).toHaveLength(1);
+  act(()=>tree.root.findByProps({className:'round-mode-toggle'}).props.onClick());
+  act(()=>tree.root.findByType('select').props.onChange({target:{value:'1'}}));
+  expect(tree.root.findByType('select').props.value).toBe(1);
+  expect(tree.root.findByType('section').props.className).toContain('round-cards');
+});
