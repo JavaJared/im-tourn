@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getBracketById } from '../../services/bracketService';
 import { usePagedCatalog } from '../../lib/usePagedCatalog';
@@ -79,12 +79,12 @@ const HomePage = ({ onFillOut, onNavigate }) => {
         <button className="nav-btn hero-cta" onClick={() => onNavigate('create')}>Create your bracket</button>
       </div>
 
-      <div className="section-title">BROWSE BRACKETS</div>
+      <h2 className="section-title">BROWSE BRACKETS</h2>
 
       {/* Search and Filter Bar */}
       <div className="filter-bar">
-        <div className="search-box">
-          <svg
+        <div className="search-box" role="search" aria-label="Brackets">
+          <svg aria-hidden="true" focusable="false"
             className="search-icon"
             viewBox="0 0 24 24"
             fill="none"
@@ -95,14 +95,15 @@ const HomePage = ({ onFillOut, onNavigate }) => {
             <path d="M21 21l-4.35-4.35" />
           </svg>
           <input
-            type="text"
+            type="search"
+            aria-label="Search brackets"
             placeholder="Search brackets..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="search-input"
           />
           {searchTerm && (
-            <button className="clear-search" onClick={() => setSearchTerm('')}>
+            <button aria-label="Clear search" className="clear-search" onClick={() => setSearchTerm('')}>
               ×
             </button>
           )}
@@ -110,6 +111,7 @@ const HomePage = ({ onFillOut, onNavigate }) => {
 
         <div className="filter-controls">
           <select
+            aria-label="Filter by category"
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
             className="filter-select"
@@ -123,6 +125,7 @@ const HomePage = ({ onFillOut, onNavigate }) => {
           </select>
 
           <select
+            aria-label="Sort brackets"
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
             className="filter-select"
@@ -145,7 +148,7 @@ const HomePage = ({ onFillOut, onNavigate }) => {
 
       {/* Results count */}
       {!loading && brackets.length > 0 && (
-        <div className="results-count">
+        <div className="results-count" role="status" aria-live="polite">
           Showing {filteredBrackets.length} of {brackets.length} loaded brackets
           {selectedCategory && ` in ${selectedCategory}`}
           {searchTerm && ` matching "${searchTerm}"`}
@@ -153,13 +156,13 @@ const HomePage = ({ onFillOut, onNavigate }) => {
       )}
 
       {loading ? (
-        <div className="loading-state">
+        <div className="loading-state" role="status">
           <div className="spinner"></div>
           <p>Loading brackets...</p>
         </div>
       ) : brackets.length === 0 ? (
         <div className="empty-state">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2z" />
             <path d="M3 9h18M9 21V9" />
           </svg>
@@ -167,7 +170,7 @@ const HomePage = ({ onFillOut, onNavigate }) => {
         </div>
       ) : filteredBrackets.length === 0 ? (
         <div className="empty-state">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
             <circle cx="11" cy="11" r="8" />
             <path d="M21 21l-4.35-4.35" />
           </svg>
@@ -189,7 +192,6 @@ const HomePage = ({ onFillOut, onNavigate }) => {
                 className="bracket-card"
                 role="group"
                 aria-label={bracket.title}
-                style={{ cursor: 'pointer' }}
               >
                 <span className="bracket-category">{bracket.category}</span>
                 {bracket.origin !== 'standard' && <span style={CUSTOM_BADGE_STYLE}>Custom</span>}
@@ -207,6 +209,7 @@ const HomePage = ({ onFillOut, onNavigate }) => {
                   <div className="bracket-buttons">
                     <button
                       className="fill-btn"
+                      aria-label={`View ${bracket.title}`}
                       onClick={(e) => {
                         e.stopPropagation();
                         onNavigate(`custom-bracket-${bracket.id}`);
@@ -234,6 +237,7 @@ const HomePage = ({ onFillOut, onNavigate }) => {
                   <div className="bracket-buttons">
                     <button
                       className="view-submissions-btn"
+                      aria-label={`Submissions for ${bracket.title}`}
                       onClick={() => {
                         setSelectedBracketForSubmissions(bracket);
                         setShowSubmissionsModal(true);
@@ -241,7 +245,7 @@ const HomePage = ({ onFillOut, onNavigate }) => {
                     >
                       Submissions
                     </button>
-                    <button className="fill-btn" disabled={!!openingId} onClick={() => openLegacy(bracket)}>
+                    <button className="fill-btn" aria-label={`Fill out ${bracket.title}`} disabled={!!openingId} onClick={() => openLegacy(bracket)}>
                       Fill Out →
                     </button>
                   </div>

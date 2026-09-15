@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { ADMIN_USER_IDS, FEATURES } from '../../config/app.js';
+import ViewLink from './ViewLink.jsx';
 import AuthModal from '../dialogs/AuthModal.jsx';
 
 const Header = ({ onNavigate, currentView }) => {
@@ -19,59 +20,59 @@ const Header = ({ onNavigate, currentView }) => {
   return (
     <>
       <header className="header">
-        <div className="logo" onClick={() => onNavigate('home')}>
+        <ViewLink className="logo" view="home" onNavigate={onNavigate} aria-label="I’m Tourn home">
           I'M TOURN
-        </div>
+        </ViewLink>
 
-        <nav className="header-nav">
-          {currentUser && <button className={`nav-link ${currentView === 'my-activities' ? 'active' : ''}`} onClick={() => onNavigate('my-activities')}>My Activities</button>}
-          <button
+        <nav className="header-nav" aria-label="Primary">
+          {currentUser && <ViewLink className={`nav-link ${currentView === 'my-activities' ? 'active' : ''}`} view="my-activities" onNavigate={onNavigate} currentView={currentView}>My Activities</ViewLink>}
+          <ViewLink
             className={`nav-link ${currentView === 'home' ? 'active' : ''}`}
-            onClick={() => onNavigate('home')}
+            view="home" onNavigate={onNavigate} currentView={currentView}
           >
             Browse
-          </button>
-          <button
+          </ViewLink>
+          <ViewLink
             className={`nav-link weekly ${currentView === 'weekly' ? 'active' : ''}`}
-            onClick={() => onNavigate('weekly')}
+            view="weekly" onNavigate={onNavigate} currentView={currentView}
           >
             Weekly Bracket
-          </button>
-          <button
+          </ViewLink>
+          <ViewLink
             className={`nav-link ${currentView === 'pools' || currentView === 'create-pool' || currentView.startsWith('pool-') ? 'active' : ''}`}
-            onClick={() => onNavigate('pools')}
+            view="pools" onNavigate={onNavigate} currentView={currentView}
           >
             Bracket Pools
-          </button>
+          </ViewLink>
           {FEATURES.predictions && (
-            <button
+            <ViewLink
               className={`nav-link ${currentView === 'prediction-pools' || currentView === 'create-prediction-pool' || currentView.startsWith('prediction-pool-') ? 'active' : ''}`}
-              onClick={() => onNavigate('prediction-pools')}
+              view="prediction-pools" onNavigate={onNavigate} currentView={currentView}
             >
               Predictions
-            </button>
+            </ViewLink>
           )}
-          <button
+          <ViewLink
             className={`nav-link ${currentView === 'rankings' || currentView === 'create-ranking' || currentView.startsWith('ranking-') ? 'active' : ''}`}
-            onClick={() => onNavigate('rankings')}
+            view="rankings" onNavigate={onNavigate} currentView={currentView}
           >
             Rankings
-          </button>
+          </ViewLink>
           {FEATURES.drafts && (
-            <button
+            <ViewLink
               className={`nav-link ${currentView === 'drafts' || currentView === 'create-draft' || currentView.startsWith('draft-') ? 'active' : ''}`}
-              onClick={() => onNavigate('drafts')}
+              view="drafts" onNavigate={onNavigate} currentView={currentView}
             >
               Drafts
-            </button>
+            </ViewLink>
           )}
           {FEATURES.pastChampions && (
-            <button
+            <ViewLink
               className={`nav-link ${currentView === 'champions' ? 'active' : ''}`}
-              onClick={() => onNavigate('champions')}
+              view="champions" onNavigate={onNavigate} currentView={currentView}
             >
               Past Champions
-            </button>
+            </ViewLink>
           )}
         </nav>
 
@@ -104,8 +105,15 @@ const Header = ({ onNavigate, currentView }) => {
             )}
 
           {currentUser ? (
-            <div className="user-menu-container">
-              <button className="user-btn" onClick={() => setShowUserMenu(!showUserMenu)}>
+            <div className="user-menu-container" onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                setShowUserMenu(false);
+                event.currentTarget.querySelector('.user-btn')?.focus();
+              }
+            }} onBlur={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget)) setShowUserMenu(false);
+            }}>
+              <button className="user-btn" aria-expanded={showUserMenu} aria-controls="account-links" onClick={() => setShowUserMenu(!showUserMenu)}>
                 <span className="user-avatar">
                   {currentUser.displayName?.[0]?.toUpperCase() ||
                     currentUser.email?.[0]?.toUpperCase()}
@@ -114,7 +122,7 @@ const Header = ({ onNavigate, currentView }) => {
               </button>
 
               {showUserMenu && (
-                <div className="user-dropdown">
+                <div className="user-dropdown" id="account-links">
                   <button onClick={() => { onNavigate('my-activities'); setShowUserMenu(false); }}>My Activities</button>
                   <button
                     onClick={() => {

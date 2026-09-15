@@ -40,14 +40,16 @@
   margin-bottom: 0.6rem;
 }
 
-.footer-section ul li a {
+.footer-section ul li a,
+.footer-action {
   color: var(--text-muted);
   text-decoration: none;
   font-size: 0.9rem;
   transition: color 0.2s ease;
 }
 
-.footer-section ul li a:hover {
+.footer-section ul li a:hover,
+.footer-action:hover {
   color: var(--accent-orange);
 }
 

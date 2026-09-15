@@ -53,3 +53,20 @@
 .analytics-preferences button { font:inherit; color:var(--text-primary); background:var(--bg-card); border:1px solid var(--text-secondary); border-radius:8px; padding:12px 18px; margin:6px; min-height:44px; cursor:pointer; }
 .consent-panel { max-width:48rem; margin:1rem auto; padding:1.5rem; border:1px solid var(--text-secondary); border-radius:12px; text-align:left; background:var(--bg-card); line-height:1.6; }
 .consent-panel h2 { font-size:1.25rem; }.consent-panel a { color:var(--accent-teal); }.consent-panel>div{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+
+/* Keep the header in document flow so it cannot cover keyboard focus at any zoom. */
+.header { position: relative; }
+.logo, .header-nav a { text-decoration: none; }
+.footer-action { background: none; border: 0; font: inherit; cursor: pointer; text-align: left; }
+.skip-link {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 1000;
+  padding: 0.75rem 1rem;
+  background: #fff;
+  color: #111;
+  transform: translateY(-200%);
+}
+.skip-link:focus { transform: none; }
+#main-content { scroll-margin-top: 1rem; }
