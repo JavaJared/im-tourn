@@ -1,3 +1,5 @@
+import NativeBridge from './mobile/NativeBridge';
+import './mobile/mobile.css';
 import AnalyticsConsent from './components/AnalyticsConsent';
 import PageMetadata from './components/PageMetadata';
 import AppRoutes from './app/AppRoutes.jsx';
@@ -27,6 +29,7 @@ function AppContent() {
   return (
     <div className="bracket-app">
       <a className="skip-link" href="#main-content">Skip to main content</a>
+      <NativeBridge />
       <PageMetadata view={view} />
       <Header onNavigate={setView} currentView={view} />
 

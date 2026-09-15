@@ -1,0 +1,8 @@
+{
+  "appId": "com.imtourn.app",
+  "appName": "I'm Tourn",
+  "webDir": "dist",
+  "android": {
+    "adjustMarginsForEdgeToEdge": "auto"
+  }
+}

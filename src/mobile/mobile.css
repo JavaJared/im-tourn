@@ -1,0 +1,9 @@
+/* Native-only adjustments: desktop and mobile-browser layouts remain shared. */
+.native-app body {
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+.native-app .header { padding-top: max(1rem, env(safe-area-inset-top, 0px)); }
+.native-app .site-footer { padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px)); }
+.native-app .modal-overlay { padding-top: max(1rem, env(safe-area-inset-top, 0px)); padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px)); }
+.native-auth-note { color: var(--text-secondary); line-height: 1.5; margin-top: 1rem; }

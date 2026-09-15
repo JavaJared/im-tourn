@@ -1,3 +1,4 @@
+import { publicOrigin } from '../mobile/platform';
 import ConfirmDialog from './dialogs/ConfirmDialog';
 import SaveNotice from './SaveNotice';
 import Board from './pools/PoolBoard';
@@ -208,7 +209,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
   const highlightBoxes = useMemo(() => (viewingSummary ? new Set(viewingSummary.required.map((r) => r.boxId)) : null), [viewingSummary]);
 
   const copyLink = async () => {
-    try { await navigator.clipboard.writeText(`${window.location.origin}?pool=${pool.joinCode}`); flash('Invite link copied'); }
+    try { await navigator.clipboard.writeText(`${publicOrigin()}?pool=${pool.joinCode}`); flash('Invite link copied'); }
     catch { flash('Could not copy link'); }
   };
   const saveDesc = () => run(async () => { await updatePoolDescription(poolId, currentUserId, descDraft); setEditingDesc(false); }, 'Description saved');
