@@ -209,13 +209,12 @@ const HomePage = ({ onFillOut, onNavigate }) => {
                   <div className="bracket-buttons">
                     <button
                       className="fill-btn"
-                      aria-label={`View ${bracket.title}`}
                       onClick={(e) => {
                         e.stopPropagation();
                         onNavigate(`custom-bracket-${bracket.id}`);
                       }}
                     >
-                      View →
+                      View<span className="sr-only"> {bracket.title}</span>
                     </button>
                   </div>
                 </div>
@@ -237,16 +236,15 @@ const HomePage = ({ onFillOut, onNavigate }) => {
                   <div className="bracket-buttons">
                     <button
                       className="view-submissions-btn"
-                      aria-label={`Submissions for ${bracket.title}`}
                       onClick={() => {
                         setSelectedBracketForSubmissions(bracket);
                         setShowSubmissionsModal(true);
                       }}
                     >
-                      Submissions
+                      Submissions<span className="sr-only"> for {bracket.title}</span>
                     </button>
-                    <button className="fill-btn" aria-label={`Fill out ${bracket.title}`} disabled={!!openingId} onClick={() => openLegacy(bracket)}>
-                      Fill Out →
+                    <button className="fill-btn" disabled={!!openingId} onClick={() => openLegacy(bracket)}>
+                      Fill Out<span className="sr-only"> {bracket.title}</span>
                     </button>
                   </div>
                 </div>

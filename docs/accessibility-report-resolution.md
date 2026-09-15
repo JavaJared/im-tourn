@@ -21,3 +21,16 @@ Manual follow-up: rerun the supplied scanner on the deployed revision; investiga
 References:
 - https://www.w3.org/WAI/ARIA/apg/practices/landmark-regions/
 - https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html
+
+## Second scan
+
+The second supplied report flags 38 instances across six checks. Search-region, sticky-header and static-badge/button-role findings from the first report no longer appear.
+
+- Check 4: 33 name/text override flags. Sampled failures show View/Fill Out buttons with a decorative arrow omitted from aria-label. W3C's Label in Name guidance allows symbolic characters to be excluded and treats capitalization/punctuation differences as equivalent. Nevertheless, simplify the implementation: remove these ARIA overrides and arrows, retain the visible action text, and append bracket context as visually hidden text. Apply the same pattern to Submissions and the logo so names originate from actual content.
+- Checks 1–3: same native Primary navigation and single main already verified in the live browser accessibility tree. No incorrect nesting is demonstrated. Preserve these landmarks.
+- Check 5: same empty body snapshot without frame URL/selector. Still unverified, not a reason to hide the application.
+- Check 6: the decorative search SVG now triggers the opposite warning (visible but aria-hidden) after the first report requested hiding decorative graphics. Its purpose is already supplied by the Search brackets input name. Retain aria-hidden for the redundant graphic rather than creating a duplicate announcement.
+
+Guidance: https://www.w3.org/WAI/WCAG22/Understanding/label-in-name.html and https://www.w3.org/WAI/tutorials/images/decorative/
+
+The scanner's raw count is not a conformance score. Ask its vendor for the specific violated success criterion and reproducible frame/selector for the repeated landmark/empty-body findings. Verify actual accessible names in the deployed browser after this revision.
