@@ -187,7 +187,7 @@ export const RankingDetailPage = ({ rankingId, onNavigate }) => {
             {ranking.entries.map((entry) => (
               <div key={entry.id} className="ranking-entry-display">
                 {entry.imageUrl && (
-                  <img src={entry.imageUrl} alt={entry.text} className="ranking-entry-display-img" />
+                  <img loading="lazy" decoding="async" src={entry.imageUrl} alt={entry.text} className="ranking-entry-display-img" />
                 )}
                 <div className="ranking-entry-display-text">{entry.text}</div>
               </div>
@@ -232,7 +232,7 @@ export const RankingDetailPage = ({ rankingId, onNavigate }) => {
                 <li key={entryId} className="ranking-result-item">
                   <span className="ranking-result-rank">{idx + 1}</span>
                   {entry.imageUrl && (
-                    <img src={entry.imageUrl} alt="" className="ranking-result-img" />
+                    <img loading="lazy" decoding="async" src={entry.imageUrl} alt="" className="ranking-result-img" />
                   )}
                   <span className="ranking-result-text">{entry.text}</span>
                 </li>
@@ -259,7 +259,7 @@ export const RankingDetailPage = ({ rankingId, onNavigate }) => {
                   <li key={item.id} className="ranking-result-item">
                     <span className="ranking-result-rank">{idx + 1}</span>
                     {entry.imageUrl && (
-                      <img src={entry.imageUrl} alt="" className="ranking-result-img" />
+                      <img loading="lazy" decoding="async" src={entry.imageUrl} alt="" className="ranking-result-img" />
                     )}
                     <span className="ranking-result-text">{entry.text}</span>
                     <span className="ranking-result-score">{item.score} pts</span>

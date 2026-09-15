@@ -1,3 +1,5 @@
+import AnalyticsConsent from './components/AnalyticsConsent';
+import PageMetadata from './components/PageMetadata';
 import AppRoutes from './app/AppRoutes.jsx';
 import useAppState from './app/useAppState';
 import { AuthProvider } from './contexts/AuthContext';
@@ -24,6 +26,7 @@ function AppContent() {
 
   return (
     <div className="bracket-app">
+      <PageMetadata view={view} />
       <Header onNavigate={setView} currentView={view} />
 
       <main className="main-content">
@@ -38,6 +41,7 @@ function AppContent() {
         />
       </main>
 
+      <AnalyticsConsent view={view} />
       <Footer
         onOpenFeedback={() => setShowFeedbackModal(true)}
         onNavigate={setView}

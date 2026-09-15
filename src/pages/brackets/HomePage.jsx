@@ -76,7 +76,7 @@ const HomePage = ({ onFillOut, onNavigate }) => {
           Design custom tournament brackets for anything—movies, shows, teams, and more. Share them
           with friends and settle the debate once and for all.
         </p>
-        {!currentUser && <p className="hero-cta">Sign up to create and share your own brackets!</p>}
+        <button className="nav-btn hero-cta" onClick={() => onNavigate('create')}>Create your bracket</button>
       </div>
 
       <div className="section-title">BROWSE BRACKETS</div>

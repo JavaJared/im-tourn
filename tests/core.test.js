@@ -56,5 +56,5 @@ describe('deadlines, retries and navigation', () => {
     const b = queue('pool', async () => order.push(2));
     await expect(a).rejects.toThrow('offline'); await b; expect(order).toEqual([1, 2]);
   });
-  test('pool and ranking bookmarks survive refresh; invalid views return home', () => { expect(readView('?view=pool-abc')).toBe('pool-abc'); expect(readView('?view=ranking-vote-abc')).toBe('ranking-vote-abc'); expect(readView('?view=garbage')).toBe('home'); });
+  test('pool and ranking bookmarks survive refresh; invalid views show not found', () => { expect(readView('?view=pool-abc')).toBe('pool-abc'); expect(readView('?view=ranking-vote-abc')).toBe('ranking-vote-abc'); expect(readView('?view=garbage')).toBe('not-found'); });
 });

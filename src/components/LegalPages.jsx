@@ -52,7 +52,7 @@ const LegalPageLayout = ({ title, effectiveDate, children }) => (
 
 export const PrivacyPolicyPage = () => {
   return (
-    <LegalPageLayout title="Privacy Policy" effectiveDate="April 10, 2026">
+    <LegalPageLayout title="Privacy Policy" effectiveDate="September 15, 2026">
       <p className="legal-intro">
         This Privacy Policy explains how I'm Tourn ("we," "us," or "our")
         collects, uses, and shares information when you use our website and
@@ -136,8 +136,7 @@ export const PrivacyPolicyPage = () => {
       <p>
         We use a small number of cookies and browser storage mechanisms to
         keep you signed in, remember your preferences, and save your progress
-        on features like ranking votes. We don't use third-party advertising
-        or tracking cookies.
+        on features like ranking votes. Optional Google Analytics is loaded only if you accept it in Privacy settings. It uses analytics cookies and receives general page categories and technical usage information, including information normally received with network requests. We do not send your predictions, pool invite codes, or account identifiers in page events. Advertising personalization is disabled. You can decline or withdraw your choice using Privacy settings; essential features remain available.
       </p>
 
       <h2>Your choices</h2>

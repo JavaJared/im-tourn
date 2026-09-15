@@ -208,7 +208,7 @@ export const RankingVotePage = ({ rankingId, onNavigate }) => {
               <li key={entryId} className="ranking-result-item">
                 <span className="ranking-result-rank">{idx + 1}</span>
                 {entry.imageUrl && (
-                  <img src={entry.imageUrl} alt="" className="ranking-result-img" />
+                  <img loading="lazy" decoding="async" src={entry.imageUrl} alt="" className="ranking-result-img" />
                 )}
                 <span className="ranking-result-text">{entry.text}</span>
               </li>
