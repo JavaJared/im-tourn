@@ -20,8 +20,8 @@ const Header = ({ onNavigate, currentView }) => {
   return (
     <>
       <header className="header">
-        <ViewLink className="logo" view="home" onNavigate={onNavigate} aria-label="I’m Tourn home">
-          I'M TOURN
+        <ViewLink className="logo" view="home" onNavigate={onNavigate}>
+          I'M TOURN<span className="sr-only"> home</span>
         </ViewLink>
 
         <nav className="header-nav" aria-label="Primary">

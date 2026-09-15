@@ -43,3 +43,13 @@ test('browse search is named, filters work, and category badges stay noninteract
  act(() => root.findByProps({'aria-label':'Clear search'}).props.onClick());
  expect(root.findAllByProps({className:'bracket-card'})).toHaveLength(1);
 });
+
+test('card action names derive from visible text plus bracket context, not ARIA overrides', () => {
+ act(() => {tree=create(<HomePage onNavigate={vi.fn()} onFillOut={vi.fn()}/>);});
+ const action=tree.root.findByProps({className:'fill-btn'});
+ expect(action.props['aria-label']).toBeUndefined();
+ expect(action.children[0]).toBe('View');
+ const context=action.findByProps({className:'sr-only'});
+ expect(context.children.join('')).toBe(' Movies');
+ expect(context.props['aria-hidden']).toBeUndefined();
+});
