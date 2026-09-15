@@ -19,8 +19,8 @@ afterEach(() => { if (tree) act(() => tree.unmount()); tree = null; vi.unstubAll
 
 test('bookmark URLs retain resource IDs and reject invalid views', () => {
   for (const view of ['fill-bracket-a', 'saved-bracket-b', 'local-bracket-123', 'pool-p', 'custom-bracket-c', 'saved-custom-bracket-c']) expect(readView('?view=' + view)).toBe(view);
-  expect(readView('?view=fill-bracket-')).toBe('home');
-  expect(readView('?view=fill-bracket-../bad')).toBe('home');
+  expect(readView('?view=fill-bracket-')).toBe('not-found');
+  expect(readView('?view=fill-bracket-../bad')).toBe('not-found');
 });
 test('Back and Forward restore distinct bracket and pool URLs without adding history entries', () => {
   let nav, current;

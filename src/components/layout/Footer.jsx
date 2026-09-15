@@ -12,6 +12,7 @@ const Footer = ({ onOpenFeedback, onNavigate, currentView }) => {
   // and routes to the given view key. Using anchors (instead of plain
   // buttons) keeps the existing footer look without needing new CSS.
   const navTo = (viewKey) => (e) => {
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     e.preventDefault();
     onNavigate(viewKey);
     // Scroll to top so users don't land mid-page when they click a footer link
@@ -33,24 +34,24 @@ const Footer = ({ onOpenFeedback, onNavigate, currentView }) => {
           <h4>Features</h4>
           <ul>
             <li>
-              <a href="#" onClick={navTo('pools')}>
+              <a href="/?view=pools" onClick={navTo('pools')}>
                 Bracket Pools
               </a>
             </li>
             {FEATURES.predictions && (
               <li>
-                <a href="#" onClick={navTo('prediction-pools')}>
+                <a href="/?view=prediction-pools" onClick={navTo('prediction-pools')}>
                   Prediction Pools
                 </a>
               </li>
             )}
             <li>
-              <a href="#" onClick={navTo('rankings')}>
+              <a href="/?view=rankings" onClick={navTo('rankings')}>
                 Rankings
               </a>
             </li>
             <li>
-              <a href="#" onClick={navTo('weekly')}>
+              <a href="/?view=weekly" onClick={navTo('weekly')}>
                 Weekly Brackets
               </a>
             </li>
@@ -100,18 +101,18 @@ const Footer = ({ onOpenFeedback, onNavigate, currentView }) => {
           <h4>Legal</h4>
           <ul>
             <li>
-              <a href="#" onClick={navTo('privacy')}>
+              <a href="/?view=privacy" onClick={navTo('privacy')}>
                 Privacy Policy
               </a>
             </li>
             <li>
-              <a href="#" onClick={navTo('terms')}>
+              <a href="/?view=terms" onClick={navTo('terms')}>
                 Terms of Service
               </a>
             </li>
             {showKristinTiers && (
               <li>
-                <a href="#" onClick={navTo('kristin-tiers')}>
+                <a href="/?view=kristin-tiers" onClick={navTo('kristin-tiers')}>
                   Kristin Tiers
                 </a>
               </li>

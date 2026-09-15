@@ -1,0 +1,20 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex"><meta name="referrer" content="no-referrer"><title>Optional analytics</title></head><body>
+<script>
+// Isolated document: no application URLs, forms, clicks, or history are exposed
+// to enhanced measurement. The parent mounts this only after explicit consent.
+if (window.parent !== window) {
+  const id = 'G-XLDJ2FB9QQ';
+  window.dataLayer = [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', id, {send_page_view:false, page_location:'https://imtourn.com/', page_referrer:'', page_title:'I’m Tourn', allow_google_signals:false, allow_ad_personalization_signals:false});
+  const script = document.createElement('script'); script.async=true; script.src='https://www.googletagmanager.com/gtag/js?id='+id; document.head.appendChild(script);
+  const allowed = new Set(['home','pools','rankings','weekly','privacy','terms','other']);
+  let last;
+  window.addEventListener('message', event => {
+    if (event.source !== window.parent || event.origin !== location.origin || event.data?.type !== 'page' || !allowed.has(event.data.category)) return;
+    const category = event.data.category; if (category === last) return; last=category;
+    gtag('event','page_view',{page_title:category+' | I’m Tourn', page_location:'https://imtourn.com/?section='+category, page_referrer:''});
+  });
+}
+</script></body></html>
