@@ -26,10 +26,11 @@ function AppContent() {
 
   return (
     <div className="bracket-app">
+      <a className="skip-link" href="#main-content">Skip to main content</a>
       <PageMetadata view={view} />
       <Header onNavigate={setView} currentView={view} />
 
-      <main className="main-content">
+      <main id="main-content" className="main-content" tabIndex={-1}>
         <AppRoutes
           view={view}
           handleFillOut={handleFillOut}

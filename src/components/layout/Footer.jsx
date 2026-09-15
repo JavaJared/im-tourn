@@ -62,37 +62,19 @@ const Footer = ({ onOpenFeedback, onNavigate, currentView }) => {
           <h4>Support</h4>
           <ul>
             <li>
-              <a
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  onOpenFeedback();
-                }}
-              >
+              <button type="button" className="footer-action" onClick={onOpenFeedback}>
                 Report a Bug
-              </a>
+              </button>
             </li>
             <li>
-              <a
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  onOpenFeedback();
-                }}
-              >
+              <button type="button" className="footer-action" onClick={onOpenFeedback}>
                 Request a Feature
-              </a>
+              </button>
             </li>
             <li>
-              <a
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  onOpenFeedback();
-                }}
-              >
+              <button type="button" className="footer-action" onClick={onOpenFeedback}>
                 Contact Us
-              </a>
+              </button>
             </li>
           </ul>
         </div>
