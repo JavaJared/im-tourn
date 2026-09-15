@@ -147,7 +147,7 @@ describe('legacy fill recovery', () => {
     const tree = mount();
     complete(tree);
     expect(submit(tree).props.disabled).toBe(false);
-    expect(tree.root.findByProps({ role: 'status' }).children.join('')).toContain('could not save');
+    expect(tree.root.findByProps({ role: 'alert' }).children.join('')).toContain('could not save');
   });
 
   it('ignores corrupt, incompatible, and impossible saved picks', () => {

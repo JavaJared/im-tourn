@@ -1,3 +1,4 @@
+import PickControl from './PickControl';
 /**
  * BracketBoard.jsx — THE bracket renderer.
  *
@@ -104,12 +105,13 @@ function Card({ id, pos, a, b, result, editable, onPick, official, sc, hl, match
     const winStyle = isW ? (graded ? (pickRight ? BS.slotWin : BS.slotWrong) : BS.slotWin) : (isL ? BS.slotLose : click ? BS.slotPick : BS.slotIdle);
     const scoreVal = showScore ? sc.get(id, side) : '';
     return (
-      <div className="engine-slot" aria-pressed={click ? isW : undefined} role={click ? "button" : undefined} tabIndex={click ? 0 : undefined} onKeyDown={e => { if (click && e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onPick(id, sl.pid); } }} onClick={click ? () => onPick(id, sl.pid) : undefined} style={{ ...BS.slot, ...winStyle, cursor: click ? 'pointer' : 'default' }}>
+      <div className="engine-slot" style={{ ...BS.slot, ...winStyle }}>
+<PickControl editable={click} selected={isW} label={`Pick ${sl.name} in matchup ${id.toUpperCase()}`} onPick={() => onPick(id, sl.pid)}>
         {isW && (graded && !pickRight ? <X size={14} strokeWidth={3} /> : <Check size={14} strokeWidth={3} />)}
         {sl.seed != null && <span style={BS.seed}>{sl.seed}</span>}
-        <span className="engine-name" style={BS.name}>{sl.name}</span>
+        <span className="engine-name" style={BS.name}>{sl.name}</span></PickControl>
         {showScore && (sc.editable
-          ? <input aria-label={`Score for ${sl.name}`} className="cb-score" value={scoreVal} inputMode="numeric" placeholder="–" onClick={(e) => e.stopPropagation()} onChange={(e) => sc.change(id, side, e.target.value)} onBlur={(e) => sc.blur(id, side, e.target.value)} />
+          ? <input aria-label={`Score for ${sl.name} in matchup ${id.toUpperCase()}`} className="cb-score" value={scoreVal} inputMode="numeric" placeholder="–" onClick={(e) => e.stopPropagation()} onChange={(e) => sc.change(id, side, e.target.value)} onBlur={(e) => sc.blur(id, side, e.target.value)} />
           : (scoreVal !== '' && <span style={BS.scoreText}>{scoreVal}</span>))}
       </div>
     );

@@ -1,3 +1,4 @@
+import PickControl from '../PickControl';
 import { useMemo } from 'react';
 import { Clock, Check, X } from '../customBracketIcons';
 import { SLOT, locate, slotDisplay, feederId, resolveParticipant } from '../../lib/customBracket';
@@ -79,10 +80,11 @@ function Card({ id, pos, a, b, result, editable, onPick, official, sc, hl, boxSc
     const youPicked = picked && picked[side] && picked[side].pid !== sl.pid ? picked[side] : null;       // your bracket had someone else here
     return (
       <div style={S.slotCol}>
-        <div role={click ? "button" : undefined} tabIndex={click ? 0 : undefined} onKeyDown={e => { if (click && e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onPick(id, sl.pid); } }} onClick={click ? () => onPick(id, sl.pid) : undefined} style={{ ...S.slot, ...winStyle, cursor: click ? 'pointer' : 'default' }}>
-          {isW && (graded && !pickRight ? <X size={14} strokeWidth={3} /> : <Check size={14} strokeWidth={3} />)}<span style={S.name}>{sl.name}</span>
+        <div style={{ ...S.slot, ...winStyle }}>
+<PickControl editable={click} selected={isW} label={`Pick ${sl.name} in matchup ${id.toUpperCase()}`} onPick={() => onPick(id, sl.pid)}>
+          {isW && (graded && !pickRight ? <X size={14} strokeWidth={3} /> : <Check size={14} strokeWidth={3} />)}<span style={S.name}>{sl.name}</span></PickControl>
           {editing
-            ? <input aria-label={`Score for ${sl.name}`} className="cb-score" value={sc.get(id, side)} inputMode="numeric" placeholder="–" onClick={(e) => e.stopPropagation()} onChange={(e) => sc.change(id, side, e.target.value)} onBlur={(e) => sc.blur(id, side, e.target.value)} />
+            ? <input aria-label={`Score for ${sl.name} in matchup ${id.toUpperCase()}`} className="cb-score" value={sc.get(id, side)} inputMode="numeric" placeholder="–" onClick={(e) => e.stopPropagation()} onChange={(e) => sc.change(id, side, e.target.value)} onBlur={(e) => sc.blur(id, side, e.target.value)} />
             : (roScore != null && <span style={S.scoreText}>{roScore}</span>)}
         </div>
         {youPicked && <div style={S.youPicked}>You picked: <span style={S.youPickedName}>{youPicked.name}</span></div>}

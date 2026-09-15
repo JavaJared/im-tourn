@@ -40,3 +40,12 @@ test('Escape closes only the top dialog and returns focus to its parent', () => 
   act(() => tree.update(render(false)));
   expect(f.document.activeElement).toBe(f.outer.buttons[0]); expect(f.document.body.style.overflow).toBe('hidden');
 });
+test('modal background is inert and its original state is restored after closing', () => {
+  const f=fixture(), background={inert:false,tagName:'MAIN'}, alreadyInert={inert:true,tagName:'ASIDE'};
+  const overlay={parentElement:f.document.body,tagName:'DIV',children:[f.outer]};
+  f.outer.parentElement=overlay; f.document.body.children=[background,alreadyInert,overlay];
+  act(()=>{ tree=create(createElement(Harness,{close:vi.fn()}),{createNodeMock:()=>f.outer}); });
+  expect(background.inert).toBe(true); expect(alreadyInert.inert).toBe(true);
+  act(()=>tree.unmount()); tree=null;
+  expect(background.inert).toBe(false); expect(alreadyInert.inert).toBe(true);
+});

@@ -1,3 +1,5 @@
+import ConfirmDialog from './dialogs/ConfirmDialog';
+import SaveNotice from './SaveNotice';
 import Board from './pools/PoolBoard';
 import PoolTabs from './pools/PoolTabs';
 import PoolRules from './pools/PoolRules';
@@ -44,6 +46,11 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
   const [sleepers, setSleepers] = useState({ sleeper1: null, sleeper2: null });
   const [busy, setBusy] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const busyRef = useRef(false), retryAction = useRef(null);
+  const [operation, setOperation] = useState({ state: 'idle', message: '' });
+  const [draftSave, setDraftSave] = useState({ state: 'idle', message: '' });
+  const [scoreSave, setScoreSave] = useState({ state: 'idle', message: '' });
   const [toast, setToast] = useState(null);
   const [viewingEntry, setViewingEntry] = useState(null);   // another participant's bracket being viewed
   const [editingDesc, setEditingDesc] = useState(false);
@@ -108,18 +115,27 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
     else setResState(hydrateState(pool.bracketMatchups, pool.customResults || {}));
   }, [pool, canRecord]);
 
-  const run = async (fn, ok) => { setBusy(true); try { await fn(); await entryWatch.current?.refresh(); if (ok) flash(ok); } catch (e) { flash(e?.message || 'Something went wrong'); } setBusy(false); };
+  const run = async (fn, ok = 'Changes saved') => {
+    if (busyRef.current) return;
+    busyRef.current = true; setBusy(true); retryAction.current = () => run(fn, ok);
+    setOperation({ state: 'saving', message: 'Saving changes. Please keep this page open.' });
+    try { await fn(); retryAction.current = null; setOperation({ state: 'saved', message: ok }); await entryWatch.current?.refresh(); }
+    catch (e) { setOperation({ state: 'error', message: e?.message || 'Changes could not be saved. Please retry.' }); }
+    finally { busyRef.current = false; setBusy(false); }
+  };
 
   // predictor picks
   const canPredict = joined && predictionsOpen(pool, now);
-  useEffect(() => {
+  const saveLocalDraft = () => {
     if (!canPredict || !predState) return;
-    try { localStorage.setItem(`pool-draft:${poolId}:${currentUserId}`, JSON.stringify({ submittedKey, picks: picksFromState(predState), sleepers })); } catch {}
-  }, [poolId, currentUserId, predState, sleepers, submittedKey, canPredict]);
+    try { localStorage.setItem(`pool-draft:${poolId}:${currentUserId}`, JSON.stringify({ submittedKey, picks: picksFromState(predState), sleepers })); setDraftSave({ state: 'saved', message: 'Draft saved on this device. Submit your prediction to save it to the pool.' }); }
+    catch { setDraftSave({ state: 'error', message: 'This browser could not save your draft. Keep this page open; your picks are still here.' }); }
+  };
+  useEffect(saveLocalDraft, [poolId, currentUserId, predState, sleepers, submittedKey, canPredict]);
   const loserOptions = [0, 1].map(r => predState ? predictedLosers(pool.bracketMatchups, picksFromState(predState), r) : []);
-  const pickPred = (boxId, pid) => { if (!canPredict || !predState) return; try { setPredState(setResult(predState, boxId, pid)); } catch (e) { flash(e.message); } };
+  const pickPred = (boxId, pid) => { if (!canPredict || !predState || busyRef.current) return; retryAction.current = null; setOperation({ state: 'idle', message: '' }); try { setPredState(setResult(predState, boxId, pid)); } catch (e) { flash(e.message); } };
   const submitPredictions = () => {
-    if (!predState || !isEntryComplete(predState)) return;
+    if (busyRef.current || !canPredict || !predState || !isEntryComplete(predState)) return;
     run(() => submitPoolPredictions(poolId, currentUserId, picksFromState(predState), getChampion(predState), pool.enableSleepers ? { sleeper1: loserOptions[0].includes(sleepers.sleeper1) ? sleepers.sleeper1 : null, sleeper2: loserOptions[1].includes(sleepers.sleeper2) ? sleepers.sleeper2 : null } : null), 'Predictions submitted');
   };
   // host results — optimistic local update + persist; snapshots keep everyone else live
@@ -127,7 +143,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
     if (!canRecord || !resState || busy) return;
     let next; try { next = setResult(resState, boxId, pid); } catch (e) { flash(e.message); return; }
     setResState(next);
-    run(async () => { try { await recordCustomPoolWinner(poolId, boxId, pid); } catch (e) { setResState(resState); throw e; } });
+    run(async () => { try { await recordCustomPoolWinner(poolId, boxId, pid); setResState(next); } catch (e) { setResState(resState); throw e; } });
   };
 
   const leaderboard = useMemo(() => {
@@ -197,7 +213,6 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
   };
   const saveDesc = () => run(async () => { await updatePoolDescription(poolId, currentUserId, descDraft); setEditingDesc(false); }, 'Description saved');
   const removePool = () => {
-    if (typeof window !== 'undefined' && !window.confirm('Delete this pool for everyone? This cannot be undone.')) return;
     run(async () => { await deletePool(poolId, currentUserId); onNavigate('pools'); });
   };
 
@@ -212,25 +227,30 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
   };
   // Flush every accumulated score edit in one write. Reads the pool fresh so we
   // merge onto the latest customScores rather than a stale closure copy.
-  const flushPendingScores = async () => {
-    if (!canRecord) { pendingScoreWrites.current = {}; return; }
-    if (inflightFlush.current) { await inflightFlush.current; }
-    const pending = pendingScoreWrites.current;
-    if (Object.keys(pending).length === 0) return;
-    pendingScoreWrites.current = {};                 // start a fresh batch before async work
-    try {
-      await updateCustomPoolScores(poolId, currentUserId, pending);
-    } catch (e) {
-      // Re-queue on failure so edits aren't silently dropped.
-      for (const key of Object.keys(pending)) if (!(key in pendingScoreWrites.current)) pendingScoreWrites.current[key] = pending[key];
-      flash('Scores could not be saved. Your edits are kept; change or leave the field to retry.');
-    }
+  const flushPendingScores = () => {
+    if (inflightFlush.current) return inflightFlush.current;
+    if (!isHost || status !== 'in_progress' || !Object.keys(pendingScoreWrites.current).length) return Promise.resolve();
+    setScoreSave({ state: 'saving', message: 'Saving scores…' });
+    const task = Promise.resolve().then(async () => {
+      while (Object.keys(pendingScoreWrites.current).length) {
+        const pending = pendingScoreWrites.current; pendingScoreWrites.current = {};
+        try { await updateCustomPoolScores(poolId, currentUserId, pending); }
+        catch {
+          for (const key of Object.keys(pending)) if (!(key in pendingScoreWrites.current)) pendingScoreWrites.current[key] = pending[key];
+          setScoreSave({ state: 'error', message: 'Scores were not saved. Your edits are still here. Retry before leaving.' }); return;
+        }
+      }
+      setScoreSave({ state: 'saved', message: 'Scores saved.' });
+    });
+    inflightFlush.current = task;
+    task.finally(() => { if (inflightFlush.current === task) inflightFlush.current = null; });
+    return task;
   };
   const scheduleFlush = () => {
     if (scoreFlushTimer.current) clearTimeout(scoreFlushTimer.current);
     scoreFlushTimer.current = setTimeout(() => {
       scoreFlushTimer.current = null;
-      inflightFlush.current = flushPendingScores().finally(() => { inflightFlush.current = null; });
+      flushPendingScores();
     }, 300);
   };
   const handleScoreChange = (boxId, side, raw) => {
@@ -243,7 +263,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
     const key = `${boxId}:${side}`;
     pendingScoreWrites.current[key] = parseScoreInput(raw);
     if (scoreFlushTimer.current) { clearTimeout(scoreFlushTimer.current); scoreFlushTimer.current = null; }
-    const p = flushPendingScores(); inflightFlush.current = p; await p; inflightFlush.current = null;
+    await flushPendingScores();
     if (!(key in pendingScoreWrites.current)) {
       setScoreDrafts((prev) => {
         if (prev[key] !== raw) return prev; // A newer edit must survive an older save.
@@ -257,9 +277,10 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
     const v = pool?.customScores?.[boxId]?.[side];
     return v == null ? '' : String(v);
   };
+  const flushScoresRef = useRef(flushPendingScores); flushScoresRef.current = flushPendingScores;
   useEffect(() => () => {
     if (scoreFlushTimer.current) { clearTimeout(scoreFlushTimer.current); scoreFlushTimer.current = null; }
-    if (Object.keys(pendingScoreWrites.current).length > 0) flushPendingScores();   // best-effort flush on unmount
+    if (Object.keys(pendingScoreWrites.current).length > 0) flushScoresRef.current();   // best-effort flush on unmount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   // Score inputs are for the recording host only; everyone else sees scores
@@ -289,7 +310,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
             <button style={S.ghost} disabled={busy} onClick={() => run(() => recalculateCustomPoolScoresManual(poolId, currentUserId), 'Scores recalculated')}><RotateCcw size={14} /> Recalc</button>
             <button style={S.primary} disabled={busy} onClick={() => run(() => completePool(poolId, currentUserId), 'Pool completed')}><Check size={14} strokeWidth={3} /> Complete</button>
           </>}
-          {isHost && <button style={S.danger} disabled={busy} onClick={removePool}><Trash2 size={14} /> Delete</button>}
+          {isHost && <button style={S.danger} disabled={busy} onClick={() => { setOperation({ state: 'idle', message: '' }); setConfirmDelete(true); }}><Trash2 size={14} /> Delete</button>}
         </div>
           {status === 'in_progress' && <button style={S.ghost} disabled={busy} aria-pressed={editingResults} onClick={() => { setTab('results'); setViewingEntry(null); setEditingResults(!editingResults); }}>{editingResults ? 'Finish editing results' : 'Edit official results'}</button>}
       {isHost && (
@@ -314,6 +335,10 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
         </div>
       </details>}
 
+      <SaveNotice {...operation} onRetry={confirmDelete ? undefined : () => retryAction.current?.()} />
+      <SaveNotice {...scoreSave} onRetry={() => flushPendingScores()} retryLabel="Retry scores" />
+      {isHost && <ConfirmDialog open={confirmDelete} busy={busy} error={operation.state === 'error' ? operation.message : ''}
+        onCancel={() => { setConfirmDelete(false); retryAction.current = null; setOperation({ state: 'idle', message: '' }); }} onConfirm={removePool} />}
       <PoolTabs activeTab={tab} onChange={changeTab} />
 
       {status === 'completed' && pool.winnerName && <div style={S.championBar}><Trophy size={18} strokeWidth={2.5} /> <b>{pool.winnerName}</b> wins with {pool.winnerScore} pts</div>}
@@ -371,11 +396,12 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
               : <div style={S.note}>This pool is no longer accepting entries.</div>
           ) : (
             <>
+              {canPredict && <SaveNotice {...draftSave} onRetry={saveLocalDraft} retryLabel="Retry draft save" />}
               {canPredict && predState && !isEntryComplete(predState) && <div style={S.note}>Pick a winner in every matchup, then submit.{submitted ? ' Re-submitting replaces your entry.' : ''}</div>}
-              {canPredict && pool.enableSleepers && <div style={S.actionBar}>{[1, 2].map((n) => pool.bracketMatchups.rounds.length > n + 1 && <label key={n}>Sleeper {n} ({pool[`sleeper${n}Points`] || 0} bonus pts)<select aria-label={`Sleeper ${n}`} value={loserOptions[n - 1].includes(sleepers[`sleeper${n}`]) ? sleepers[`sleeper${n}`] : ''} onChange={e => setSleepers(old => ({ ...old, [`sleeper${n}`]: e.target.value || null }))}><option value="">No sleeper</option>{loserOptions[n - 1].map(pid => <option key={pid} value={pid}>{nameMap[pid] || pid}</option>)}</select></label>)}</div>}
+              {canPredict && pool.enableSleepers && <div style={S.actionBar}>{[1, 2].map((n) => pool.bracketMatchups.rounds.length > n + 1 && <label key={n}>Sleeper {n} ({pool[`sleeper${n}Points`] || 0} bonus pts)<select disabled={busy} aria-label={`Sleeper ${n}`} value={loserOptions[n - 1].includes(sleepers[`sleeper${n}`]) ? sleepers[`sleeper${n}`] : ''} onChange={e => { retryAction.current = null; setOperation({ state: 'idle', message: '' }); setSleepers(old => ({ ...old, [`sleeper${n}`]: e.target.value || null })); }}><option value="">No sleeper</option>{loserOptions[n - 1].map(pid => <option key={pid} value={pid}>{nameMap[pid] || pid}</option>)}</select></label>)}</div>}
               {canPredict && <div style={S.actionBar}><button style={{ ...S.primary, ...(predState && isEntryComplete(predState) ? {} : S.primaryOff) }} disabled={busy || !(predState && isEntryComplete(predState))} onClick={submitPredictions}><Send size={14} /> {submitted ? 'Update prediction' : 'Submit prediction'}</button></div>}
               {!canPredict && submitted && <div style={S.note}>Your prediction is in.{status === 'open' ? '' : ' Predictions are locked.'}</div>}
-              {predState && <Board state={predState} nameMap={nameMap} editable={canPredict} onPick={pickPred} official={status === 'open' ? null : officialWinners} scores={scoresByBox} />}
+              {predState && <Board state={predState} nameMap={nameMap} editable={canPredict && !busy} onPick={pickPred} official={status === 'open' ? null : officialWinners} scores={scoresByBox} />}
             </>
           )
         )}

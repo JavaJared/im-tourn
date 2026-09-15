@@ -1,3 +1,5 @@
+import SaveNotice from './SaveNotice';
+import { createSaveBuffer } from '../lib/saveBuffer';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Trophy, Lock, AlertTriangle, Loader2, RotateCcw, Radio } from './customBracketIcons';
 import { SLOT, setResult, setScore, getChampion } from '../lib/customBracket';
@@ -19,8 +21,11 @@ export default function CustomBracketPlay({ bracketId, currentUserId, onExit }) 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [save, setSave] = useState('idle');
+  const writer = useMemo(() => createSaveBuffer((before, next) => persistLiveDiff(bracketId, before, next), state => setSave(state)), [bracketId]);
   const [toast, setToast] = useState(null);
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false), statusRetry = useRef(null);
+  const [statusError, setStatusError] = useState('');
 
   const stateRef = useRef(state); stateRef.current = state;
   const flash = useCallback((msg) => { setToast(msg); setTimeout(() => setToast(null), 2600); }, []);
@@ -29,7 +34,7 @@ export default function CustomBracketPlay({ bracketId, currentUserId, onExit }) 
     if (!bracketId) { setError('No bracket was specified.'); setLoading(false); return undefined; }
     const unsub = subscribeToBracket(bracketId, (remote, m) => {
       if (!m.exists || !remote) { setError('This bracket could not be found.'); setLoading(false); return; }
-      setError(null); setLoading(false); setState(remote);
+      setError(null); setLoading(false); if (!writer.hasPending()) { stateRef.current = remote; setState(remote); }
       setMeta({ status: m.raw.status, hostId: m.raw.hostId, title: m.raw.title || 'Custom bracket' });
     }, (err) => { setError(err?.message || 'Lost connection to the bracket.'); setLoading(false); });
     return unsub;
@@ -37,7 +42,7 @@ export default function CustomBracketPlay({ bracketId, currentUserId, onExit }) 
 
   const isHost = !!(meta && currentUserId && meta.hostId === currentUserId);
   const status = meta?.status;
-  const canEnter = isHost && status === 'locked';
+  const canEnter = isHost && status === 'locked' && !busy;
 
   const nameMap = useMemo(() => {
     const m = {}; if (!state) return m;
@@ -47,10 +52,10 @@ export default function CustomBracketPlay({ bracketId, currentUserId, onExit }) 
   const champion = useMemo(() => (state ? getChampion(state) : null), [state]);
 
   const applyLive = (producer) => {
+    if (busyRef.current) return;
     const cur = stateRef.current; if (!cur) return;
     let next; try { next = producer(cur); } catch (e) { flash(e.message); return; }
-    setState(next); setSave('saving');
-    persistLiveDiff(bracketId, cur, next).then((wrote) => setSave(wrote ? 'saved' : 'idle')).catch((e) => { setSave('error'); flash(`Couldn't save — ${e?.message || 'try again'}`); });
+    stateRef.current = next; setState(next); writer.save(cur, next);
   };
   const onPick = (boxId, pid) => { if (!canEnter) return; applyLive((s) => setResult(s, boxId, pid)); };
   const onScore = (boxId, side, value) => {
@@ -92,10 +97,11 @@ export default function CustomBracketPlay({ bracketId, currentUserId, onExit }) 
   }, [state, canEnter, scoreDrafts]);
 
   const runStatus = async (fn, okMsg) => {
-    setBusy(true); setSave('saving');
-    try { await fn(bracketId); setSave('saved'); if (okMsg) flash(okMsg); }
-    catch (e) { setSave('error'); flash(`Couldn't update — ${e?.message || 'try again'}`); }
-    finally { setBusy(false); }
+    if (busyRef.current) return;
+    busyRef.current = true; setBusy(true); setStatusError(''); statusRetry.current = () => runStatus(fn, okMsg);
+    try { if (!await writer.retry()) return; await fn(bracketId); statusRetry.current = null; if (okMsg) flash(okMsg); }
+    catch (e) { setStatusError(e?.message || 'Status change was not saved. Please retry.'); }
+    finally { busyRef.current = false; setBusy(false); }
   };
 
   if (loading) return <Shell><div style={S.center}><Loader2 size={20} className="spin" /> Loading bracket…</div></Shell>;
@@ -129,6 +135,8 @@ export default function CustomBracketPlay({ bracketId, currentUserId, onExit }) 
         </div>
       </header>
 
+      <SaveNotice state={save} message={save === 'error' ? 'Results were not saved. Your edits are still here; retry before leaving.' : save === 'saving' ? 'Saving changes…' : save === 'saved' ? 'Changes saved.' : ''} onRetry={() => writer.retry()} />
+      <SaveNotice state={statusError ? 'error' : 'saving'} message={statusError || (busy ? 'Saving tournament status…' : '')} onRetry={() => statusRetry.current?.()} />
       {status === 'published' && (
         <div style={S.notice}>
           {isHost

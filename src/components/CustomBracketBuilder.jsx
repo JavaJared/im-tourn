@@ -1,3 +1,5 @@
+import SaveNotice from './SaveNotice';
+import { createSaveBuffer } from '../lib/saveBuffer';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Plus, X, Lock, Trophy, AlertTriangle, Trash2, Check, Loader2 } from './customBracketIcons';
 import {
@@ -49,9 +51,13 @@ export default function CustomBracketBuilder({ bracketId, onExit }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
-  const [save, setSave] = useState('idle'); // idle | saving | saved | error
+  const [save, setSave] = useState('idle');
+  const writer = useMemo(() => createSaveBuffer((before, next) => persistStructure(bracketId, next), state => setSave(state)), [bracketId]); // idle | saving | saved | error
   const [toast, setToast] = useState(null);
   const [showErrors, setShowErrors] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [publishError, setPublishError] = useState('');
+  const publishingRef = useRef(false);
 
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -64,18 +70,14 @@ export default function CustomBracketBuilder({ bracketId, onExit }) {
       bracketId,
       (remote, meta) => {
         if (!meta.exists || !remote) { setError('This bracket could not be found.'); setLoading(false); return; }
-        setError(null); setLoading(false); setState(remote);
+        setError(null); setLoading(false); if (!writer.hasPending()) { stateRef.current = remote; setState(remote); }
       },
       (err) => { setError(err?.message || 'Lost connection to the bracket.'); setLoading(false); },
     );
     return unsub;
   }, [bracketId]);
 
-  const persist = useCallback(async (next) => {
-    setSave('saving');
-    try { await persistStructure(bracketId, next); setSave('saved'); }
-    catch (e) { setSave('error'); flash(`Couldn't save — ${e?.message || 'please try again'}`); }
-  }, [bracketId, flash]);
+
 
   const loc = useMemo(() => (state ? locate(state) : {}), [state]);
   const layout = useMemo(() => (state ? computeLayout(state) : null), [state]);
@@ -83,11 +85,12 @@ export default function CustomBracketBuilder({ bracketId, onExit }) {
   const named = useMemo(() => (state ? countNamed(state) : 0), [state]);
 
   const apply = (producer, selectAfter) => {
+    if (publishingRef.current) return;
     const cur = stateRef.current; if (!cur) return;
     let next; try { next = producer(cur); } catch (e) { flash(e.message); return; }
-    setState(next);
+    stateRef.current = next; setState(next);
     if (selectAfter !== undefined) setSelectedId(typeof selectAfter === 'function' ? selectAfter(next) : selectAfter);
-    persist(next);
+    writer.save(cur, next);
   };
   const onAddFirst = () => apply((s) => addFirst(s), (n) => n._lastCreated[0]);
   const onBefore = (id) => apply((s) => before(s, id), (n) => n._lastCreated[0]);
@@ -106,15 +109,15 @@ export default function CustomBracketBuilder({ bracketId, onExit }) {
     apply((s) => setSlotName(s, id, slot, pid, trimmed));
   };
   const onPublish = async () => {
+    if (publishingRef.current) return;
     const cur = stateRef.current; if (!cur) return;
     if (!validateForPublish(cur).valid) { setShowErrors(true); return; }
-    setSave('saving');
-    try { await publishBracket(bracketId, cur); setSave('saved'); flash('Published'); onExit?.('published'); }
-    catch (e) {
-      setSave('error');
-      if (e?.errors) { setShowErrors(true); flash('Not ready to publish yet'); }
-      else flash(`Couldn't publish — ${e?.message || 'please try again'}`);
-    }
+    publishingRef.current = true; setPublishing(true); setPublishError('');
+    try {
+      if (!await writer.retry()) return;
+      await publishBracket(bracketId, cur); onExit?.('published');
+    } catch (e) { setPublishError(e?.message || 'Publishing failed. Your bracket is still here.'); if (e?.errors) setShowErrors(true); }
+    finally { publishingRef.current = false; setPublishing(false); }
   };
 
   if (loading) return (
@@ -143,10 +146,12 @@ export default function CustomBracketBuilder({ bracketId, onExit }) {
           <span style={{ ...S.savePill, opacity: save === 'idle' ? 0 : 1, color: save === 'error' ? 'var(--orange)' : 'var(--teal)' }}>
             {save === 'saving' ? 'Saving…' : save === 'error' ? 'Save failed' : (<><Check size={12} strokeWidth={3} /> Saved</>)}
           </span>
-          <button style={{ ...S.publish, ...(validation.valid ? S.publishOn : {}) }} onClick={onPublish}><Trophy size={14} strokeWidth={2.5} /> Publish</button>
+          <button style={{ ...S.publish, ...(validation.valid ? S.publishOn : {}) }} disabled={publishing} onClick={onPublish}><Trophy size={14} strokeWidth={2.5} /> Publish</button>
         </div>
       </header>
 
+      <SaveNotice state={save} message={save === 'error' ? 'Your changes were not saved. Keep this page open and retry.' : save === 'saving' ? 'Saving bracket changes…' : save === 'saved' ? 'Bracket changes saved.' : ''} onRetry={() => writer.retry()} />
+      <SaveNotice state={publishError ? "error" : "saving"} message={publishError || (publishing ? "Publishing bracket…" : "")} onRetry={onPublish} retryLabel="Retry publish" />
       <div style={S.scroll}>
         {!hasBoxes ? (
           <div style={S.empty} onMouseDown={(e) => e.stopPropagation()}>

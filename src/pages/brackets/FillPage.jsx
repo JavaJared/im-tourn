@@ -31,6 +31,12 @@ const FillEditor = ({ bracket, onSubmit, onBack, currentUser, draftKey }) => {
     draft.restored ? 'Saved picks restored.' : 'Picks save automatically on this device.',
   );
   const [submitError, setSubmitError] = useState('');
+  const [draftFailed, setDraftFailed] = useState(false);
+  const persistDraft = next => {
+    const saved = saveFillDraft(draftKey, bracket.matchups, next);
+    setDraftFailed(!saved);
+    setDraftStatus(saved ? 'Picks saved on this device.' : 'Your browser could not save these picks. Keep this page open to avoid losing them.');
+  };
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
   const mounted = useRef(true);
@@ -53,11 +59,7 @@ const FillEditor = ({ bracket, onSubmit, onBack, currentUser, draftKey }) => {
     if (submittingRef.current) return;
     const next = selectFillWinner(matchups, roundIndex, matchIndex, entryNum);
     setMatchups(next);
-    setDraftStatus(
-      saveFillDraft(draftKey, bracket.matchups, next)
-        ? 'Picks saved on this device.'
-        : 'Your browser could not save these picks. Keep this page open to avoid losing them.',
-    );
+    persistDraft(next);
     setSubmitError('');
   };
 
@@ -288,7 +290,7 @@ const FillEditor = ({ bracket, onSubmit, onBack, currentUser, draftKey }) => {
       <div className="fill-header">
         <h1>{bracket.title}</h1>
         <p>Click on entries to select winners for each matchup</p>
-        <p role="status">{draftStatus}</p>
+        <p role={draftFailed ? "alert" : "status"}>{draftStatus} {draftFailed && <button type="button" onClick={() => persistDraft(matchups)}>Retry draft save</button>}</p>
         <p className="bracket-author-fill">Created by {bracket.userDisplayName}</p>
         <button className="download-blank-btn" onClick={downloadBlankBracket}>
           <svg
