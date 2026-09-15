@@ -1,3 +1,4 @@
+import { publicOrigin } from '../../mobile/platform';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
@@ -146,7 +147,7 @@ const PredictionPoolDetailPage = ({ poolId, onNavigate }) => {
   };
 
   const copyJoinLink = () => {
-    const link = `${window.location.origin}?predictionpool=${pool.joinCode}`;
+    const link = `${publicOrigin()}?predictionpool=${pool.joinCode}`;
     navigator.clipboard.writeText(link);
     alert('Join link copied!');
   };

@@ -1,3 +1,4 @@
+import { isNativeApp } from '../mobile/platform';
 // src/contexts/AuthContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
@@ -33,6 +34,7 @@ export function AuthProvider({ children }) {
   }
 
   function loginWithGoogle() {
+    if (isNativeApp()) return Promise.reject(new Error('Google sign-in is not configured for this mobile build. Use the website for Google sign-in.'));
     const provider = new GoogleAuthProvider();
     return signInWithPopup(auth, provider);
   }
