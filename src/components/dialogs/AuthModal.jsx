@@ -1,3 +1,4 @@
+import { isNativeApp } from '../../mobile/platform';
 import { useDialog } from '../../lib/useDialog';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -179,7 +180,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
             </button>
           </p>
         )}
-        {mode !== 'reset' && (
+        {mode !== 'reset' && !isNativeApp() && (
           <>
             <div className="auth-divider">
               <span>or</span>
@@ -209,6 +210,9 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
           </>
         )}
 
+        {mode !== 'reset' && isNativeApp() && <p className="native-auth-note">
+          This early mobile build supports email and password. Google sign-in is available on imtourn.com.
+        </p>}
         <p className="auth-switch">
           {mode === 'reset'
             ? 'Remember your password? '
