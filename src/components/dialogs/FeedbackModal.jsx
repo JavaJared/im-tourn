@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 
 const FeedbackModal = ({ isOpen, onClose }) => {
-  const dialogRef = useDialog(isOpen, onClose);
+  const dialogRef = useDialog(isOpen, () => handleClose());
   const [feedbackError, setFeedbackError] = useState('');
   const [feedbackType, setFeedbackType] = useState('bug');
   const [subject, setSubject] = useState('');
@@ -22,8 +22,9 @@ const FeedbackModal = ({ isOpen, onClose }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
     if (!subject.trim() || !description.trim()) {
-      alert('Please fill in all required fields');
+      setFeedbackError('Please fill in all required fields');
       return;
     }
 
@@ -41,6 +42,7 @@ const FeedbackModal = ({ isOpen, onClose }) => {
   };
 
   const handleClose = () => {
+    if (submitting) return;
     setFeedbackType('bug');
     setSubject('');
     setDescription('');
@@ -60,7 +62,7 @@ const FeedbackModal = ({ isOpen, onClose }) => {
         className="feedback-modal"
         onClick={(e) => e.stopPropagation()}
       >
-        <button aria-label="Close dialog" className="modal-close" onClick={handleClose}>
+        <button disabled={submitting} aria-label="Close dialog" className="modal-close" onClick={handleClose}>
           ×
         </button>
 
@@ -81,7 +83,9 @@ const FeedbackModal = ({ isOpen, onClose }) => {
             </p>
             {feedbackError && <p role="alert">{feedbackError}</p>}
 
+            {submitting && <p role="status">Sending feedback. Please wait…</p>}
             <form onSubmit={handleSubmit}>
+              <fieldset disabled={submitting} style={{ border: 0, padding: 0, minWidth: 0 }}>
               <div className="feedback-type-selector">
                 <button
                   type="button"
@@ -159,6 +163,7 @@ const FeedbackModal = ({ isOpen, onClose }) => {
               <button type="submit" className="nav-btn feedback-submit-btn" disabled={submitting}>
                 {submitting ? 'Submitting...' : 'Submit Feedback'}
               </button>
+              </fieldset>
             </form>
           </>
         )}

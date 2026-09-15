@@ -28,3 +28,18 @@
 }
 .cbpd .cb-score:focus-visible { outline: 3px solid #2bd4c0; outline-offset: 2px; }
 @media (max-width: 600px) { .cbpd .cb-score { font-size: 16px; } }
+
+/* Preserve native browser zoom and reflow as the CSS viewport narrows. */
+.modal-overlay { overflow-y:auto; }
+[role='dialog'] { min-width:0; max-width:100%; overflow-wrap:anywhere; }
+.save-notice { display:flex; align-items:center; flex-wrap:wrap; gap:12px; padding:12px 18px; line-height:1.5; overflow-wrap:anywhere; font-size:14px; }
+.save-notice[role='alert'] { border-left:3px solid #ff8a8a; }
+.save-notice button { min-height:44px; padding:8px 12px; border:1px solid currentColor; border-radius:8px; background:transparent; color:inherit; font:inherit; cursor:pointer; }
+.pick-control:focus-visible { outline:3px solid #2bd4c0; outline-offset:2px; border-radius:4px; }
+@media(max-width:700px) {
+ .cbpr header,.cbp header,.cbb header { flex-wrap:wrap; gap:12px; padding-right:48px !important; }
+ .cbpr header>div,.cbp header>div,.cbb header>div { flex-wrap:wrap; max-width:100%; min-width:0; }
+ .cbpr header select { max-width:100%; }
+ .modal-content { padding:1.25rem; }
+ .header { position:relative; }
+}
