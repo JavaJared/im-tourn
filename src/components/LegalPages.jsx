@@ -113,7 +113,7 @@ export const PrivacyPolicyPage = () => {
       <p>
         <strong>Other users of I'm Tourn.</strong> Content you create is
         visible to other users when you publish or share it. Your display
-        name appears next to brackets, rankings, and votes you create.
+        name appears next to brackets, rankings, and votes you create. Sending or accepting a friend request shares your published creations and standalone saved brackets and ranking votes, including past activity, with that friend. Friend codes let you connect without sharing your email address. Either person can remove the friendship to end access to friend activity views. Friendship does not grant access to unpublished drafts or private pool predictions.
       </p>
 
       <p>

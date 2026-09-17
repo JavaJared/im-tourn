@@ -105,11 +105,15 @@ const { onRequest } = require('firebase-functions/v2/https');
 exports.repairReadiness = onRequest(async (_req, res) => {
   res.set('Cache-Control', 'no-store');
   const release = await db.doc('_system/backendRelease').get();
-  const ready = release.data()?.version === 4;
-  res.status(ready ? 200 : 503).json({ version: ready ? 4 : null });
+  const ready = release.data()?.version >= 4;
+  res.status(ready ? 200 : 503).json({ version: ready ? 4 : null, friendsReady: release.data()?.version >= 5 });
 });
 
 for (const [name, callable] of Object.entries(require("./drafts"))) { if (name !== "internal") exports[name] = callable; }
 const activities = require('./activities');
 exports.listMyActivities = activities.listMyActivities;
 exports.getMySavedActivity = activities.getMySavedActivity;
+
+for (const [name, callable] of Object.entries(require('./friends'))) {
+  if (name !== 'internal') exports[name] = callable;
+}

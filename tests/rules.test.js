@@ -22,6 +22,12 @@ run('Firestore and Storage trust boundaries', () => {
   });
   afterAll(async () => env.cleanup());
   const db = uid => uid ? env.authenticatedContext(uid).firestore() : env.unauthenticatedContext().firestore();
+  test('friend profiles, codes, limits and relationships are server-only', async () => {
+    for (const path of ['friendProfiles/alice','friendCodes/ABC','friendRequestLimits/alice','friendships/forged']) {
+      await assertFails(getDoc(doc(db('alice'), path)));
+      await assertFails(setDoc(doc(db('alice'), path), { status:'accepted', members:['alice','bob'] }));
+    }
+  });
   test('public brackets and pools stay readable', async () => { await assertSucceeds(getDoc(doc(db(), 'customBrackets/b'))); await assertSucceeds(getDoc(doc(db(), 'bracketPools/open'))); });
   test('standard creation is allowed only for its owner', async () => {
     const value = { hostId: 'alice', status: 'published', type: 'standard', participantCount: 32, roundCount: 5 };

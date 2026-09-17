@@ -1,0 +1,14 @@
+.friend-section { margin: 1.5rem 0; padding: 1rem; border: 1px solid #515b6f; border-radius: 12px; }
+.friend-section h2, .friend-dialog h2 { margin-bottom: 1rem; }
+.friend-section label, .friend-filter label { display: flex; flex-direction: column; gap: .5rem; min-width: 0; }
+.friend-section input, .friend-filter select { padding: .65rem; min-height: 44px; max-width: 100%; border: 1px solid #717c90; border-radius: 6px; background: #171d29; color: #f2f5fa; font: inherit; }
+.friend-section form, .friend-filter, .friend-actions { display: flex; flex-wrap: wrap; gap: .75rem; align-items: end; }
+.friend-section form { margin-top: 1rem; }
+.friend-filter { margin: 1rem 0; }
+.friend-list { list-style: none; padding: 0; }
+.friend-list li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem; padding: .8rem 0; border-bottom: 1px solid #515b6f; overflow-wrap: anywhere; }
+.friend-list button, .friend-filter button, .friend-dialog button { min-height: 44px; }
+.friend-dialog { width: min(700px, 94vw); max-height: 85dvh; overflow: auto; padding: 1.5rem; background: #171d29; color: #f2f5fa; border: 1px solid #717c90; border-radius: 12px; }
+.friend-dialog li { padding: .4rem 0; overflow-wrap: anywhere; }
+.friends-page p { line-height: 1.6; }
+@media (max-width: 600px) { .friend-filter label, .friend-section form label { width: 100%; } .friend-actions { width: 100%; } .friend-dialog { padding: 1rem; } }

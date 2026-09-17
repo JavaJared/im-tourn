@@ -61,3 +61,5 @@ export const FillPage = lazy(() => import('../pages/brackets/FillPage.jsx'));
 export const PDFPage = lazy(() => import('../pages/brackets/PDFPage.jsx'));
 
 export const MyActivitiesPage = lazy(() => import('../pages/activities/MyActivitiesPage.jsx'));
+
+export const FriendsPage = lazy(() => import('../pages/friends/FriendsPage'));
