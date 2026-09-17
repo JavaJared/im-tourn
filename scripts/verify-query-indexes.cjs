@@ -2,7 +2,7 @@
 // Exercise each new query before the frontend readiness marker advances.
 process.env.GCLOUD_PROJECT = process.env.FIREBASE_PROJECT_ID;
 const api = require('../functions/index.js');
-const auth = { uid: '__deployment_index_probe__', token: {} };
+const auth = { uid: 'deployment-index-probe-user', token: {} };
 async function verify() {
   const friends = require('../functions/friends').internal;
   const probes = [
