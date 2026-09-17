@@ -302,56 +302,44 @@ export async function getAllRankings() {
 /**
  * Get all rankings created by a specific user. Used by the My Rankings page.
  */
-export async function getUserCreatedRankings(userId) {
-  const q = query(
-    collection(db, RANKINGS_COLLECTION),
-    where('hostId', '==', userId),
-    orderBy('createdAt', 'desc')
-  );
-  const snap = await getDocs(q);
-  return snap.docs.map(d => {
-    const data = d.data();
-    const { consensusRanking, ...rest } = data;
-    return {
-      id: d.id,
-      ...rest,
-      createdAt: data.createdAt?.toDate?.() || null,
-    };
-  });
+function personalRanking(snap) {
+  const { consensusRanking, ...data } = snap.data();
+  const value = data.createdAt;
+  const date = typeof value?.toDate === 'function' ? value.toDate() : null;
+  return { ...data, id: snap.id, createdAt: date instanceof Date && Number.isFinite(date.getTime()) ? date : null };
 }
 
-/**
- * Get all rankings a user has voted in. Used by the My Rankings page.
- */
-export async function getUserVotedRankings(userId) {
-  const q = query(
-    collection(db, RANKING_VOTES_COLLECTION),
-    where('userId', '==', userId)
-  );
-  const snap = await getDocs(q);
-  const rankingIds = snap.docs.map(d => d.data().rankingId);
-  if (rankingIds.length === 0) return [];
+function newestRankings(rankings) {
+  return rankings.sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0) || a.id.localeCompare(b.id));
+}
 
-  const rankings = await Promise.all(
-    rankingIds.map(async (rid) => {
-      const ref = doc(db, RANKINGS_COLLECTION, rid);
-      const snap = await getDoc(ref);
-      if (!snap.exists()) return null;
-      const data = snap.data();
-      const { consensusRanking, ...rest } = data;
-      return {
-        id: snap.id,
-        ...rest,
-        createdAt: data.createdAt?.toDate?.() || null,
-      };
-    })
-  );
-  return rankings
-    .filter(r => r !== null)
-    .sort((a, b) => {
-      if (!a.createdAt || !b.createdAt) return 0;
-      return b.createdAt - a.createdAt;
-    });
+export async function getUserCreatedRankings(userId) {
+  // This personal list already loads all matches. Sort locally so older records
+  // without createdAt are included and no composite index is required.
+  const snap = await getDocs(query(
+    collection(db, RANKINGS_COLLECTION), where('hostId', '==', userId)
+  ));
+  return newestRankings(snap.docs.map(personalRanking));
+}
+
+/** Get rankings the user voted in, including their own rankings. */
+export async function getUserVotedRankings(userId) {
+  const snap = await getDocs(query(
+    collection(db, RANKING_VOTES_COLLECTION), where('userId', '==', userId)
+  ));
+  const rankingIds = [...new Set(snap.docs.map(d => d.data().rankingId)
+    .filter(id => typeof id === 'string' && id.trim().length > 0 && !id.includes('/')))];
+  const rankings = [];
+  // Bound concurrent reads, and avoid repeated downloads for duplicate ballots.
+  for (let offset = 0; offset < rankingIds.length; offset += 10) {
+    const batch = await Promise.all(rankingIds.slice(offset, offset + 10).map(async id => {
+      const parent = await getDoc(doc(db, RANKINGS_COLLECTION, id));
+      return parent.exists() ? personalRanking(parent) : null;
+    }));
+    rankings.push(...batch.filter(Boolean));
+  }
+  // Request failures propagate to the retry UI; deleted parents are omitted.
+  return newestRankings(rankings);
 }
 
 /**

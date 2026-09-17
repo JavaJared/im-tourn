@@ -5,33 +5,31 @@ import { RankingCard } from './shared';
 
 export const MyRankingsPage = ({ onNavigate }) => {
   const { currentUser } = useAuth();
-  const [created, setCreated] = useState([]);
-  const [voted, setVoted] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const userId = currentUser?.uid;
+  const [results, setResults] = useState({});
+  const [attempt, setAttempt] = useState(0);
   const [activeTab, setActiveTab] = useState('created');
 
   useEffect(() => {
-    if (currentUser) {
-      loadAll();
-    } else {
-      setLoading(false);
+    let cancelled = false;
+    setResults({ userId });
+    if (userId) {
+      for (const [tab, load] of Object.entries({ created: getUserCreatedRankings, voted: getUserVotedRankings })) {
+        Promise.resolve().then(() => load(userId)).then(
+          data => { if (!cancelled) setResults(previous => ({ ...previous, [tab]: { data } })); },
+          error => {
+            console.error(`Error loading ${tab} rankings:`, error);
+            if (!cancelled) setResults(previous => ({ ...previous, [tab]: { error: true } }));
+          }
+        );
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser]);
+    return () => { cancelled = true; };
+  }, [userId, attempt]);
 
-  const loadAll = async () => {
-    try {
-      const [createdData, votedData] = await Promise.all([
-        getUserCreatedRankings(currentUser.uid),
-        getUserVotedRankings(currentUser.uid),
-      ]);
-      setCreated(createdData);
-      setVoted(votedData.filter(r => r.hostId !== currentUser.uid));
-    } catch (err) {
-      console.error('Error loading my rankings:', err);
-    }
-    setLoading(false);
-  };
+  // Never show another account's results while its replacement request starts.
+  const current = results.userId === userId ? results : {};
+  const selected = current[activeTab];
 
   if (!currentUser) {
     return (
@@ -46,18 +44,7 @@ export const MyRankingsPage = ({ onNavigate }) => {
     );
   }
 
-  if (loading) {
-    return (
-      <div className="home-container">
-        <div className="loading-state">
-          <div className="spinner"></div>
-          <p>Loading your rankings...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const list = activeTab === 'created' ? created : voted;
+  const list = selected?.data || [];
 
   return (
     <div className="home-container">
@@ -71,17 +58,24 @@ export const MyRankingsPage = ({ onNavigate }) => {
           className={`ranking-tab ${activeTab === 'created' ? 'active' : ''}`}
           onClick={() => setActiveTab('created')}
         >
-          Created ({created.length})
+          Created{current.created?.data ? ` (${current.created.data.length})` : ''}
         </button>
         <button
           className={`ranking-tab ${activeTab === 'voted' ? 'active' : ''}`}
           onClick={() => setActiveTab('voted')}
         >
-          Voted In ({voted.length})
+          Voted In{current.voted?.data ? ` (${current.voted.data.length})` : ''}
         </button>
       </div>
 
-      {list.length === 0 ? (
+      {!selected ? (
+        <div className="loading-state" role="status">Loading your rankings...</div>
+      ) : selected.error ? (
+        <div className="empty-state" role="alert">
+          <p>We couldn't load your {activeTab === 'created' ? 'created rankings' : 'ranking votes'}. Please try again.</p>
+          <button className="nav-btn" onClick={() => setAttempt(value => value + 1)}>Retry loading rankings</button>
+        </div>
+      ) : list.length === 0 ? (
         <div className="empty-state">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M4 6h16M4 12h16M4 18h7" />
