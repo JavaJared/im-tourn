@@ -1,3 +1,5 @@
+import FriendFilter from '../friends/FriendFilter';
+import FriendActivityDialog from '../friends/FriendActivityDialog';
 import { usePagedCatalog } from '../../lib/usePagedCatalog';
 import CatalogControls from '../../components/CatalogControls';
 import { useState } from 'react';
@@ -6,7 +8,10 @@ import { RankingCard, pickFeaturedRanking, FeaturedRankingCard } from './shared'
 
 export const RankingsBrowsePage = ({ onNavigate }) => {
   const { currentUser } = useAuth();
-  const catalog = usePagedCatalog(['ranking']);
+  const [friendId, setFriendId] = useState(''), [friendMode, setFriendMode] = useState('created'), [friendSelection, setFriendSelection] = useState(null);
+  const activeFriend = currentUser ? friendId : '';
+  const catalog = usePagedCatalog(['ranking'], { endpoint:activeFriend ? 'listFriendActivities' : 'browseCatalog', params:activeFriend ? {friendId:activeFriend, mode:friendMode} : {}, scope:currentUser?.uid || '' });
+  const openRanking = ranking => activeFriend && friendMode === 'filled' ? setFriendSelection(ranking) : onNavigate(`ranking-${ranking.id}`);
   const rankings = catalog.items, loading = catalog.loading && !rankings.length;
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -37,9 +42,10 @@ export const RankingsBrowsePage = ({ onNavigate }) => {
     setSearchTerm('');
     setSelectedCategory('');
     setSortBy('newest');
+    setFriendId(''); setFriendSelection(null);
   };
 
-  const hasActiveFilters = searchTerm || selectedCategory || sortBy !== 'newest';
+  const hasActiveFilters = searchTerm || selectedCategory || sortBy !== 'newest' || activeFriend;
 
   return (
     <div className="home-container">
@@ -51,7 +57,7 @@ export const RankingsBrowsePage = ({ onNavigate }) => {
         )}
       </div>
 
-      {!loading && featured && (
+      {!activeFriend && !loading && featured && (
         <>
           <div className="section-title">FEATURED TODAY</div>
           <FeaturedRankingCard
@@ -63,6 +69,7 @@ export const RankingsBrowsePage = ({ onNavigate }) => {
 
       <div className="section-title">BROWSE RANKINGS</div>
 
+      <FriendFilter friendId={activeFriend} mode={friendMode} onFriendChange={id => {setFriendId(id); setFriendSelection(null);}} onModeChange={mode => {setFriendMode(mode); setFriendSelection(null);}} />
       <div className="filter-bar">
         <div className="search-box">
           <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -70,7 +77,8 @@ export const RankingsBrowsePage = ({ onNavigate }) => {
             <path d="m21 21-4.3-4.3" />
           </svg>
           <input
-            type="text"
+            type="search"
+            aria-label="Search rankings"
             placeholder="Search rankings..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
@@ -80,6 +88,7 @@ export const RankingsBrowsePage = ({ onNavigate }) => {
 
         {categories.length > 0 && (
           <select
+            aria-label="Filter ranking category"
             value={selectedCategory}
             onChange={e => setSelectedCategory(e.target.value)}
             className="filter-select"
@@ -131,8 +140,8 @@ export const RankingsBrowsePage = ({ onNavigate }) => {
           </svg>
           {rankings.length === 0 ? (
             <>
-              <p>No rankings yet. Be the first to create one!</p>
-              {currentUser && (
+              <p>{catalog.error ? 'Rankings could not be loaded.' : activeFriend ? 'No shared rankings on this page. Load more if available.' : 'No rankings yet. Be the first to create one!'}</p>
+              {currentUser && !activeFriend && !catalog.error && (
                 <button className="nav-btn" onClick={() => onNavigate('create-ranking')} style={{ marginTop: '1rem' }}>
                   Create the First Ranking
                 </button>
@@ -148,12 +157,13 @@ export const RankingsBrowsePage = ({ onNavigate }) => {
             <RankingCard
               key={r.id}
               ranking={r}
-              onClick={() => onNavigate(`ranking-${r.id}`)}
+              onClick={() => openRanking(r)}
             />
           ))}
         </div>
       )}
       <CatalogControls catalog={catalog} />
+      <FriendActivityDialog selection={friendSelection} friendId={activeFriend} onClose={() => setFriendSelection(null)} />
     </div>
   );
 };

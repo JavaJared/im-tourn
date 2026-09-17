@@ -1,3 +1,5 @@
+import FriendFilter from '../friends/FriendFilter';
+import FriendActivityDialog from '../friends/FriendActivityDialog';
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getBracketById } from '../../services/bracketService';
@@ -7,7 +9,10 @@ import { CUSTOM_BADGE_STYLE } from '../../components/brackets/customBracketPrese
 import SubmissionsModal from '../../components/dialogs/SubmissionsModal.jsx';
 
 const HomePage = ({ onFillOut, onNavigate }) => {
-  const catalog = usePagedCatalog(['legacy', 'custom']);
+  const { currentUser } = useAuth();
+  const [friendId, setFriendId] = useState(''), [friendMode, setFriendMode] = useState('created'), [friendSelection, setFriendSelection] = useState(null);
+  const activeFriend = currentUser ? friendId : '';
+  const catalog = usePagedCatalog(['legacy', 'custom'], { endpoint: activeFriend ? 'listFriendActivities' : 'browseCatalog', params: activeFriend ? {friendId:activeFriend, mode:friendMode} : {}, scope:currentUser?.uid || '' });
   const brackets = catalog.items, loading = catalog.loading && !brackets.length;
   const [fillError, setFillError] = useState('');
   const [openingId, setOpeningId] = useState(null);
@@ -16,9 +21,9 @@ const HomePage = ({ onFillOut, onNavigate }) => {
   const [sortBy, setSortBy] = useState('newest');
   const [showSubmissionsModal, setShowSubmissionsModal] = useState(false);
   const [selectedBracketForSubmissions, setSelectedBracketForSubmissions] = useState(null);
-  const { currentUser } = useAuth();
 
   const openLegacy = async bracket => {
+    if (activeFriend && friendMode === 'filled') { setFriendSelection(bracket); return; }
     if (openingId) return;
     setOpeningId(bracket.id); setFillError('');
     try {
@@ -62,9 +67,10 @@ const HomePage = ({ onFillOut, onNavigate }) => {
     setSearchTerm('');
     setSelectedCategory('');
     setSortBy('newest');
+    setFriendId(''); setFriendSelection(null);
   };
 
-  const hasActiveFilters = searchTerm || selectedCategory || sortBy !== 'newest';
+  const hasActiveFilters = searchTerm || selectedCategory || sortBy !== 'newest' || activeFriend;
 
   return (
     <div className="home-container">
@@ -81,6 +87,7 @@ const HomePage = ({ onFillOut, onNavigate }) => {
 
       <h2 className="section-title">BROWSE BRACKETS</h2>
 
+      <FriendFilter friendId={activeFriend} mode={friendMode} onFriendChange={id => {setFriendId(id); setFriendSelection(null);}} onModeChange={mode => {setFriendMode(mode); setFriendSelection(null);}} />
       {/* Search and Filter Bar */}
       <div className="filter-bar">
         <div className="search-box" role="search" aria-label="Brackets">
@@ -211,10 +218,11 @@ const HomePage = ({ onFillOut, onNavigate }) => {
                       className="fill-btn"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onNavigate(`custom-bracket-${bracket.id}`);
+                        if (activeFriend && friendMode === 'filled') setFriendSelection(bracket);
+                        else onNavigate(`custom-bracket-${bracket.id}`);
                       }}
                     >
-                      View<span className="sr-only"> {bracket.title}</span>
+                      {activeFriend && friendMode === 'filled' ? 'View friend’s picks' : 'View'}<span className="sr-only"> {bracket.title}</span>
                     </button>
                   </div>
                 </div>
@@ -234,7 +242,7 @@ const HomePage = ({ onFillOut, onNavigate }) => {
                     <span className="bracket-author">by {bracket.userDisplayName}</span>
                   </div>
                   <div className="bracket-buttons">
-                    <button
+                    {!(activeFriend && friendMode === 'filled') && <button
                       className="view-submissions-btn"
                       onClick={() => {
                         setSelectedBracketForSubmissions(bracket);
@@ -242,9 +250,9 @@ const HomePage = ({ onFillOut, onNavigate }) => {
                       }}
                     >
                       Submissions<span className="sr-only"> for {bracket.title}</span>
-                    </button>
+                    </button>}
                     <button className="fill-btn" disabled={!!openingId} onClick={() => openLegacy(bracket)}>
-                      Fill Out<span className="sr-only"> {bracket.title}</span>
+                      {activeFriend && friendMode === 'filled' ? 'View friend’s picks' : 'Fill Out'}<span className="sr-only"> {bracket.title}</span>
                     </button>
                   </div>
                 </div>
@@ -256,6 +264,7 @@ const HomePage = ({ onFillOut, onNavigate }) => {
 
       {fillError && <p role="alert">{fillError}</p>}
       <CatalogControls catalog={catalog} />
+      <FriendActivityDialog selection={friendSelection} friendId={activeFriend} onClose={() => setFriendSelection(null)} />
       <SubmissionsModal
         isOpen={showSubmissionsModal}
         onClose={() => {
