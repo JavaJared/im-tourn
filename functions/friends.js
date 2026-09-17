@@ -208,7 +208,10 @@ exports.getUserProfile = onCall(async req => {
     stats: {
       createdBrackets: legacyCreated.size + customCreated.size,
       createdRankings: rankingCreated.size,
-      filledBrackets: legacyFilled.size + customFilled.size,
+      // Collection-group queries include the root `submissions` collection;
+      // count only nested custom-bracket fills here so legacy submissions are
+      // not counted twice.
+      filledBrackets: legacyFilled.size + customFilled.docs.filter(doc => doc.ref.parent.parent?.parent?.id === 'customBrackets').length,
       filledRankings: rankingFilled.size,
       poolsJoined: joinedEntries.length,
       completedPools: rankRows.length,
