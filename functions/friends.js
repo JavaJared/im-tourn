@@ -19,6 +19,10 @@ async function accepted(uid, friendId) {
   if (snap.data()?.status !== 'accepted') throw new HttpsError('permission-denied', 'An accepted friend request is required. Refresh your friends list.');
   return snap.data();
 }
+async function canView(uid, profileId) {
+  if (uid === profileId) return;
+  await accepted(uid, profileId);
+}
 exports.getFriendProfile = onCall(async req => {
   const uid = uidOf(req), profileRef = db.doc(`friendProfiles/${uid}`);
   return db.runTransaction(async tx => {
@@ -98,7 +102,7 @@ function activityQuery(type, mode, friendId) {
 }
 exports.listFriendActivities = onCall(async req => {
   const uid = uidOf(req), { friendId, type, mode = 'created', cursor } = req.data || {};
-  await accepted(uid, friendId);
+  await canView(uid, friendId);
   let { source, query } = activityQuery(type, mode, friendId);
   if (cursor) {
     const valid = source.group ? typeof cursor === 'string' && /^(?:[\w-]{1,200}\/[\w-]{1,200}\/)*submissions\/[\w-]{1,200}$/.test(cursor) : validId(cursor);
@@ -118,13 +122,13 @@ exports.listFriendActivities = onCall(async req => {
     return [{ ...summary(type, id, parent), id: mode === 'filled' && !source.group ? doc.id : id, bracketId: id, activityId: source.group ? doc.ref.path : doc.id, activityType: type }];
   });
   // Revoked relationships must not receive a completed response from a slow query.
-  await accepted(uid, friendId);
+  await canView(uid, friendId);
   return { items, nextCursor: snap.size > 12 ? (source.group ? page.at(-1).ref.path : page.at(-1).id) : null };
 });
 const parse = value => { try { return typeof value === 'string' ? JSON.parse(value) : value; } catch { return null; } };
 exports.getFriendActivity = onCall(async req => {
   const uid = uidOf(req), { friendId, type, activityId } = req.data || {};
-  await accepted(uid, friendId);
+  await canView(uid, friendId);
   const source = sourceOf(type, 'filled');
   const valid = source.group ? typeof activityId === 'string' && /^customBrackets\/[\w-]{1,200}\/submissions\/[\w-]{1,200}$/.test(activityId) : validId(activityId);
   if (!valid) throw new HttpsError('invalid-argument', 'Invalid saved activity.');
@@ -151,7 +155,67 @@ exports.getFriendActivity = onCall(async req => {
     for (const box of Object.values(boxes)) for (const slot of ['slotA','slotB']) if (box?.[slot]?.type === 'named') labels[box[slot].participantId] = name(box[slot].name);
     sections = rounds.map((r, i) => ({ title:`Round ${i + 1}`, choices: (Array.isArray(r) ? r : Array.isArray(r?.ids) ? r.ids : []).slice(0,512).map(id => labels[data.picks?.[id]] || 'No pick saved') }));
   }
-  await accepted(uid, friendId);
+  await canView(uid, friendId);
   return { title: name(parent.title), sections };
 });
-exports.internal = { pairRef, activityQuery };
+
+exports.getUserProfile = onCall(async req => {
+  const viewerId = uidOf(req), profileId = req.data?.profileId || viewerId;
+  if (!validId(profileId)) throw new HttpsError('invalid-argument', 'Invalid profile.');
+  await canView(viewerId, profileId);
+
+  const [profileSnap, legacyCreated, customCreated, rankingCreated, legacyFilled, customFilled, rankingFilled, joined] = await Promise.all([
+    db.doc(`friendProfiles/${profileId}`).get(),
+    db.collection('brackets').where('userId', '==', profileId).select('title').limit(201).get(),
+    db.collection('customBrackets').where('hostId', '==', profileId).where('status', 'in', ['published', 'locked', 'complete']).select('title').limit(201).get(),
+    db.collection('rankings').where('hostId', '==', profileId).where('status', 'in', ['open', 'closed']).select('title').limit(201).get(),
+    db.collection('submissions').where('userId', '==', profileId).select('bracketId').limit(201).get(),
+    db.collectionGroup('submissions').where('userId', '==', profileId).select('createdAt').limit(201).get(),
+    db.collection('rankingVotes').where('userId', '==', profileId).select('rankingId').limit(201).get(),
+    db.collection('poolEntries').where('userId', '==', profileId).select('poolId', 'score', 'submittedAt').limit(201).get(),
+  ]);
+
+  const profileData = profileSnap.data() || {};
+  let displayName = name(profileData.displayName);
+  if (displayName === 'I’m Tourn user') {
+    const candidate = legacyCreated.docs[0]?.data()?.userDisplayName || rankingCreated.docs[0]?.data()?.hostDisplayName;
+    displayName = name(candidate);
+  }
+
+  const joinedEntries = joined.docs.filter(doc => validId(doc.data().poolId));
+  const poolIds = [...new Set(joinedEntries.map(doc => doc.data().poolId))].slice(0, 100);
+  const poolRefs = poolIds.map(id => db.doc(`bracketPools/${id}`));
+  const pools = poolRefs.length ? await db.getAll(...poolRefs) : [];
+  const completed = pools.filter(pool => pool.exists && pool.data().status === 'completed');
+  const rankRows = [];
+  let poolsWon = 0;
+  for (const pool of completed) {
+    const poolData = pool.data();
+    const mine = joinedEntries.find(entry => entry.data().poolId === pool.id);
+    if (!mine) continue;
+    const entries = await db.collection('poolEntries').where('poolId', '==', pool.id).select('userId', 'score').limit(201).get();
+    const score = Number.isFinite(mine.data().score) ? mine.data().score : null;
+    if (score == null || !entries.docs.length) continue;
+    const rank = 1 + entries.docs.filter(entry => Number.isFinite(entry.data().score) && entry.data().score > score).length;
+    rankRows.push(rank);
+    if (poolData.winnerId === profileId || (Array.isArray(poolData.winnerIds) && poolData.winnerIds.includes(profileId))) poolsWon += 1;
+  }
+  const averageFinalRank = rankRows.length ? Math.round((rankRows.reduce((sum, rank) => sum + rank, 0) / rankRows.length) * 10) / 10 : null;
+  return {
+    id: profileId,
+    displayName,
+    isSelf: viewerId === profileId,
+    stats: {
+      createdBrackets: legacyCreated.size + customCreated.size,
+      createdRankings: rankingCreated.size,
+      filledBrackets: legacyFilled.size + customFilled.size,
+      filledRankings: rankingFilled.size,
+      poolsJoined: joinedEntries.length,
+      completedPools: rankRows.length,
+      averageFinalRank,
+      highestFinalRank: rankRows.length ? Math.min(...rankRows) : null,
+      poolsWon,
+    },
+  };
+});
+exports.internal = { pairRef, activityQuery, canView };
