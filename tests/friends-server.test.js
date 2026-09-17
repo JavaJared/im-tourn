@@ -101,4 +101,21 @@ run('accepted friends and shared activity', () => {
     await db.doc('brackets/b').delete();
     expect((await call('listFriendActivities','alice',{friendId:'bob',type:'legacy',mode:'filled'})).items).toEqual([]);
   });
+  test('profiles expose counts and completed pool finishes only to the owner or friend', async () => {
+    await connect();
+    await db.doc('friendProfiles/bob').set({ displayName: 'Bob' });
+    await db.doc('brackets/created').set({ userId: 'bob', title: 'Created bracket' });
+    await db.doc('customBrackets/created').set({ hostId: 'bob', title: 'Custom bracket', status: 'published' });
+    await db.doc('rankings/created').set({ hostId: 'bob', title: 'Ranking', status: 'open' });
+    await db.doc('submissions/saved').set({ userId: 'bob', bracketId: 'created' });
+    await db.doc('customBrackets/created/submissions/bob').set({ userId: 'bob', createdAt: Timestamp.now() });
+    await db.doc('rankingVotes/ranking_bob').set({ userId: 'bob', rankingId: 'created' });
+    await db.doc('bracketPools/pool').set({ status: 'completed', winnerIds: ['alice'], winnerId: 'alice' });
+    await db.doc('poolEntries/pool_bob').set({ userId: 'bob', poolId: 'pool', score: 7, submittedAt: Timestamp.now() });
+    await db.doc('poolEntries/pool_alice').set({ userId: 'alice', poolId: 'pool', score: 9, submittedAt: Timestamp.now() });
+    const profile = await call('getUserProfile', 'alice', { profileId: 'bob' });
+    expect(profile).toMatchObject({ displayName: 'Bob', isSelf: false, stats: { createdBrackets: 2, createdRankings: 1, filledBrackets: 2, filledRankings: 1, poolsJoined: 1, completedPools: 1, averageFinalRank: 2, highestFinalRank: 2, poolsWon: 0 } });
+    await call('respondToFriend', 'alice', { friendId: 'bob', action: 'remove' });
+    await expect(call('getUserProfile', 'alice', { profileId: 'bob' })).rejects.toMatchObject({ code: 'permission-denied' });
+  });
 });

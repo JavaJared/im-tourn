@@ -123,6 +123,7 @@ const Header = ({ onNavigate, currentView }) => {
 
               {showUserMenu && (
                 <div className="user-dropdown" id="account-links">
+                  <button onClick={() => { onNavigate('profile'); setShowUserMenu(false); }}>Profile</button>
                   <button onClick={() => { onNavigate('friends'); setShowUserMenu(false); }}>Friends</button>
                   <button onClick={() => { onNavigate('my-activities'); setShowUserMenu(false); }}>My Activities</button>
                   <button

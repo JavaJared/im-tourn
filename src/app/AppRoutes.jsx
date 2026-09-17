@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 import BracketUrlPage from '../pages/brackets/BracketUrlPage';
 import {
   FriendsPage,
+  ProfilePage,
   RankingsBrowsePage,
   CreateRankingPage,
   RankingDetailPage,
@@ -55,6 +56,8 @@ export default function AppRoutes({
       {view === 'not-found' && <section className="home-container"><h1>Page not found</h1><p>This link does not match an available page.</p><button className="nav-btn" onClick={() => setView('home')}>Back to browse</button></section>}
       {view === 'home' && <HomePage onFillOut={handleFillOut} onNavigate={setView} />}
       {view === 'friends' && <FriendsPage key={currentUser?.uid || 'guest'} onNavigate={setView} />}
+      {view === 'profile' && <ProfilePage onNavigate={setView} />}
+      {view.startsWith('profile-') && <ProfilePage profileId={view.slice('profile-'.length)} onNavigate={setView} />}
       {view === 'my-activities' && <MyActivitiesPage key={currentUser?.uid || 'guest'} onNavigate={setView} onFillOut={handleFillOut} onViewSaved={handleSubmitFilled} />}
       {view === 'my-brackets' && <MyBracketsPage onFillOut={handleFillOut} onNavigate={setView} />}
       {view === 'create' && <CreatePage onNavigate={setView} />}
