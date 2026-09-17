@@ -12,7 +12,9 @@ async function verify() {
     ...['legacy','custom','ranking','draft'].map(type => () => api.browseCatalog.run({ data: { type } })),
     ...['hosted','joined'].map(mine => () => api.browseCatalog.run({ auth, data: { type: 'draft', mine } })),
     ...['bracket','prediction'].flatMap(poolType => ['hosted','joined'].map(type => () => api.listUserPools.run({ auth, data: { type, poolType } }))),
-    () => api.listSubmissionSummaries.run({ data: { bracketId: '__deployment_index_probe__' } }),
+    // Firestore reserves IDs wrapped in double underscores; use a valid synthetic
+    // ID so the probe tests the query instead of failing validation first.
+    () => api.listSubmissionSummaries.run({ data: { bracketId: 'deployment-index-probe-0001' } }),
     () => api.getUserProfile.run({ auth, data: { profileId: auth.uid } }),
   ];
   for (let attempt = 0; attempt < 60; attempt++) {
