@@ -13,6 +13,7 @@ async function verify() {
     ...['hosted','joined'].map(mine => () => api.browseCatalog.run({ auth, data: { type: 'draft', mine } })),
     ...['bracket','prediction'].flatMap(poolType => ['hosted','joined'].map(type => () => api.listUserPools.run({ auth, data: { type, poolType } }))),
     () => api.listSubmissionSummaries.run({ data: { bracketId: '__deployment_index_probe__' } }),
+    () => api.getUserProfile.run({ auth, data: { profileId: auth.uid } }),
   ];
   for (let attempt = 0; attempt < 60; attempt++) {
     try { for (const probe of probes) await probe(); console.log('Catalog query indexes are ready.'); return; }
