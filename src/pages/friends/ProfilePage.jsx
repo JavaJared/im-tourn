@@ -83,7 +83,7 @@ export default function ProfilePage({ profileId, onNavigate }) {
       }}>{requestState.busy ? 'Sending…' : 'Add friend'}</button>}
     </div>
     {requestState.message && <p role="status">{requestState.message}</p>}
-    {requestState.error && <p role="alert">{requestState.error}</p>
+    {requestState.error && <p role="alert">{requestState.error}</p>}
     <p className="profile-privacy">Published creations are visible here. Filled choices and pool statistics are shared only with you and accepted friends. Private pool predictions and unpublished drafts are never included.</p>
     <section className="profile-stats" aria-label="Profile statistics">
       {statLabels.map(([key, label]) => <div className="profile-stat" key={key}><strong>{profile.stats[key] == null ? '—' : profile.stats[key]}</strong><span>{label}</span></div>)}
