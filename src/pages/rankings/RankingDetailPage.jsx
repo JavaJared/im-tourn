@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import UserLink from '../../components/layout/UserLink';
 import { getRankingById, getUserRankingVote, updateRankingDescription, closeRanking, reopenRanking, deleteRanking, parseConsensus } from '../../services/rankingService';
 
 export const RankingDetailPage = ({ rankingId, onNavigate }) => {
@@ -115,7 +116,7 @@ export const RankingDetailPage = ({ rankingId, onNavigate }) => {
           )}
         </div>
         <p className="pool-detail-meta">
-          by {ranking.hostDisplayName} · {ranking.entryCount} entries · {ranking.voteCount || 0} {(ranking.voteCount === 1) ? 'vote' : 'votes'}
+          by <UserLink userId={ranking.hostId} name={ranking.hostDisplayName} onNavigate={onNavigate} /> · {ranking.entryCount} entries · {ranking.voteCount || 0} {(ranking.voteCount === 1) ? 'vote' : 'votes'}
           {ranking.category && <> · {ranking.category}</>}
         </p>
 

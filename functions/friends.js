@@ -26,6 +26,11 @@ async function canView(uid, profileId) {
 
 async function safeProfileQuery(label, run, fallback) {
   try { return await run(); }
+  catch (error) { console.error(`getUserProfile ${label} failed`, error); return fallback; }
+}
+
+async function safeProfileQuery(label, run, fallback) {
+  try { return await run(); }
   catch (error) {
     console.error(`getUserProfile ${label} failed`, error);
     return fallback;
@@ -47,9 +52,14 @@ exports.getFriendProfile = onCall(async req => {
   });
 });
 exports.sendFriendRequest = onCall(async req => {
-  const uid = uidOf(req), code = String(req.data?.code || '').replace(/[\s-]/g, '').toUpperCase();
-  if (!/^[A-F0-9]{24}$/.test(code)) throw new HttpsError('invalid-argument', 'Enter a valid friend code.');
-  const target = (await db.doc(`friendCodes/${code}`).get()).data()?.uid;
+  const uid = uidOf(req), requestedId = req.data?.friendId;
+  const code = String(req.data?.code || '').replace(/[\s-]/g, '').toUpperCase();
+  let target;
+  if (validId(requestedId)) target = requestedId;
+  else {
+    if (!/^[A-F0-9]{24}$/.test(code)) throw new HttpsError('invalid-argument', 'Enter a valid friend code.');
+    target = (await db.doc(`friendCodes/${code}`).get()).data()?.uid;
+  }
   if (!validId(target)) throw new HttpsError('not-found', 'That friend code was not found.');
   if (uid === target) throw new HttpsError('invalid-argument', 'You cannot add yourself.');
   return db.runTransaction(async tx => {
@@ -110,7 +120,7 @@ function activityQuery(type, mode, friendId) {
 }
 exports.listFriendActivities = onCall(async req => {
   const uid = uidOf(req), { friendId, type, mode = 'created', cursor } = req.data || {};
-  await canView(uid, friendId);
+  if (mode === 'filled') await canView(uid, friendId);
   let { source, query } = activityQuery(type, mode, friendId);
   if (cursor) {
     const valid = source.group ? typeof cursor === 'string' && /^(?:[\w-]{1,200}\/[\w-]{1,200}\/)*submissions\/[\w-]{1,200}$/.test(cursor) : validId(cursor);
@@ -130,7 +140,7 @@ exports.listFriendActivities = onCall(async req => {
     return [{ ...summary(type, id, parent), id: mode === 'filled' && !source.group ? doc.id : id, bracketId: id, activityId: source.group ? doc.ref.path : doc.id, activityType: type }];
   });
   // Revoked relationships must not receive a completed response from a slow query.
-  await canView(uid, friendId);
+  if (mode === 'filled') await canView(uid, friendId);
   return { items, nextCursor: snap.size > 12 ? (source.group ? page.at(-1).ref.path : page.at(-1).id) : null };
 });
 const parse = value => { try { return typeof value === 'string' ? JSON.parse(value) : value; } catch { return null; } };
@@ -215,6 +225,9 @@ exports.getUserProfile = onCall(async req => {
     id: profileId,
     displayName,
     isSelf: viewerId === profileId,
+    relationship,
+    canViewPrivate: privateAccess,
+    canSendFriendRequest: !privateAccess && relationship === 'none',
     stats: {
       createdBrackets: legacyCreated.size + customCreated.docs.filter(doc => ['published', 'locked', 'complete'].includes(doc.data().status)).length,
       createdRankings: rankingCreated.docs.filter(doc => ['open', 'closed'].includes(doc.data().status)).length,

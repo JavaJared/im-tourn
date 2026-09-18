@@ -1,3 +1,4 @@
+import UserLink from '../../components/layout/UserLink';
 import { StatusBadge, WhatNeedsToHappen } from '../../components/EliminationStatus';
 
 export default function PoolLeaderboard({
@@ -7,6 +8,7 @@ export default function PoolLeaderboard({
   currentUser,
   setViewingEntry,
   showWinningPaths,
+  onNavigate,
 }) {
   return (
     <div className="pool-leaderboard">
@@ -40,7 +42,7 @@ export default function PoolLeaderboard({
                 {index === 0 && entries.length > 1 ? '👑' : `#${index + 1}`}
               </span>
               <span className="lb-name">
-                {participantEntry.userDisplayName}
+                <UserLink userId={participantEntry.userId} name={participantEntry.userDisplayName} onNavigate={onNavigate} />
                 {entryStatus && (
                   <>
                     {' '}
