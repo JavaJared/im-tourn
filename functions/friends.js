@@ -23,6 +23,14 @@ async function canView(uid, profileId) {
   if (uid === profileId) return;
   await accepted(uid, profileId);
 }
+
+async function safeProfileQuery(label, run, fallback) {
+  try { return await run(); }
+  catch (error) {
+    console.error(`getUserProfile ${label} failed`, error);
+    return fallback;
+  }
+}
 exports.getFriendProfile = onCall(async req => {
   const uid = uidOf(req), profileRef = db.doc(`friendProfiles/${uid}`);
   return db.runTransaction(async tx => {
@@ -164,15 +172,17 @@ exports.getUserProfile = onCall(async req => {
   if (!validId(profileId)) throw new HttpsError('invalid-argument', 'Invalid profile.');
   await canView(viewerId, profileId);
 
+  const empty = { docs: [], size: 0 };
+  const emptyProfile = { exists: false, data: () => ({}) };
   const [profileSnap, legacyCreated, customCreated, rankingCreated, legacyFilled, customFilled, rankingFilled, joined] = await Promise.all([
-    db.doc(`friendProfiles/${profileId}`).get(),
-    db.collection('brackets').where('userId', '==', profileId).select('title').limit(201).get(),
-    db.collection('customBrackets').where('hostId', '==', profileId).select('title', 'status').limit(201).get(),
-    db.collection('rankings').where('hostId', '==', profileId).select('title', 'status').limit(201).get(),
-    db.collection('submissions').where('userId', '==', profileId).select('bracketId').limit(201).get(),
-    db.collectionGroup('submissions').where('userId', '==', profileId).select('createdAt').limit(201).get(),
-    db.collection('rankingVotes').where('userId', '==', profileId).select('rankingId').limit(201).get(),
-    db.collection('poolEntries').where('userId', '==', profileId).select('poolId', 'score', 'submittedAt').limit(201).get(),
+    safeProfileQuery('profile', () => db.doc(`friendProfiles/${profileId}`).get(), emptyProfile),
+    safeProfileQuery('legacyCreated', () => db.collection('brackets').where('userId', '==', profileId).select('title').limit(201).get(), empty),
+    safeProfileQuery('customCreated', () => db.collection('customBrackets').where('hostId', '==', profileId).select('title', 'status').limit(201).get(), empty),
+    safeProfileQuery('rankingCreated', () => db.collection('rankings').where('hostId', '==', profileId).select('title', 'status').limit(201).get(), empty),
+    safeProfileQuery('legacyFilled', () => db.collection('submissions').where('userId', '==', profileId).select('bracketId').limit(201).get(), empty),
+    safeProfileQuery('customFilled', () => db.collectionGroup('submissions').where('userId', '==', profileId).select('createdAt').limit(201).get(), empty),
+    safeProfileQuery('rankingFilled', () => db.collection('rankingVotes').where('userId', '==', profileId).select('rankingId').limit(201).get(), empty),
+    safeProfileQuery('joined', () => db.collection('poolEntries').where('userId', '==', profileId).select('poolId', 'score', 'submittedAt').limit(201).get(), empty),
   ]);
 
   const profileData = profileSnap.data() || {};
@@ -185,7 +195,7 @@ exports.getUserProfile = onCall(async req => {
   const joinedEntries = joined.docs.filter(doc => validId(doc.data().poolId));
   const poolIds = [...new Set(joinedEntries.map(doc => doc.data().poolId))].slice(0, 100);
   const poolRefs = poolIds.map(id => db.doc(`bracketPools/${id}`));
-  const pools = poolRefs.length ? await db.getAll(...poolRefs) : [];
+  const pools = poolRefs.length ? await safeProfileQuery('poolDetails', () => db.getAll(...poolRefs), []) : [];
   const completed = pools.filter(pool => pool.exists && pool.data().status === 'completed');
   const rankRows = [];
   let poolsWon = 0;
@@ -193,7 +203,7 @@ exports.getUserProfile = onCall(async req => {
     const poolData = pool.data();
     const mine = joinedEntries.find(entry => entry.data().poolId === pool.id);
     if (!mine) continue;
-    const entries = await db.collection('poolEntries').where('poolId', '==', pool.id).select('userId', 'score').limit(201).get();
+    const entries = await safeProfileQuery(`poolEntries:${pool.id}`, () => db.collection('poolEntries').where('poolId', '==', pool.id).select('userId', 'score').limit(201).get(), empty);
     const score = Number.isFinite(mine.data().score) ? mine.data().score : null;
     if (score == null || !entries.docs.length) continue;
     const rank = 1 + entries.docs.filter(entry => Number.isFinite(entry.data().score) && entry.data().score > score).length;
