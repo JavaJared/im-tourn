@@ -62,6 +62,7 @@ export const RankingsBrowsePage = ({ onNavigate }) => {
           <div className="section-title">FEATURED TODAY</div>
           <FeaturedRankingCard
             ranking={featured}
+            onNavigate={onNavigate}
             onClick={() => onNavigate(`ranking-${featured.id}`)}
           />
         </>
@@ -157,6 +158,7 @@ export const RankingsBrowsePage = ({ onNavigate }) => {
             <RankingCard
               key={r.id}
               ranking={r}
+              onNavigate={onNavigate}
               onClick={() => openRanking(r)}
             />
           ))}
