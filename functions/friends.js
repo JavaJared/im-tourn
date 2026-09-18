@@ -167,8 +167,8 @@ exports.getUserProfile = onCall(async req => {
   const [profileSnap, legacyCreated, customCreated, rankingCreated, legacyFilled, customFilled, rankingFilled, joined] = await Promise.all([
     db.doc(`friendProfiles/${profileId}`).get(),
     db.collection('brackets').where('userId', '==', profileId).select('title').limit(201).get(),
-    db.collection('customBrackets').where('hostId', '==', profileId).where('status', 'in', ['published', 'locked', 'complete']).select('title').limit(201).get(),
-    db.collection('rankings').where('hostId', '==', profileId).where('status', 'in', ['open', 'closed']).select('title').limit(201).get(),
+    db.collection('customBrackets').where('hostId', '==', profileId).select('title', 'status').limit(201).get(),
+    db.collection('rankings').where('hostId', '==', profileId).select('title', 'status').limit(201).get(),
     db.collection('submissions').where('userId', '==', profileId).select('bracketId').limit(201).get(),
     db.collectionGroup('submissions').where('userId', '==', profileId).select('createdAt').limit(201).get(),
     db.collection('rankingVotes').where('userId', '==', profileId).select('rankingId').limit(201).get(),
@@ -206,8 +206,8 @@ exports.getUserProfile = onCall(async req => {
     displayName,
     isSelf: viewerId === profileId,
     stats: {
-      createdBrackets: legacyCreated.size + customCreated.size,
-      createdRankings: rankingCreated.size,
+      createdBrackets: legacyCreated.size + customCreated.docs.filter(doc => ['published', 'locked', 'complete'].includes(doc.data().status)).length,
+      createdRankings: rankingCreated.docs.filter(doc => ['open', 'closed'].includes(doc.data().status)).length,
       // Collection-group queries include the root `submissions` collection;
       // count only nested custom-bracket fills here so legacy submissions are
       // not counted twice.
