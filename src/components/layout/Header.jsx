@@ -125,33 +125,6 @@ const Header = ({ onNavigate, currentView }) => {
                 <div className="user-dropdown" id="account-links">
                   <button onClick={() => { onNavigate('profile'); setShowUserMenu(false); }}>Profile</button>
                   <button onClick={() => { onNavigate('friends'); setShowUserMenu(false); }}>Friends</button>
-                  <button onClick={() => { onNavigate('my-activities'); setShowUserMenu(false); }}>My Activities</button>
-                  <button
-                    onClick={() => {
-                      onNavigate('my-brackets');
-                      setShowUserMenu(false);
-                    }}
-                  >
-                    My Brackets
-                  </button>
-                  <button
-                    onClick={() => {
-                      onNavigate('my-rankings');
-                      setShowUserMenu(false);
-                    }}
-                  >
-                    My Rankings
-                  </button>
-                  {FEATURES.drafts && (
-                    <button
-                      onClick={() => {
-                        onNavigate('my-drafts');
-                        setShowUserMenu(false);
-                      }}
-                    >
-                      My Drafts
-                    </button>
-                  )}
                   {isAdmin && (
                     <button
                       onClick={() => {
