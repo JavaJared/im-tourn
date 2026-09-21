@@ -1,3 +1,4 @@
+import { ProfileNavigationContext } from './components/layout/UserLink';
 import NativeBridge from './mobile/NativeBridge';
 import './mobile/mobile.css';
 import AnalyticsConsent from './components/AnalyticsConsent';
@@ -27,7 +28,7 @@ function AppContent() {
   } = useAppState();
 
   return (
-    <div className="bracket-app">
+    <ProfileNavigationContext.Provider value={setView}><div className="bracket-app">
       <a className="skip-link" href="#main-content">Skip to main content</a>
       <NativeBridge />
       <PageMetadata view={view} />
@@ -55,7 +56,7 @@ function AppContent() {
       <FeedbackModal isOpen={showFeedbackModal} onClose={() => setShowFeedbackModal(false)} />
 
       {showTour && <GuidedTour onComplete={handleTourComplete} />}
-    </div>
+    </div></ProfileNavigationContext.Provider>
   );
 }
 

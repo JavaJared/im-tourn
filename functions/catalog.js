@@ -3,8 +3,8 @@ const { getFirestore, FieldPath } = require('firebase-admin/firestore');
 const db = getFirestore();
 const sources = {
   draft: { collection: 'drafts', fields: ['title','description','category','hostId','hostDisplayName','rounds','timerSeconds','status','participantCount','createdAt','schemaVersion'] },
-  legacy: { collection: 'brackets', fields: ['title','description','category','size','userDisplayName','createdAt'] },
-  custom: { collection: 'customBrackets', fields: ['title','description','category','participantCount','roundCount','hostName','status','type','createdAt'], statuses: ['published','locked','complete'] },
+  legacy: { collection: 'brackets', fields: ['userId','title','description','category','size','userDisplayName','createdAt'] },
+  custom: { collection: 'customBrackets', fields: ['hostId','title','description','category','participantCount','roundCount','hostName','status','type','createdAt'], statuses: ['published','locked','complete'] },
   ranking: { collection: 'rankings', fields: ['title','description','category','hostId','hostDisplayName','entryCount','voteCount','status','createdAt'], statuses: ['open','closed'] },
 };
 const string = (value, fallback = '') => typeof value === 'string' ? value : fallback;
@@ -13,7 +13,7 @@ function summary(type, id, data) {
   const common = { id, title: string(data.title, 'Untitled'), description: string(data.description).slice(0, 600), category: string(data.category, 'Other'), createdAtMs, createdAt: createdAtMs ? new Date(createdAtMs).toISOString() : null };
   if (type === 'draft') return { ...common, hostId: string(data.hostId), hostDisplayName: string(data.hostDisplayName, 'Anonymous'), rounds: data.rounds, timerSeconds: data.timerSeconds, participantCount: data.participantCount || 0, status: data.status };
   if (type === 'ranking') return { ...common, hostId: string(data.hostId), hostDisplayName: string(data.hostDisplayName, 'Anonymous'), entryCount: Number.isFinite(data.entryCount) ? data.entryCount : 0, voteCount: Number.isFinite(data.voteCount) ? data.voteCount : 0, status: data.status };
-  return { ...common, size: Number.isFinite(data[type === 'legacy' ? 'size' : 'participantCount']) ? data[type === 'legacy' ? 'size' : 'participantCount'] : 0,
+  return { ...common, userId: string(data[type === 'legacy' ? 'userId' : 'hostId']), size: Number.isFinite(data[type === 'legacy' ? 'size' : 'participantCount']) ? data[type === 'legacy' ? 'size' : 'participantCount'] : 0,
     userDisplayName: string(data[type === 'legacy' ? 'userDisplayName' : 'hostName'], 'Anonymous'), isCustom: type === 'custom', origin: string(data.type, 'custom'), status: data.status || 'published' };
 }
 exports.browseCatalog = onCall(async req => {

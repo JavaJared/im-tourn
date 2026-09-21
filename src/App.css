@@ -19,3 +19,8 @@
 @import './styles/weekly-theme.css';
 @import './styles/tiers.css';
 @import './styles/accessibility.css';
+
+/* Names remain recognizable as links on cards and standings. */
+.user-link { color: inherit; text-decoration: underline; text-underline-offset: .18em; overflow-wrap: anywhere; }
+.user-link:hover { text-decoration-thickness: 2px; }
+.user-link:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; border-radius: 2px; }

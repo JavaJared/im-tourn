@@ -5,7 +5,7 @@ import { usePagedCatalog } from '../../lib/usePagedCatalog';
 import CatalogControls from '../../components/CatalogControls';
 import FriendActivityDialog from './FriendActivityDialog';
 import './friends.css';
-import UserLink from '../../components/layout/UserLink';
+import ProfileFriendAction from './ProfileFriendAction';
 
 const statLabels = [
   ['createdBrackets', 'Created brackets'],
@@ -52,17 +52,16 @@ export default function ProfilePage({ profileId, onNavigate }) {
   const targetId = profileId || currentUser?.uid;
   const [profile, setProfile] = useState(null), [error, setError] = useState(''), [retry, setRetry] = useState(0);
   const [kind, setKind] = useState('brackets'), [mode, setMode] = useState('created'), [selected, setSelected] = useState(null);
-  const [requestState, setRequestState] = useState({ busy: false, message: '', error: '' });
 
   useEffect(() => {
     let active = true;
-    setProfile(null); setError('');
-    if (targetId) callServer('getUserProfile', { profileId: targetId }).then(
+    setProfile(null); setError(''); setSelected(null); setMode('created');
+    if (targetId && currentUser) callServer('getUserProfile', { profileId: targetId }).then(
       value => { if (active) setProfile(value); },
       reason => { if (active) setError(reason.message || 'This profile could not be loaded.'); },
     );
     return () => { active = false; };
-  }, [targetId, retry]);
+  }, [targetId, currentUser?.uid, retry]);
 
   if (!currentUser) return <div className="home-container"><h1>Profile</h1><p>Sign in to view profiles.</p></div>;
   if (error) return <div className="home-container"><h1>Profile unavailable</h1><p role="alert">{error}</p><button className="nav-btn" onClick={() => setRetry(value => value + 1)}>Retry loading profile</button></div>;
@@ -72,22 +71,13 @@ export default function ProfilePage({ profileId, onNavigate }) {
     <div className="profile-heading">
       <div className="profile-avatar" aria-hidden="true">{profile.displayName?.[0]?.toUpperCase() || '?'}</div>
       <div><h1>{profile.displayName}’s Profile</h1><p>{profile.isSelf ? 'Your public activity and private account statistics.' : 'Public creations and activity.'}</p></div>
-      {!profile.isSelf && profile.canSendFriendRequest && <button className="nav-btn" disabled={requestState.busy} onClick={async () => {
-        setRequestState({ busy: true, message: '', error: '' });
-        try {
-          const result = await callServer('sendFriendRequest', { friendId: profile.id });
-          setRequestState({ busy: false, message: result.message || 'Friend request sent.', error: '' });
-        } catch (reason) {
-          setRequestState({ busy: false, message: '', error: reason.message || 'Friend request could not be sent.' });
-        }
-      }}>{requestState.busy ? 'Sending…' : 'Add friend'}</button>}
+      <ProfileFriendAction key={`${currentUser.uid}:${profile.id}`} profile={profile} onRefresh={() => setRetry(value => value + 1)} />
     </div>
-    {requestState.message && <p role="status">{requestState.message}</p>}
-    {requestState.error && <p role="alert">{requestState.error}</p>}
     <p className="profile-privacy">Published creations are visible here. Filled choices and pool statistics are shared only with you and accepted friends. Private pool predictions and unpublished drafts are never included.</p>
     <section className="profile-stats" aria-label="Profile statistics">
-      {statLabels.map(([key, label]) => <div className="profile-stat" key={key}><strong>{profile.stats[key] == null ? '—' : profile.stats[key]}</strong><span>{label}</span></div>)}
+      {statLabels.filter(([key]) => key.startsWith('created') || profile.canViewPrivate).map(([key, label]) => <div className="profile-stat" key={key}><strong>{profile.stats[key] == null ? '—' : profile.stats[key]}</strong><span>{label}</span></div>)}
     </section>
+    {profile.statsIncomplete && <p role="status">Some statistics are incomplete or unavailable. Counts may be lower than your full history; pool finishes include only fully analyzed pools.</p>}
     <section className="friend-section">
       <div className="friend-filter profile-filters">
         <label>Activity type<select value={kind} onChange={event => { setKind(event.target.value); setSelected(null); }}><option value="brackets">Brackets</option><option value="rankings">Rankings</option></select></label>

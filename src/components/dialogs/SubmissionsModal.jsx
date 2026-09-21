@@ -1,3 +1,4 @@
+import UserLink from '../layout/UserLink';
 import { callServer } from '../../services/server';
 import { db } from '../../firebase';
 import { doc, getDoc } from 'firebase/firestore';
@@ -173,7 +174,7 @@ const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
                       </span>
                       <div className="submission-info">
                         <span className="submission-name">
-                          {submission.userDisplayName || 'Anonymous'}
+                          <UserLink userId={submission.userId} name={submission.userDisplayName || 'Anonymous'} />
                         </span>
                         <span className="submission-date">{submission.submittedAt}</span>
                       </div>
@@ -216,7 +217,7 @@ const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
             {selectedSubmission && (
               <div className="submission-bracket-view">
                 <div className="submission-bracket-header">
-                  <h3>{selectedSubmission.userDisplayName}'s Picks</h3>
+                  <h3><UserLink userId={selectedSubmission.userId} name={selectedSubmission.userDisplayName} />’s Picks</h3>
                   {selectedSubmission.champion && (
                     <div className="submission-champion-display">
                       🏆 {selectedSubmission.champion.name}

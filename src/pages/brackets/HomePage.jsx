@@ -240,7 +240,7 @@ const HomePage = ({ onFillOut, onNavigate }) => {
                     <span className="bracket-size">
                       <span>{bracket.size}</span> entries
                     </span>
-                    <span className="bracket-author">by {bracket.userDisplayName}</span>
+                    <span className="bracket-author">by <UserLink userId={bracket.userId || bracket.hostId} name={bracket.userDisplayName} /></span>
                   </div>
                   <div className="bracket-buttons">
                     {!(activeFriend && friendMode === 'filled') && <button
