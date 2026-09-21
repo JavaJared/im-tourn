@@ -117,3 +117,5 @@ exports.getMySavedActivity = activities.getMySavedActivity;
 for (const [name, callable] of Object.entries(require('./friends'))) {
   if (name !== 'internal') exports[name] = callable;
 }
+
+for (const [name, callable] of Object.entries(require('./usernames'))) { if (name !== 'internal') exports[name] = callable; }

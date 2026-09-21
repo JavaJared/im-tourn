@@ -44,8 +44,13 @@ exports.sendFriendRequest = onCall(async req => {
   const uid = uidOf(req), requestedId = req.data?.friendId;
   const code = String(req.data?.code || '').replace(/[\s-]/g, '').toUpperCase();
   let target;
-  if (validId(requestedId)) {
-    target = requestedId;
+  if (req.data?.username) {
+    const username = require('./usernames').internal.normalizeUsername(req.data.username);
+    target = (await db.doc(`usernames/${username}`).get()).data()?.uid;
+    if (!target) throw new HttpsError('not-found', 'No user has that username.');
+  }
+  if (target || validId(requestedId)) {
+    target = target || requestedId;
     // A profile link can target someone who has never opened Friends.
     if (!(await db.doc(`friendProfiles/${target}`).get()).exists) {
       try { await getAuth().getUser(target); }
@@ -203,6 +208,7 @@ exports.getUserProfile = onCall(async req => {
     privateAccess ? safeProfileQuery('joined', () => db.collection('poolEntries').where('userId', '==', profileId).select('poolId', 'score', 'submittedAt').limit(201).get(), empty) : empty,
   ]);
 
+  const account = await safeProfileQuery('username', () => db.doc(`accountProfiles/${profileId}`).get(), emptyProfile);
   const profileData = profileSnap.data() || {};
   let displayName = name(profileData.displayName);
   if (displayName === 'I’m Tourn user') {
@@ -234,6 +240,7 @@ exports.getUserProfile = onCall(async req => {
   return {
     id: profileId,
     displayName,
+    username: account.data()?.username || null,
     isSelf: viewerId === profileId,
     relationship,
     canViewPrivate: privateAccess,
