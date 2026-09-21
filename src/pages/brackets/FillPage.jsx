@@ -1,3 +1,4 @@
+import UserLink from '../../components/layout/UserLink';
 import { useEffect, useRef, useState } from 'react';
 import {
   clearFillDraft,
@@ -291,7 +292,7 @@ const FillEditor = ({ bracket, onSubmit, onBack, currentUser, draftKey }) => {
         <h1>{bracket.title}</h1>
         <p>Click on entries to select winners for each matchup</p>
         <p role={draftFailed ? "alert" : "status"}>{draftStatus} {draftFailed && <button type="button" onClick={() => persistDraft(matchups)}>Retry draft save</button>}</p>
-        <p className="bracket-author-fill">Created by {bracket.userDisplayName}</p>
+        <p className="bracket-author-fill">Created by <UserLink userId={bracket.userId} name={bracket.userDisplayName} /></p>
         <button className="download-blank-btn" onClick={downloadBlankBracket}>
           <svg
             width="18"

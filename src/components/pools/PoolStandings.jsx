@@ -1,3 +1,4 @@
+import UserLink from '../layout/UserLink';
 import { S } from './poolStyles';
 
 const statusText = { clinched: 'Clinched', eliminated: 'Eliminated', alive: 'Alive', unknown: 'Undetermined' };
@@ -19,7 +20,7 @@ export default function PoolStandings({ entries, currentUserId, nameMap, analysi
       return <article className="standings-entry" key={e.id || e.userId} style={e.userId === currentUserId ? S.rowMe : undefined}>
         <div className="standings-entry-heading">
           <span className="standings-rank">{e.total == null ? 'Unranked' : `${partial ? 'Loaded rank ' : '#'}${rank}${tied ? ' (tie)' : ''}`}</span>
-          <h3>{e.userDisplayName || e.displayName || 'Anonymous'}{e.userId === currentUserId ? ' (you)' : ''}</h3>
+          <h3><UserLink userId={e.userId} name={e.userDisplayName || e.displayName || 'Anonymous'} />{e.userId === currentUserId ? ' (you)' : ''}</h3>
           <strong>{e.total ?? '—'} pts{stale ? ' · may be stale' : e.breakdownUnavailable && e.total != null ? ' · saved score' : ''}</strong>
         </div>
         {e.breakdownUnavailable ? <p>{e.breakdownUnavailable}</p> : <>

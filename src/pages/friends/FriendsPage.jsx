@@ -1,3 +1,4 @@
+import UserLink from '../../components/layout/UserLink';
 import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { callServer } from '../../services/server';
@@ -66,7 +67,7 @@ export default function FriendsPage({ onNavigate }) {
       <h2>{title}</h2>
       {!friends.loading && !friends.error && !list.length && <p>None on this page.</p>}
       <ul className="friend-list">{list.map(friend => <li key={friend.id}>
-        <span>{friend.displayName}</span><div className="friend-actions">
+        <UserLink userId={friend.friendId} name={friend.displayName} /><div className="friend-actions">
           {friend.status === 'accepted' ? <><button className="nav-btn" onClick={() => onNavigate(`profile-${friend.friendId}`)}>View profile<span className="sr-only"> for {friend.displayName}</span></button><button className="back-btn" onClick={() => setSelected(friend)}>Activity preview<span className="sr-only"> for {friend.displayName}</span></button><button className="back-btn" disabled={busy} onClick={() => action(friend,'remove')}>Remove friend<span className="sr-only"> {friend.displayName}</span></button></> : friend.incoming ? <><button className="nav-btn" disabled={busy} onClick={() => action(friend,'accept')}>Accept<span className="sr-only"> {friend.displayName}</span></button><button className="back-btn" disabled={busy} onClick={() => action(friend,'decline')}>Decline<span className="sr-only"> {friend.displayName}</span></button></> : <button className="back-btn" disabled={busy} onClick={() => action(friend,'cancel')}>Cancel request<span className="sr-only"> to {friend.displayName}</span></button>}
         </div>
       </li>)}</ul>

@@ -39,7 +39,7 @@ run('accepted friends and shared activity', () => {
   });
   test('pending requests, strangers, and removed friends cannot read history or saved choices',async()=>{
     const b=await call('getFriendProfile','bob'); await call('sendFriendRequest','alice',{code:b.code});
-    const query={friendId:'bob',type:'legacy',mode:'created'};
+    const query={friendId:'bob',type:'legacy',mode:'filled'};
     await expect(call('listFriendActivities','alice',query)).rejects.toMatchObject({code:'permission-denied'});
     await call('respondToFriend','bob',{friendId:'alice',action:'accept'});
     await call('respondToFriend','alice',{friendId:'bob',action:'remove'});
@@ -116,6 +116,25 @@ run('accepted friends and shared activity', () => {
     const profile = await call('getUserProfile', 'alice', { profileId: 'bob' });
     expect(profile).toMatchObject({ displayName: 'Bob', isSelf: false, stats: { createdBrackets: 2, createdRankings: 1, filledBrackets: 2, filledRankings: 1, poolsJoined: 1, completedPools: 1, averageFinalRank: 2, highestFinalRank: 2, poolsWon: 0 } });
     await call('respondToFriend', 'alice', { friendId: 'bob', action: 'remove' });
-    await expect(call('getUserProfile', 'alice', { profileId: 'bob' })).rejects.toMatchObject({ code: 'permission-denied' });
+    const publicProfile = await call('getUserProfile', 'alice', { profileId: 'bob' });
+    expect(publicProfile).toMatchObject({ relationship: 'none', canViewPrivate: false, canSendFriendRequest: true, stats: { createdBrackets: 2, createdRankings: 1 } });
+    expect(publicProfile.stats).not.toHaveProperty('filledBrackets');
+    expect(publicProfile.stats).not.toHaveProperty('poolsJoined');
   });
+  test('profile request states and public creations work without friendship', async () => {
+    await call('getFriendProfile', 'bob');
+    await db.doc('customBrackets/public').set({hostId:'bob',title:'Public',status:'published'});
+    await db.doc('customBrackets/private').set({hostId:'bob',title:'Secret draft',status:'draft'});
+    expect((await call('getUserProfile','alice',{profileId:'bob'})).relationship).toBe('none');
+    const page = await call('listFriendActivities','alice',{friendId:'bob',type:'custom'});
+    expect(page.items.map(item => item.title)).toEqual(['Public']);
+    expect(page.items[0].userId).toBe('bob');
+    await call('sendFriendRequest','alice',{friendId:'bob'});
+    expect((await call('getUserProfile','alice',{profileId:'bob'})).relationship).toBe('outgoing');
+    expect((await call('getUserProfile','bob',{profileId:'alice'})).relationship).toBe('incoming');
+    await expect(call('listFriendActivities','alice',{friendId:'bob',type:'custom',mode:'filled'})).rejects.toMatchObject({code:'permission-denied'});
+    await call('respondToFriend','bob',{friendId:'alice',action:'accept'});
+    expect(await call('getUserProfile','alice',{profileId:'bob'})).toMatchObject({relationship:'accepted',canViewPrivate:true,canSendFriendRequest:false});
+  });
+
 });

@@ -1,6 +1,7 @@
+import UserLink from '../../components/layout/UserLink';
 
 
-const RankingCard = ({ ranking, onClick }) => {
+const RankingCard = ({ ranking, onClick, onNavigate }) => {
   const isClosed = ranking.status === 'closed';
   return (
     <div className="ranking-browse-card" onClick={onClick} role="button" tabIndex={0} onKeyDown={event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onClick(); } }}>
@@ -14,7 +15,7 @@ const RankingCard = ({ ranking, onClick }) => {
         <span className="ranking-card-stats">
           {ranking.entryCount} entries · {ranking.voteCount || 0} {(ranking.voteCount === 1) ? 'vote' : 'votes'}
         </span>
-        <span className="ranking-card-host">by {ranking.hostDisplayName}</span>
+        <span className="ranking-card-host">by <UserLink userId={ranking.hostId} name={ranking.hostDisplayName} onNavigate={onNavigate} /></span>
       </div>
     </div>
   );
@@ -46,7 +47,7 @@ const pickFeaturedRanking = (rankings, dateKey = todayKeyET()) => {
   return best;
 };
 
-const FeaturedRankingCard = ({ ranking, onClick }) => (
+const FeaturedRankingCard = ({ ranking, onClick, onNavigate }) => (
   <div className="featured-ranking-card" onClick={onClick} role="button" tabIndex={0} onKeyDown={event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onClick(); } }}>
     <div className="featured-ranking-badge">★ Featured today</div>
     <div className="featured-ranking-body">
@@ -59,7 +60,7 @@ const FeaturedRankingCard = ({ ranking, onClick }) => (
         <span className="ranking-card-stats">
           {ranking.entryCount} entries · {ranking.voteCount || 0} {(ranking.voteCount === 1) ? 'vote' : 'votes'}
         </span>
-        <span className="ranking-card-host">by {ranking.hostDisplayName}</span>
+        <span className="ranking-card-host">by <UserLink userId={ranking.hostId} name={ranking.hostDisplayName} /></span>
       </div>
     </div>
     <span className="featured-ranking-cta">{ranking.status === 'closed' ? 'See results →' : 'Vote now →'}</span>

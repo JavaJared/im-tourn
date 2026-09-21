@@ -22,3 +22,6 @@
 .profile-activity { margin: 0; border: 0; padding: 0; }
 .profile-filters { margin-top: 0; }
 @media (max-width: 600px) { .friend-filter label, .friend-section form label { width: 100%; } .friend-actions { width: 100%; } .friend-dialog { padding: 1rem; } }
+.profile-heading { flex-wrap: wrap; }
+.profile-heading > div { min-width: 0; overflow-wrap: anywhere; }
+.profile-friend-action { flex: 1 1 220px; }

@@ -7,6 +7,7 @@ import { usePagedCatalog } from '../../lib/usePagedCatalog';
 import CatalogControls from '../../components/CatalogControls';
 import { CUSTOM_BADGE_STYLE } from '../../components/brackets/customBracketPresentation.js';
 import SubmissionsModal from '../../components/dialogs/SubmissionsModal.jsx';
+import UserLink from '../../components/layout/UserLink';
 
 const HomePage = ({ onFillOut, onNavigate }) => {
   const { currentUser } = useAuth();
@@ -211,7 +212,7 @@ const HomePage = ({ onFillOut, onNavigate }) => {
                     <span className="bracket-size">
                       <span>{bracket.size}</span> players
                     </span>
-                    <span className="bracket-author">by {bracket.userDisplayName}</span>
+                    <span className="bracket-author">by <UserLink userId={bracket.userId || bracket.hostId} name={bracket.userDisplayName} onNavigate={onNavigate} /></span>
                   </div>
                   <div className="bracket-buttons">
                     <button
@@ -239,7 +240,7 @@ const HomePage = ({ onFillOut, onNavigate }) => {
                     <span className="bracket-size">
                       <span>{bracket.size}</span> entries
                     </span>
-                    <span className="bracket-author">by {bracket.userDisplayName}</span>
+                    <span className="bracket-author">by <UserLink userId={bracket.userId || bracket.hostId} name={bracket.userDisplayName} /></span>
                   </div>
                   <div className="bracket-buttons">
                     {!(activeFriend && friendMode === 'filled') && <button

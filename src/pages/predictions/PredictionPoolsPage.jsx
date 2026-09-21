@@ -1,3 +1,4 @@
+import UserLink from '../../components/layout/UserLink';
 import { usePagedCatalog } from '../../lib/usePagedCatalog';
 import CatalogControls from '../../components/CatalogControls';
 import { useState, useEffect } from 'react';
@@ -153,7 +154,7 @@ const PredictionPoolsPage = ({ onNavigate }) => {
                   <h3 className="pool-title">{pool.name}</h3>
                   <p className="pool-bracket">{pool.categories?.length || 0} categories</p>
                   <div className="pool-meta">
-                    <span className="pool-host">Hosted by {pool.hostDisplayName}</span>
+                    <span className="pool-host">Hosted by <UserLink userId={pool.hostId} name={pool.hostDisplayName} /></span>
                   </div>
                 </div>
               );

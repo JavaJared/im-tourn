@@ -57,3 +57,26 @@ test('saved choices dialog requests the selected friend and renders read-only ch
  expect(tree.root.findAllByType('li')[0].children).toEqual(['A']);
  expect(tree.root.findAllByType('input')).toHaveLength(0);
 });
+
+test('profile links navigate without activating a containing card and preserve modified clicks', async () => {
+ const {default:UserLink,ProfileNavigationContext}=await import('../src/components/layout/UserLink');
+ const navigate=vi.fn();
+ await mount(<ProfileNavigationContext.Provider value={navigate}><UserLink userId="bob" name="Bob" /></ProfileNavigationContext.Provider>);
+ const link=tree.root.findByType('a');
+ expect(link.props.href).toBe('/?view=profile-bob');
+ const event={button:0,preventDefault:vi.fn(),stopPropagation:vi.fn()};
+ link.props.onClick(event);
+ expect(navigate).toHaveBeenCalledWith('profile-bob');expect(event.stopPropagation).toHaveBeenCalled();
+ navigate.mockClear();event.preventDefault.mockClear();link.props.onClick({...event,ctrlKey:true});
+ expect(navigate).not.toHaveBeenCalled();expect(event.preventDefault).not.toHaveBeenCalled();
+});
+
+test('profile friend requests report failures and allow retry', async () => {
+ const {default:Action}=await import('../src/pages/friends/ProfileFriendAction');const refresh=vi.fn();
+ await mount(<Action profile={{id:'bob',relationship:'none',canSendFriendRequest:true}} onRefresh={refresh}/>);
+ mocks.callServer.mockRejectedValueOnce(new Error('Network unavailable'));
+ await act(async()=>button('Add friend').props.onClick());
+ expect(JSON.stringify(tree.toJSON())).toContain('Network unavailable');expect(button('Add friend').props.disabled).toBe(false);
+ await act(async()=>button('Add friend').props.onClick());
+ expect(mocks.callServer).toHaveBeenCalledWith('sendFriendRequest',{friendId:'bob'});expect(refresh).toHaveBeenCalledOnce();
+});
