@@ -155,6 +155,41 @@ function getChampion(state) {
   return matchWinner(state, locate(state), finalRound[0]) ?? null;
 }
 
+// src/lib/remainingPoints.js
+function remainingContext(state) {
+  const loc = locate(state), winners = {}, slots = {}, decided = {};
+  for (const round of state.rounds) for (const id of round) {
+    slots[id] = ["A", "B"].map((side) => {
+      const slot = slotDisplay(state, loc, id, side);
+      if (slot.type === SLOT.NAMED) return /* @__PURE__ */ new Set([slot.participantId]);
+      if (slot.type === SLOT.FEED) return winners[slot.sourceBoxId] || /* @__PURE__ */ new Set();
+      return /* @__PURE__ */ new Set();
+    });
+    const winner = matchWinner(state, loc, id);
+    decided[id] = winner;
+    winners[id] = winner != null ? /* @__PURE__ */ new Set([winner]) : /* @__PURE__ */ new Set([...slots[id][0], ...slots[id][1]]);
+  }
+  return { loc, winners, slots, decided };
+}
+function remainingPoints(entry, roundPoints, context) {
+  let remaining = 0;
+  for (const [id, candidates] of Object.entries(context.winners)) {
+    if (context.decided[id] == null && candidates.has(entry.predictions?.[id])) {
+      remaining += roundPoints?.[context.loc[id].r] ?? context.loc[id].r + 1;
+    }
+  }
+  return remaining;
+}
+function compareStandings(a, b) {
+  const scoreA = Number.isFinite(a.total) ? a.total : -Infinity;
+  const scoreB = Number.isFinite(b.total) ? b.total : -Infinity;
+  if (scoreA !== scoreB) return scoreB - scoreA;
+  if (Number.isFinite(a.remainingPossible) && Number.isFinite(b.remainingPossible)) {
+    return b.remainingPossible - a.remainingPossible;
+  }
+  return Number(Number.isFinite(b.remainingPossible)) - Number(Number.isFinite(a.remainingPossible));
+}
+
 // src/lib/customScoring.js
 function defaultRoundPoints(roundCount) {
   return Array.from({ length: Math.max(0, roundCount) }, (_, i) => i + 1);
@@ -197,11 +232,12 @@ function scoreEntry(bracketState, picks, roundPoints) {
   return { total, correct, correctByRound };
 }
 function buildLeaderboard(bracketState, entries, roundPoints, pool = null) {
+  const context = remainingContext(bracketState);
   return entries.map((e) => {
     const base = scoreEntry(bracketState, e.picks || {}, roundPoints);
     const s = gradeSleepers(bracketState, e, pool);
-    return { ...e, ...base, ...s, total: base.total + s.sleeperBonus };
-  }).sort((a, b) => b.total - a.total || b.correct - a.correct || String(a.displayName || "").localeCompare(String(b.displayName || "")));
+    return { ...e, ...base, ...s, total: base.total, remainingPossible: remainingPoints({ predictions: e.picks || {} }, roundPoints, context) };
+  }).sort(compareStandings);
 }
 function hydrateState(structure, resultsMap = {}) {
   const src = structure || {};
@@ -235,17 +271,8 @@ function predictedLosers(structure, picks, roundIndex) {
   }
   return losers;
 }
-function gradeSleepers(officialState, entry, pool) {
-  const none = { sleeper1Hit: false, sleeper2Hit: false, sleeperBonus: 0 };
-  if (!pool || !pool.enableSleepers || !entry) return none;
-  const check = (pid, targetRound, points) => {
-    if (!pid || targetRound >= officialState.rounds.length) return [false, 0];
-    const made = participantsInRound(officialState, targetRound).has(pid);
-    return [made, made ? Number(points) || 0 : 0];
-  };
-  const [sleeper1Hit, b1] = check(entry.sleeper1, 2, pool.sleeper1Points);
-  const [sleeper2Hit, b2] = check(entry.sleeper2, 3, pool.sleeper2Points);
-  return { sleeper1Hit, sleeper2Hit, sleeperBonus: b1 + b2 };
+function gradeSleepers() {
+  return { sleeper1Hit: false, sleeper2Hit: false, sleeperBonus: 0 };
 }
 function blankPrediction(bracketState) {
   const boxes = {};

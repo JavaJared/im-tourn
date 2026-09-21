@@ -19,10 +19,7 @@ const CreatePoolPage = ({ onNavigate }) => {
   // Scoring customization
   const [roundPoints, setRoundPoints] = useState([1, 2, 4, 8, 16, 32, 64]); // Points per round (up to 7 rounds for 128 entries)
 
-  // Sleeper picks settings
-  const [enableSleepers, setEnableSleepers] = useState(false);
-  const [sleeper1Points, setSleeper1Points] = useState(5); // First round loser makes round 3
-  const [sleeper2Points, setSleeper2Points] = useState(8); // Second round loser makes round 4
+
 
   const { currentUser } = useAuth();
 
@@ -83,10 +80,7 @@ const CreatePoolPage = ({ onNavigate }) => {
         bracketMatchups: structure, // {rounds, boxes, nameMap, seedMap?, roundCount}
         lockDate: lockDate ? new Date(lockDate) : null,
         roundPoints: roundPoints.slice(0, structure.roundCount),
-        // Sleeper picks settings (participant-id picks; scored in pool detail)
-        enableSleepers,
-        sleeper1Points: enableSleepers ? sleeper1Points : 0,
-        sleeper2Points: enableSleepers ? sleeper2Points : 0,
+
       });
 
       onNavigate(`pool-${result.id}`);
@@ -191,57 +185,6 @@ const CreatePoolPage = ({ onNavigate }) => {
                   </div>
                 ),
               )}
-            </div>
-          </div>
-        )}
-
-        <div className="form-group">
-          <label className="toggle-label">
-            <input
-              type="checkbox"
-              checked={enableSleepers}
-              onChange={(e) => setEnableSleepers(e.target.checked)}
-              className="toggle-checkbox"
-            />
-            <span className="toggle-switch"></span>
-            <span className="toggle-text">Enable Sleeper Picks</span>
-          </label>
-          <p className="form-hint">Allow participants to select "sleeper" picks for bonus points</p>
-        </div>
-
-        {enableSleepers && (
-          <div className="sleeper-settings">
-            <div className="sleeper-setting">
-              <div className="sleeper-info">
-                <strong>Sleeper Pick 1</strong>
-                <p>A Round 1 loser who makes it to Round 3+</p>
-              </div>
-              <div className="sleeper-points-input">
-                <input
-                  type="number"
-                  min="0"
-                  value={sleeper1Points}
-                  onChange={(e) => setSleeper1Points(parseInt(e.target.value) || 0)}
-                  className="round-points-input"
-                />
-                <span className="points-label">pts</span>
-              </div>
-            </div>
-            <div className="sleeper-setting">
-              <div className="sleeper-info">
-                <strong>Sleeper Pick 2</strong>
-                <p>A Round 2 loser who makes it to Round 4+</p>
-              </div>
-              <div className="sleeper-points-input">
-                <input
-                  type="number"
-                  min="0"
-                  value={sleeper2Points}
-                  onChange={(e) => setSleeper2Points(parseInt(e.target.value) || 0)}
-                  className="round-points-input"
-                />
-                <span className="points-label">pts</span>
-              </div>
             </div>
           </div>
         )}

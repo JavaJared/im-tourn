@@ -6,14 +6,14 @@ import Board from './pools/PoolBoard';
 import PoolTabs from './pools/PoolTabs';
 import PoolRules from './pools/PoolRules';
 import PoolStandings from './pools/PoolStandings';
-import { explainEntry, remainingContext, analysisBlockReason, analysisMessage } from '../lib/poolStandings';
+import { explainEntry, remainingContext, analysisBlockReason, analysisMessage, compareStandings } from '../lib/poolStandings';
 import Shell from './pools/PoolShell';
 import { S } from './pools/poolStyles';
 import { predictionsOpen } from '../lib/poolLifecycle';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Check, Clock, Loader2, AlertTriangle, Trophy, Lock, Users, RotateCcw, Send, X, Trash2 } from './customBracketIcons';
 import { SLOT, locate, slotDisplay, feederId, resolveParticipant, matchWinner, setResult, getChampion } from '../lib/customBracket';
-import { hydrateState, picksFromState, isEntryComplete, buildLeaderboard, defaultRoundPoints, predictedLosers } from '../lib/customScoring';
+import { hydrateState, picksFromState, isEntryComplete, buildLeaderboard, defaultRoundPoints } from '../lib/customScoring';
 import { usePoolAnalysis } from '../lib/usePoolAnalysis';
 import { summarizeWinningScenarios, shouldShowWinningPaths } from '../lib/customElimination';
 import { joinBracketPool, submitPoolPredictions, lockPool, completePool, updatePoolDescription, deletePool, getPoolById } from '../services/bracketService';
@@ -46,7 +46,6 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
   const [resState, setResState] = useState(null);
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
-  const [sleepers, setSleepers] = useState({ sleeper1: null, sleeper2: null });
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const busyRef = useRef(false), retryAction = useRef(null);
@@ -104,7 +103,6 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
     try { draft = JSON.parse(localStorage.getItem(`pool-draft:${poolId}:${currentUserId}`)); } catch {}
     const resume = predictionsOpen(pool) && draft?.submittedKey === submittedKey ? draft : null;
     setPredState(hydrateState(pool.bracketMatchups, resume?.picks || myEntry?.predictions || {}));
-    setSleepers(resume?.sleepers || { sleeper1: myEntry?.sleeper1 || null, sleeper2: myEntry?.sleeper2 || null });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [poolId, currentUserId, structureReady, submittedKey]);
 
@@ -130,15 +128,14 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
   const canPredict = joined && predictionsOpen(pool, now);
   const saveLocalDraft = () => {
     if (!canPredict || !predState) return;
-    try { localStorage.setItem(`pool-draft:${poolId}:${currentUserId}`, JSON.stringify({ submittedKey, picks: picksFromState(predState), sleepers })); setDraftSave({ state: 'saved', message: 'Draft saved on this device. Submit your prediction to save it to the pool.' }); }
+    try { localStorage.setItem(`pool-draft:${poolId}:${currentUserId}`, JSON.stringify({ submittedKey, picks: picksFromState(predState) })); setDraftSave({ state: 'saved', message: 'Draft saved on this device. Submit your prediction to save it to the pool.' }); }
     catch { setDraftSave({ state: 'error', message: 'This browser could not save your draft. Keep this page open; your picks are still here.' }); }
   };
-  useEffect(saveLocalDraft, [poolId, currentUserId, predState, sleepers, submittedKey, canPredict]);
-  const loserOptions = [0, 1].map(r => predState ? predictedLosers(pool.bracketMatchups, picksFromState(predState), r) : []);
+  useEffect(saveLocalDraft, [poolId, currentUserId, predState, submittedKey, canPredict]);
   const pickPred = (boxId, pid) => { if (!canPredict || !predState || busyRef.current) return; retryAction.current = null; setOperation({ state: 'idle', message: '' }); try { setPredState(setResult(predState, boxId, pid)); } catch (e) { flash(e.message); } };
   const submitPredictions = () => {
     if (busyRef.current || !canPredict || !predState || !isEntryComplete(predState)) return;
-    run(() => submitPoolPredictions(poolId, currentUserId, picksFromState(predState), getChampion(predState), pool.enableSleepers ? { sleeper1: loserOptions[0].includes(sleepers.sleeper1) ? sleepers.sleeper1 : null, sleeper2: loserOptions[1].includes(sleepers.sleeper2) ? sleepers.sleeper2 : null } : null), 'Predictions submitted');
+    run(() => submitPoolPredictions(poolId, currentUserId, picksFromState(predState), getChampion(predState)), 'Predictions submitted');
   };
   // host results — optimistic local update + persist; snapshots keep everyone else live
   const pickResult = (boxId, pid) => {
@@ -153,7 +150,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
     const official = hydrateState(pool.bracketMatchups, pool.customResults || {});
     const context = remainingContext(official);
     return entries.map(e => ({ ...e, ...explainEntry(official, e, roundPoints, pool, context) }))
-      .sort((a, b) => (b.total ?? -Infinity) - (a.total ?? -Infinity));
+      .sort(compareStandings);
   }, [pool, entries, roundPoints]);
 
   // Official winner per box (pid), for grading any prediction board correct/incorrect.
@@ -400,7 +397,6 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
             <>
               {canPredict && <SaveNotice {...draftSave} onRetry={saveLocalDraft} retryLabel="Retry draft save" />}
               {canPredict && predState && !isEntryComplete(predState) && <div style={S.note}>Pick a winner in every matchup, then submit.{submitted ? ' Re-submitting replaces your entry.' : ''}</div>}
-              {canPredict && pool.enableSleepers && <div style={S.actionBar}>{[1, 2].map((n) => pool.bracketMatchups.rounds.length > n + 1 && <label key={n}>Sleeper {n} ({pool[`sleeper${n}Points`] || 0} bonus pts)<select disabled={busy} aria-label={`Sleeper ${n}`} value={loserOptions[n - 1].includes(sleepers[`sleeper${n}`]) ? sleepers[`sleeper${n}`] : ''} onChange={e => { retryAction.current = null; setOperation({ state: 'idle', message: '' }); setSleepers(old => ({ ...old, [`sleeper${n}`]: e.target.value || null })); }}><option value="">No sleeper</option>{loserOptions[n - 1].map(pid => <option key={pid} value={pid}>{nameMap[pid] || pid}</option>)}</select></label>)}</div>}
               {canPredict && <div style={S.actionBar}><button style={{ ...S.primary, ...(predState && isEntryComplete(predState) ? {} : S.primaryOff) }} disabled={busy || !(predState && isEntryComplete(predState))} onClick={submitPredictions}><Send size={14} /> {submitted ? 'Update prediction' : 'Submit prediction'}</button></div>}
               {!canPredict && submitted && <div style={S.note}>Your prediction is in.{status === 'open' ? '' : ' Predictions are locked.'}</div>}
               {predState && <Board state={predState} nameMap={nameMap} editable={canPredict && !busy} onPick={pickPred} official={status === 'open' ? null : officialWinners} scores={scoresByBox} />}

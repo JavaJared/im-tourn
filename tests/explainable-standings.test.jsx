@@ -4,7 +4,7 @@ import { expect, test } from 'vitest';
 import { generateSeededBracket } from '../src/lib/standardBracket';
 import { locate, resolveParticipant, matchWinner, setResult } from '../src/lib/customBracket';
 import { scoreEntry, gradeSleepers, picksFromState } from '../src/lib/customScoring';
-import { explainEntry, analysisBlockReason, analysisMessage } from '../src/lib/poolStandings';
+import { explainEntry, analysisBlockReason, analysisMessage, compareStandings } from '../src/lib/poolStandings';
 import { analyzeCustomPool, summarizeWinningScenarios } from '../src/lib/customElimination';
 import PoolStandings from '../src/components/pools/PoolStandings';
 
@@ -27,21 +27,21 @@ test('breakdown uses existing scoring and removes eliminated picks from remainin
   expect(result.remainingPossible).toBe(0);
   expect(result.total).toBe(scoreEntry(complete,entry.predictions,[1,3]).total);
 });
-test('earned sleeper bonuses are counted once and eliminated or absent sleepers add nothing', () => {
+test('retired sleepers add no earned or potential points', () => {
   const state=make(8), final=finish(state), first=state.rounds[0][0];
   const pid=resolveParticipant(state,locate(state),first,'A');
   const pool={enableSleepers:true,sleeper1Points:8,sleeper2Points:20};
   const entry={predictions:picksFromState(final),sleeper1:pid};
   const pending=explainEntry(state,entry,[1,2,3],pool);
-  expect(pending.remainingSleepers).toBe(8);
+  expect(pending.remainingSleepers).toBe(0);
   const done=explainEntry(final,entry,[1,2,3],pool);
-  expect(done.sleeperBonus).toBe(8); expect(done.remainingSleepers).toBe(0);
-  expect(done.total).toBe(done.basePoints+8);
+  expect(done.sleeperBonus).toBe(0); expect(done.remainingSleepers).toBe(0);
+  expect(done.total).toBe(done.basePoints);
   const loss=setResult(state,first,resolveParticipant(state,locate(state),first,'B'));
   expect(explainEntry(loss,entry,[1,2,3],pool).remainingSleepers).toBe(0);
   expect(explainEntry(state,{predictions:entry.predictions},[1,2,3],pool).remainingSleepers).toBe(0);
 });
-test('ceiling is an honest upper bound across every completion with conflicting sleeper awards', () => {
+test('ceiling covers every completion without retired sleeper awards', () => {
   const state=make(8), prediction=finish(state);
   const sleeper=resolveParticipant(state,locate(state),state.rounds[0][0],'B');
   const entry={predictions:picksFromState(prediction),sleeper1:sleeper};
@@ -57,7 +57,7 @@ test('ceiling is an honest upper bound across every completion with conflicting 
     for(const side of ['A','B']) visit(setResult(working,id,resolveParticipant(working,loc,id,side)));
   }
   visit(state);
-  expect(completions).toBe(128); expect(maximum).toBeLessThan(bound);
+  expect(completions).toBe(128); expect(maximum).toBe(bound);
 });
 test('byes use existing scoring and hidden, missing or damaged entries do not fabricate a breakdown', () => {
   const state=make(3), entry={predictions:picksFromState(finish(state))};
@@ -94,8 +94,17 @@ test('standings explains values, labels partial ranks, shares tied ranks, and ke
   const state=make(4), entry={id:'a',userId:'a',userDisplayName:'Alice',predictions:picksFromState(finish(state))};
   const scored={...entry,...explainEntry(state,entry,[1,2],{})};
   const html=renderToStaticMarkup(<PoolStandings entries={[scored,{...scored,id:'b',userId:'b',userDisplayName:'Bob'}]} nameMap={{}} partial analysisNotice="Partial standings" />);
-  for(const label of ['Base points','Sleeper bonuses','Remaining possible','upper bound','Loaded rank 1 (tie)']) expect(html).toContain(label);
+  for(const label of ['Base points','Remaining possible','upper bound','Loaded rank 1 (tie)']) expect(html).toContain(label);
   expect(html).not.toContain('Loaded rank 2');
   const hidden=renderToStaticMarkup(<PoolStandings entries={[{...scored,predictionsHidden:true,...explainEntry(state,{predictionsHidden:true,score:0},[1,2],{})}]} nameMap={{}} analysisNotice="Picks private" />);
   expect(hidden).not.toContain('View picks'); expect(hidden).not.toContain('<dd>');
+});
+
+test('score ties sort by remaining potential, with unknown values last', () => {
+  const entries = [
+    {id:'unknown',total:5}, {id:'low',total:5,remainingPossible:2},
+    {id:'leader',total:6,remainingPossible:0}, {id:'high',total:5,remainingPossible:10},
+    {id:'unranked',total:null}, {id:'zero',total:5,remainingPossible:0},
+  ];
+  expect(entries.sort(compareStandings).map(e=>e.id)).toEqual(['leader','high','low','zero','unknown','unranked']);
 });

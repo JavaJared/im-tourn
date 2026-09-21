@@ -394,7 +394,7 @@ export async function getPoolEntry(poolId, userId) {
 }
 
 // Submit predictions for a pool
-export async function submitPoolPredictions(poolId, userId, predictions, champion, sleeperPicks = null) {
+export async function submitPoolPredictions(poolId, userId, predictions, champion) {
   const pool = await getPoolById(poolId);
   if (!pool) {
     throw new Error('Pool not found');
@@ -407,17 +407,6 @@ export async function submitPoolPredictions(poolId, userId, predictions, champio
     champion,
     submittedAt: serverTimestamp()
   };
-  
-  // Add sleeper picks if provided
-  if (sleeperPicks) {
-    // New-format sleepers are participant-id strings and are stored raw;
-    // legacy object picks keep their stringified form.
-    const enc = (v) => (v ? (typeof v === 'string' ? v : JSON.stringify(v)) : null);
-    updateData.sleeper1 = enc(sleeperPicks.sleeper1);
-    updateData.sleeper2 = enc(sleeperPicks.sleeper2);
-    updateData.sleeper1Hit = false;
-    updateData.sleeper2Hit = false;
-  }
   
   await updateDoc(entryRef, updateData);
   
@@ -556,30 +545,7 @@ function calculateEntryScore(predictions, results, pool, entry) {
     });
   });
   
-  // Calculate sleeper pick scores
-  let sleeper1Hit = false;
-  let sleeper2Hit = false;
-  
-  if (pool.enableSleepers && entry) {
-    // Sleeper 1: Round 1 loser who makes Round 3+
-    if (entry.sleeper1) {
-      const sleeper1Data = typeof entry.sleeper1 === 'string' ? JSON.parse(entry.sleeper1) : entry.sleeper1;
-      if (sleeper1Data && didParticipantMakeRound(results, sleeper1Data, 2)) { // Round 3 is index 2
-        score += pool.sleeper1Points || 0;
-        sleeper1Hit = true;
-      }
-    }
-    
-    // Sleeper 2: Round 2 loser who makes Round 4+
-    if (entry.sleeper2) {
-      const sleeper2Data = typeof entry.sleeper2 === 'string' ? JSON.parse(entry.sleeper2) : entry.sleeper2;
-      if (sleeper2Data && didParticipantMakeRound(results, sleeper2Data, 3)) { // Round 4 is index 3
-        score += pool.sleeper2Points || 0;
-        sleeper2Hit = true;
-      }
-    }
-  }
-  
+  const sleeper1Hit = false, sleeper2Hit = false;
   return { score, sleeper1Hit, sleeper2Hit };
 }
 

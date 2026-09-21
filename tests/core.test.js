@@ -16,15 +16,15 @@ describe('existing formats and scoring', () => {
   test.each([32, 64])('standard %i brackets enter the weekly catalog', n => { const data = { ...serialize(bracket(n)), type: 'standard', status: 'published' }; const rounds = standardWeeklyMatchups(data); expect(rounds[0]).toHaveLength(n / 2); expect(rounds.at(-1)).toHaveLength(1); expect(rounds[0].every(m => m.entry1.name && m.entry2.name)).toBe(true); });
   test('byes do not create an invalid weekly candidate', () => { expect(standardWeeklyMatchups({ ...serialize(bracket(31)), type: 'standard', status: 'published' })).toBe(null); });
   test('zero round weights are honored and tied scores remain tied', () => { const st = finish(bracket(4)), picks = picksFromState(st); const board = buildLeaderboard(st, [{ userId: 'a', picks }, { userId: 'b', picks }], [0, 2]); expect(board.map(e => e.total)).toEqual([2, 2]); });
-  test('sleepers affect standings and elimination consistently', () => {
+  test('retired sleepers cannot change standings or elimination', () => {
     const st = finish(bracket(16)), structure = structureFromState(st), picks = picksFromState(st);
     const sleeper = resolveParticipant(st, locate(st), st.rounds[2][0], 'A');
     const entries = [{ userId: 'a', predictions: picks, sleeper1: sleeper }, { userId: 'b', predictions: picks }];
     const pool = { enableSleepers: true, sleeper1Points: 10, sleeper2Points: 20 };
     const board = buildLeaderboard(st, entries.map(e => ({ ...e, picks: e.predictions })), [], pool);
-    expect(board[0].total - board[1].total).toBe(10);
+    expect(board[0].total - board[1].total).toBe(0);
     const analysis = analyzeCustomPool(structure, picks, entries, [], { pool, deadlineMs: 1000 });
-    expect(analysis.byUserId.a.status).toBe('clinched'); expect(analysis.byUserId.b.status).toBe('eliminated');
+    expect(analysis.byUserId.a.status).toBe('clinched'); expect(analysis.byUserId.b.status).toBe('clinched');
   });
   test('cleared modern results do not resurrect legacy winners', () => {
     const rounds = [[{ entry1: { name: 'A', seed: 1 }, entry2: { name: 'B', seed: 2 }, winner: 1 }]];
