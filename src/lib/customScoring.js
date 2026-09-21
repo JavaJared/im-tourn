@@ -7,6 +7,7 @@
  * is stored back on the entry — the leaderboard is derived live from picks +
  * official results, so it can never go stale.
  */
+import { remainingContext, remainingPoints, compareStandings } from './remainingPoints';
 import { SLOT, locate, slotDisplay, resolveParticipant, matchWinner, setResult } from './customBracket';
 
 /** Escalating default: round 1 = 1pt, round 2 = 2pts, ... final = R. */
@@ -53,18 +54,17 @@ export function scoreEntry(bracketState, picks, roundPoints) {
 }
 
 /**
- * Rank entries by total (then correct, then name) with their scores attached.
- * When `pool` is provided and sleepers are enabled, each entry's sleeper
- * bonus is graded live and folded into the total.
+ * Rank by earned points, then remaining possible points.
  */
 export function buildLeaderboard(bracketState, entries, roundPoints, pool = null) {
+  const context = remainingContext(bracketState);
   return entries
     .map((e) => {
       const base = scoreEntry(bracketState, e.picks || {}, roundPoints);
       const s = gradeSleepers(bracketState, e, pool);
-      return { ...e, ...base, ...s, total: base.total + s.sleeperBonus };
+      return { ...e, ...base, ...s, total: base.total, remainingPossible: remainingPoints({ predictions: e.picks || {} }, roundPoints, context) };
     })
-    .sort((a, b) => b.total - a.total || b.correct - a.correct || String(a.displayName || '').localeCompare(String(b.displayName || '')));
+    .sort(compareStandings);
 }
 
 /**
@@ -127,17 +127,10 @@ export function predictedLosers(structure, picks, roundIndex) {
  * against official results. Rounds that don't exist in the bracket can't hit
  * — same as the legacy results[target] === undefined behavior.
  */
-export function gradeSleepers(officialState, entry, pool) {
-  const none = { sleeper1Hit: false, sleeper2Hit: false, sleeperBonus: 0 };
-  if (!pool || !pool.enableSleepers || !entry) return none;
-  const check = (pid, targetRound, points) => {
-    if (!pid || targetRound >= officialState.rounds.length) return [false, 0];
-    const made = participantsInRound(officialState, targetRound).has(pid);
-    return [made, made ? (Number(points) || 0) : 0];
-  };
-  const [sleeper1Hit, b1] = check(entry.sleeper1, 2, pool.sleeper1Points);
-  const [sleeper2Hit, b2] = check(entry.sleeper2, 3, pool.sleeper2Points);
-  return { sleeper1Hit, sleeper2Hit, sleeperBonus: b1 + b2 };
+// Compatibility for existing stored entries and older imports. Retired bonuses
+// never affect scores, ceilings, elimination analysis, or future winners.
+export function gradeSleepers() {
+  return { sleeper1Hit: false, sleeper2Hit: false, sleeperBonus: 0 };
 }
 
 /* ------------------------------------------------------------------ *

@@ -1,48 +1,16 @@
-import { SLOT, locate, slotDisplay, matchWinner } from './customBracket';
-import { scoreEntry, gradeSleepers } from './customScoring';
-
-// Compute reachability once per result snapshot, shared by all loaded entries.
-// A bound sums individually reachable awards; conflicting sleeper/pick outcomes
-// need not be jointly achievable. It is deliberately not an exact projection.
-export function remainingContext(state) {
-  const loc = locate(state), winners = {}, slots = {}, decided = {};
-  for (const round of state.rounds) for (const id of round) {
-    slots[id] = ['A', 'B'].map(side => {
-      const slot = slotDisplay(state, loc, id, side);
-      if (slot.type === SLOT.NAMED) return new Set([slot.participantId]);
-      if (slot.type === SLOT.FEED) return winners[slot.sourceBoxId] || new Set();
-      return new Set();
-    });
-    const winner = matchWinner(state, loc, id);
-    decided[id] = winner;
-    winners[id] = winner != null ? new Set([winner]) : new Set([...slots[id][0], ...slots[id][1]]);
-  }
-  return { loc, winners, slots, decided };
-}
+import { scoreEntry } from './customScoring';
+import { remainingContext, remainingPoints } from './remainingPoints';
+export { remainingContext, compareStandings } from './remainingPoints';
 
 export function explainEntry(state, entry, roundPoints, pool, context = remainingContext(state)) {
   if (entry.dataError) return { total: null, breakdownUnavailable: 'Picks unavailable — score breakdown cannot be verified.' };
   if (entry.predictionsHidden) return { total: Number.isFinite(entry.score) ? entry.score : null, breakdownUnavailable: 'Picks private — breakdown and remaining points available after predictions close.' };
   if (!entry.predictions) return { total: null, breakdownUnavailable: entry.submittedAt ? 'Submitted picks unavailable.' : 'Not submitted' };
   const base = scoreEntry(state, entry.predictions, roundPoints);
-  const sleeper = gradeSleepers(state, entry, pool);
-  let remainingBase = 0, remainingSleepers = 0;
-  for (const [id, candidates] of Object.entries(context.winners)) {
-    if (context.decided[id] == null && candidates.has(entry.predictions[id])) {
-      remainingBase += roundPoints?.[context.loc[id].r] ?? context.loc[id].r + 1;
-    }
-  }
-  if (pool?.enableSleepers) for (const n of [1, 2]) {
-    const pid = entry[`sleeper${n}`], target = n + 1;
-    if (!pid || sleeper[`sleeper${n}Hit`] || !state.rounds[target]) continue;
-    if (state.rounds[target].some(id => context.slots[id].some(candidates => candidates.has(pid)))) {
-      remainingSleepers += Math.max(0, Number(pool[`sleeper${n}Points`]) || 0);
-    }
-  }
-  const total = base.total + sleeper.sleeperBonus;
-  return { total, basePoints: base.total, correct: base.correct, sleeperBonus: sleeper.sleeperBonus,
-    remainingBase, remainingSleepers, remainingPossible: remainingBase + remainingSleepers,
-    maxPossibleScore: total + remainingBase + remainingSleepers };
+  const remainingBase = remainingPoints(entry, roundPoints, context);
+  return { total: base.total, basePoints: base.total, correct: base.correct,
+    sleeperBonus: 0, remainingBase, remainingSleepers: 0,
+    remainingPossible: remainingBase, maxPossibleScore: base.total + remainingBase };
 }
 
 export function analysisBlockReason({ entries, loaded = true, entriesError, status }) {

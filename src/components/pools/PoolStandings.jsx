@@ -9,7 +9,7 @@ export default function PoolStandings({ entries, currentUserId, nameMap, analysi
   return <section className="pool-standings" style={S.lb} aria-label="Standings">
     <h2>Standings</h2>
     <p role="status">{analysisNotice}</p>
-    <p className="standings-help">Total = base points + earned sleeper bonuses. Remaining possible points are an upper bound: some picks and bonuses may require conflicting outcomes, so the full amount may not be achievable. This is not a win probability.</p>
+    <p className="standings-help">Points come from correct picks. Equal scores share a rank and are ordered by remaining possible points, highest first. Remaining points are an upper bound, not a win probability. Entries with private or unavailable remaining points follow those with known values.</p>
     {partial && <p>Ranks below compare only loaded entries, including your own entry.</p>}
     {!entries.length && <p>No participants to display.</p>}
     {entries.map((e, index) => {
@@ -26,11 +26,10 @@ export default function PoolStandings({ entries, currentUserId, nameMap, analysi
         {e.breakdownUnavailable ? <p>{e.breakdownUnavailable}</p> : <>
           <dl className="standings-breakdown">
             <div><dt>Base points</dt><dd>{e.basePoints}</dd></div>
-            <div><dt>Sleeper bonuses</dt><dd>+{e.sleeperBonus}</dd></div>
             <div><dt>Remaining possible</dt><dd>{e.remainingPossible === 0 ? '0' : `Up to ${e.remainingPossible}`}</dd></div>
             <div><dt>Final total ceiling</dt><dd>{e.maxPossibleScore}</dd></div>
           </dl>
-          <p className="standings-help">{e.correct} correct picks · Remaining: up to {e.remainingBase} base + {e.remainingSleepers} sleeper points.</p>
+          <p className="standings-help">{e.correct} correct picks · Remaining: up to {e.remainingPossible} points.</p>
         </>}
         <div className="standings-entry-footer">
           {status && <span>{statusText[status.status] || 'Undetermined'}{status.scenariosTruncated ? ' · winning paths incomplete' : ''}</span>}

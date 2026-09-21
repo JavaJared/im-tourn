@@ -53,6 +53,10 @@ jobs:
         run: node scripts/verify-query-indexes.cjs
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json
+      - name: Retire sleeper scoring in existing bracket pools
+        run: node scripts/retire-pool-sleepers.cjs
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json
       - name: Allow Netlify production builds to proceed
         run: node scripts/mark-backend-ready.cjs
         env:

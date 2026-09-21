@@ -57,12 +57,10 @@ exports.createPrivatePool = onCall(async req => {
     for (const field of ['bracketId', 'bracketTitle', 'bracketCategory', 'bracketType']) pool[field] = text(input[field] || '', 200);
     if (!Array.isArray(input.roundPoints) || input.roundPoints.length > 16 || input.roundPoints.some(p => !Number.isFinite(p) || p < 0 || p > 10000)) throw new HttpsError('invalid-argument', 'Invalid round points.');
     pool.roundPoints = input.roundPoints;
-    pool.enableSleepers = input.enableSleepers === true;
-    for (const field of ['sleeper1Points', 'sleeper2Points']) {
-      const points = input[field] || 0;
-      if (!Number.isFinite(points) || points < 0 || points > 10000) throw new HttpsError('invalid-argument', 'Invalid sleeper points.');
-      pool[field] = points;
-    }
+    // Ignore retired settings sent by an older client.
+    pool.enableSleepers = false;
+    pool.sleeper1Points = 0;
+    pool.sleeper2Points = 0;
   } else {
     if (!Array.isArray(input.categories) || input.categories.length < 1 || input.categories.length > 50) throw new HttpsError('invalid-argument', 'Invalid categories.');
     for (const category of input.categories) {

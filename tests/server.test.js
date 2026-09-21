@@ -66,4 +66,18 @@ run('server transactions against the Firestore emulator', () => {
     const pool = (await db.doc('bracketPools/p').get()).data(); expect(pool.winnerIds.sort()).toEqual(['alice','bob']); expect(pool.winnerScore).toBe(3);
     expect((await db.doc('poolEntries/p_alice').get()).data().score).toBe(3);
   });
+  test('sleeper retirement recalculates scores and winners atomically and is idempotent', async () => {
+    const { retirePoolSleepers } = require('../functions/retire-sleepers');
+    const state = generateSeededBracket(['A','B']);
+    const id = state.rounds[0][0], winner = state.boxes[id].slotA.participantId;
+    const ref = db.doc('bracketPools/retire');
+    await ref.set({status:'completed',enableSleepers:true,sleeper1Points:10,bracketMatchups:JSON.stringify(structureFromState(state)),customResults:{[id]:winner},roundPoints:[1],winnerId:'alice',winnerIds:['alice'],winnerScore:11});
+    for (const uid of ['alice','bob']) await db.doc(`poolEntries/retire_${uid}`).set({poolId:'retire',userId:uid,predictions:JSON.stringify({[id]:winner}),score:uid==='alice'?11:1,sleeper1Hit:uid==='alice'});
+    expect(await retirePoolSleepers(ref)).toBe(true);
+    expect((await ref.get()).data()).toMatchObject({enableSleepers:false,winnerIds:['alice','bob'],winnerScore:1});
+    expect((await db.doc('poolEntries/retire_alice').get()).data()).toMatchObject({score:1,retiredSleeperScore:11,sleeper1Hit:false});
+    expect(await retirePoolSleepers(ref)).toBe(false);
+    expect((await db.doc('poolEntries/retire_alice').get()).data().retiredSleeperScore).toBe(11);
+  });
+
 });
