@@ -56,8 +56,8 @@ export default function FriendsPage({ onNavigate }) {
     <p>Sending or accepting a request agrees to share your published creations and standalone saved brackets and ranking votes, including past activity. Private pools, unpublished drafts, and device-only picks are excluded. Either person can remove the friendship.</p>
     <section className="friend-section"><h2>Add a friend</h2>
       {profile ? <label>Your friend code<input readOnly value={profile.code} onFocus={e => e.target.select()} /><span>Share this code with someone you want to add.</span></label> : profileError ? <p role="alert">{profileError} <button onClick={() => setProfileRetry(n => n + 1)}>Retry friend code</button></p> : <p role="status">Loading your friend code…</p>}
-      <form onSubmit={e => { e.preventDefault(); perform('sendFriendRequest', {code}, 'Friend request sent.'); }}>
-        <label>Friend’s code<input value={code} onChange={e => setCode(e.target.value)} required maxLength={48} autoCapitalize="characters" autoComplete="off" spellCheck={false} /></label>
+      <form onSubmit={e => { e.preventDefault(); perform('sendFriendRequest', (/^[A-Fa-f0-9]{24}$/.test(code.replace(/[\s-]/g, '')) ? {code} : {username:code}), 'Friend request sent.'); }}>
+        <label>Friend’s username or code<input value={code} onChange={e => setCode(e.target.value)} required maxLength={48} autoCapitalize="none" autoComplete="off" spellCheck={false} /></label>
         <button className="nav-btn" disabled={busy || !code.trim()}>{busy ? 'Saving…' : 'Send friend request'}</button>
       </form>
     </section>

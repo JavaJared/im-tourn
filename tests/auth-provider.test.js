@@ -3,6 +3,7 @@ import { act, create } from 'react-test-renderer';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { AuthProvider, useAuth } from '../src/contexts/AuthContext.jsx';
 const firebase = vi.hoisted(() => ({ reset: vi.fn(), auth: {} }));
+vi.mock('../src/services/server', () => ({ callServer: vi.fn() }));
 vi.mock('../src/firebase', () => ({ auth: firebase.auth }));
 vi.mock('firebase/auth', () => ({
   sendPasswordResetEmail: firebase.reset,
