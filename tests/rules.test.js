@@ -23,7 +23,7 @@ run('Firestore and Storage trust boundaries', () => {
   afterAll(async () => env.cleanup());
   const db = uid => uid ? env.authenticatedContext(uid).firestore() : env.unauthenticatedContext().firestore();
   test('friend profiles, codes, limits and relationships are server-only', async () => {
-    for (const path of ['friendProfiles/alice','friendCodes/ABC','friendRequestLimits/alice','friendships/forged']) {
+    for (const path of ['accountProfiles/alice','usernames/forged','friendProfiles/alice','friendCodes/ABC','friendRequestLimits/alice','friendships/forged']) {
       await assertFails(getDoc(doc(db('alice'), path)));
       await assertFails(setDoc(doc(db('alice'), path), { status:'accepted', members:['alice','bob'] }));
     }

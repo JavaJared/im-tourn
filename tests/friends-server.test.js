@@ -16,7 +16,7 @@ run('accepted friends and shared activity', () => {
     const admin = require('../functions/node_modules/firebase-admin/lib/firestore'); db=admin.getFirestore(); Timestamp=admin.Timestamp;
     pairRef = require('../functions/friends').internal.pairRef;
   });
-  beforeEach(async () => {for (const name of ['friendships','friendProfiles','friendCodes','friendRequestLimits','brackets','customBrackets','submissions','rankings','rankingVotes','rankingEntries','bracketPools','poolEntries']) await db.recursiveDelete(db.collection(name));});
+  beforeEach(async () => {for (const name of ['accountProfiles','usernames','friendships','friendProfiles','friendCodes','friendRequestLimits','brackets','customBrackets','submissions','rankings','rankingVotes','rankingEntries','bracketPools','poolEntries']) await db.recursiveDelete(db.collection(name));});
   test('codes are stable, do not expose emails, and require sign-in',async()=>{
     await expect(call('getFriendProfile',null)).rejects.toMatchObject({code:'unauthenticated'});
     const one = await call('getFriendProfile','alice');
@@ -135,6 +135,43 @@ run('accepted friends and shared activity', () => {
     await expect(call('listFriendActivities','alice',{friendId:'bob',type:'custom',mode:'filled'})).rejects.toMatchObject({code:'permission-denied'});
     await call('respondToFriend','bob',{friendId:'alice',action:'accept'});
     expect(await call('getUserProfile','alice',{profileId:'bob'})).toMatchObject({relationship:'accepted',canViewPrivate:true,canSendFriendRequest:false});
+  });
+
+  test('usernames are unique under concurrent and case-insensitive claims', async () => {
+    const { changeUsername } = require('../functions/usernames').internal;
+    const results = await Promise.allSettled([changeUsername('alice','Jared'),changeUsername('bob','jared')]);
+    expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
+    expect(results.find(result => result.status === 'rejected').reason.code).toBe('already-exists');
+    const owner = (await db.doc('usernames/jared').get()).data().uid;
+    expect((await db.doc(`accountProfiles/${owner}`).get()).data().username).toBe('jared');
+    expect((await changeUsername(owner, '  @JARED  ')).username).toBe('jared');
+    await changeUsername(owner,'new_name');
+    expect((await db.doc('usernames/jared').get()).exists).toBe(false);
+    expect((await db.doc('usernames/new_name').get()).data().uid).toBe(owner);
+    await expect(api.setAccountUsername.run(request(null,{username:'other'}))).rejects.toMatchObject({code:'unauthenticated'});
+    await api.setAccountUsername.run(request('eve',{username:'eve_name',uid:owner}));
+    expect((await db.doc(`accountProfiles/${owner}`).get()).data().username).toBe('new_name');
+  });
+  test('existing users receive stable defaults while new users must choose', async () => {
+    const { ensureAccount, changeUsername } = require('../functions/usernames').internal;
+    const cutoff = Date.parse('2026-09-21T12:00:00Z');
+    const old = {uid:'old',metadata:{creationTime:'2026-09-20T00:00:00Z'}};
+    const first = await ensureAccount(old,cutoff);
+    expect(first).toMatchObject({usernameIsDefault:true,needsUsername:false});
+    expect(first.username).toMatch(/^user_[a-f0-9]{18}$/);
+    expect(await ensureAccount(old,cutoff)).toEqual(first);
+    expect(await ensureAccount({uid:'new',metadata:{creationTime:'2026-09-21T12:00:00Z'}},cutoff)).toMatchObject({needsUsername:true,username:null});
+    await changeUsername('old','chosen_name');
+    expect((await ensureAccount(old,cutoff)).username).toBe('chosen_name');
+    for (const username of ['a','bad name','123name','admin','user_fake','éclair','a'.repeat(25)]) await expect(changeUsername('new',username)).rejects.toMatchObject({code:'invalid-argument'});
+  });
+  test('friends can be requested by their current username', async () => {
+    await call('getFriendProfile','bob');
+    await api.setAccountUsername.run(request('bob',{username:'bob_tourn'}));
+    await call('sendFriendRequest','alice',{username:'@BOB_TOURN'});
+    expect((await pairRef('alice','bob').get()).data().status).toBe('pending');
+    await expect(call('sendFriendRequest','alice',{username:'missing_user'})).rejects.toMatchObject({code:'not-found'});
+    expect((await call('getUserProfile','alice',{profileId:'bob'})).username).toBe('bob_tourn');
   });
 
 });
