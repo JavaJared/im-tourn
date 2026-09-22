@@ -7,7 +7,6 @@ const mocks = vi.hoisted(() => ({ state:null, status:'published', own:vi.fn(), a
 vi.mock('../src/services/customBracketService',()=>({subscribeToBracket:(_id,callback)=>{callback(mocks.state,{exists:true,raw:{title:'Saved',status:mocks.status}});return ()=>{};},getCustomFill:mocks.own,getCustomFills:mocks.all,submitCustomFill:mocks.submit}));
 vi.mock('../src/components/BracketBoard',()=>({default:({state,editable})=>createElement('section',{'data-pick':state.boxes[state.rounds[0][0]].result?.winnerId,'data-editable':editable})}));
 vi.mock('../src/services/server',()=>({callServer:(...args)=>mocks.load(...args)}));
-vi.mock('../src/lib/exportBracketPdf',()=>({exportBracketPdf:vi.fn()}));
 let tree;
 beforeEach(()=>{ vi.clearAllMocks(); mocks.own.mockReset(); mocks.load.mockReset().mockResolvedValue({found:false}); mocks.all.mockReset(); mocks.status='published'; mocks.state=generateSeededBracket(['A','B']); });
 afterEach(()=>{if(tree)act(()=>tree.unmount());vi.unstubAllGlobals();});
@@ -55,7 +54,7 @@ test('normal fill mode still permits saving current picks',async()=>{
  vi.stubGlobal('localStorage',{getItem:()=>JSON.stringify({[mocks.state.rounds[0][0]]:'p1'})});
  await act(async()=>{tree=create(createElement(CustomBracketFill,{bracketId:'b',currentUserId:'alice'}));});
  expect(tree.root.findByType('section').props['data-editable']).toBe(true);
- await act(async()=>tree.root.findAllByType('button').find(button=>button.props.onClick&&button.props.disabled===false).props.onClick());
+ await act(async()=>tree.root.findAllByType('button').find(button=>button.children.some(child=>typeof child==='string'&&child.includes('Save my bracket'))).props.onClick());
  expect(mocks.submit).toHaveBeenCalledWith('b',expect.objectContaining({userId:'alice'}));
 });
 

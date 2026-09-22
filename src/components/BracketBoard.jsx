@@ -57,15 +57,14 @@ export function resolveSlot(state, loc, nameMap, boxId, slot, seedMap) {
   return { kind: 'player', pid, name: (nameMap && nameMap[pid]) || '—', seed: seedMap ? seedMap[pid] : undefined };
 }
 
-export default function BracketBoard({ state, nameMap, seedMap, editable, onPick, official, sc, highlight, support }) {
+export default function BracketBoard({ state, nameMap, seedMap, editable, onPick, official, sc, highlight, support, exportMode = false, layoutOverride }) {
   const loc = useMemo(() => locate(state), [state]);
-  const layout = useMemo(() => computeLayout(state), [state]);
+  const layout = useMemo(() => layoutOverride || computeLayout(state), [state, layoutOverride]);
   const rounds = state.rounds.map(round => round.map(id => {
     const a = resolveSlot(state, loc, nameMap, id, 'A', seedMap), b = resolveSlot(state, loc, nameMap, id, 'B', seedMap);
     return { id, ready: a.kind === 'player' && b.kind === 'player', answered: state.boxes[id].result?.winnerId != null || a.kind === 'bye' || b.kind === 'bye' };
   }));
-  return (
-    <RoundNavigator rounds={rounds} editable={editable} label={r => layout.columns[r]?.label || 'Round 1'}>{({ roundProps, matchProps }) => <div className="engine-board" style={{ position: 'relative', width: layout.width, height: layout.height }}>
+  const draw = ({ roundProps = () => ({}), matchProps = () => ({}) } = {}) => <div className="engine-board" style={{ position: 'relative', width: layout.width, height: layout.height }}>
       {state.rounds.length >= 2 && layout.columns.map((c, i) => <div className="engine-heading" key={i} style={{ ...BS.colHead, left: c.x, width: CARDW }}>{c.label}</div>)}
       <svg style={BS.svg} width={layout.width} height={layout.height}>
         {Object.keys(state.boxes).map((id) => {
@@ -73,7 +72,8 @@ export default function BracketBoard({ state, nameMap, seedMap, editable, onPick
           return [0, 1].map((w) => {
             const fid = feederId(state, r, p, w); if (!fid) return null; const cp = layout.positions[fid]; if (!cp) return null;
             const decided = resolveParticipant(state, loc, id, w === 0 ? 'A' : 'B') != null;
-            const x1 = cp.x + CARDW, y1 = cp.y + CARDH / 2, x2 = pos.x, y2 = pos.y + CARDH / 2, mx = (x1 + x2) / 2;
+            const fromRight = cp.x > pos.x;
+            const x1 = fromRight ? cp.x : cp.x + CARDW, y1 = cp.y + CARDH / 2, x2 = fromRight ? pos.x + CARDW : pos.x, y2 = pos.y + CARDH / 2, mx = (x1 + x2) / 2;
             return <path key={id + w} d={`M ${x1} ${y1} C ${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`} fill="none" stroke={decided ? 'rgba(43,212,192,.5)' : 'rgba(130,139,161,.32)'} strokeWidth="2" />;
           });
         })}
@@ -84,8 +84,8 @@ export default function BracketBoard({ state, nameMap, seedMap, editable, onPick
           support={support?.[id]} result={state.boxes[id].result} editable={editable} onPick={onPick}
           official={official ? official[id] : null} sc={sc} hl={highlight ? highlight.has(id) : false} />
       ))}</div>)}
-    </div>}</RoundNavigator>
-  );
+    </div>;
+  return exportMode ? draw() : <RoundNavigator rounds={rounds} editable={editable} label={r => layout.columns[r]?.label || 'Round 1'}>{draw}</RoundNavigator>;
 }
 
 function Card({ id, pos, a, b, result, editable, onPick, official, sc, hl, matchProps, support }) {

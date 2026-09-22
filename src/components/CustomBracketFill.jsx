@@ -2,7 +2,7 @@ import BracketPickViews from './BracketPickViews';
 import { callServer } from '../services/server';
 import { BracketFrame as Shell, bracketFrameStyles as S } from './BracketFrame';
 import SaveNotice from './SaveNotice';
-import { exportBracketPdf } from '../lib/exportBracketPdf';
+import DownloadBracketImage from './DownloadBracketImage';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Check, Clock, Loader2, AlertTriangle, Send } from './customBracketIcons';
 import { SLOT, setResult, getChampion } from '../lib/customBracket';
@@ -111,7 +111,8 @@ export default function CustomBracketFill({ bracketId, currentUserId, currentUse
           {openSaved && <span style={S.sub}>Read only</span>}
         </div>
         <div style={S.topRight}>
-          {view==='mine' && <button style={S.ghost} onClick={() => exportBracketPdf(pred, nameMap, title).catch(e => flash(e.message))}>Download PDF</button>}
+          {view==='mine' && <DownloadBracketImage title={title} getState={()=>pred}/>}
+          {!openSaved && view==='mine' && <DownloadBracketImage title={`${title} - blank`} label="Save blank PNG" getState={()=>blankPrediction(bracket)}/>}
           {!openSaved && view==='mine' && <button style={{ ...S.primary, ...(complete ? {} : S.primaryOff) }} disabled={!complete || !canEdit} onClick={save}>
             {saved ? <><Check size={14} strokeWidth={3} /> Saved</> : <><Send size={14} strokeWidth={2.5} /> {sending ? 'Saving…' : saveError ? 'Retry save' : 'Save my bracket'}</>}
           </button>}
