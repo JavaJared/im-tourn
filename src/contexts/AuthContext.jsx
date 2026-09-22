@@ -1,3 +1,5 @@
+import useAccountUsername from './useAccountUsername';
+import UsernameSetup from '../components/account/UsernameSetup';
 import { isNativeApp } from '../mobile/platform';
 // src/contexts/AuthContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
@@ -22,6 +24,8 @@ export function useAuth() {
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const { account, updateUsername, retryUsername } = useAccountUsername(currentUser);
 
   function signup(email, password, displayName) {
     return createUserWithEmailAndPassword(auth, email, password).then((result) => {
@@ -63,6 +67,9 @@ export function AuthProvider({ children }) {
 
   const value = {
     currentUser,
+    username: account.username,
+    usernameIsDefault: account.usernameIsDefault,
+    updateUsername,
     signup,
     login,
     loginWithGoogle,
@@ -70,5 +77,5 @@ export function AuthProvider({ children }) {
     logout,
   };
 
-  return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={value}>{!loading && (!currentUser || account.username ? children : <UsernameSetup key={currentUser.uid} account={account} onSave={updateUsername} onRetry={retryUsername} onLogout={logout} />)}</AuthContext.Provider>;
 }

@@ -1,3 +1,4 @@
+import UsernameForm from '../../components/account/UsernameForm';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { callServer } from '../../services/server';
@@ -48,7 +49,7 @@ function ActivityList({ profileId, kind, mode, onNavigate, onSelect, canViewPriv
 }
 
 export default function ProfilePage({ profileId, onNavigate }) {
-  const { currentUser } = useAuth();
+  const { currentUser, username, usernameIsDefault, updateUsername } = useAuth();
   const targetId = profileId || currentUser?.uid;
   const [profile, setProfile] = useState(null), [error, setError] = useState(''), [retry, setRetry] = useState(0);
   const [kind, setKind] = useState('brackets'), [mode, setMode] = useState('created'), [selected, setSelected] = useState(null);
@@ -73,6 +74,11 @@ export default function ProfilePage({ profileId, onNavigate }) {
       <div><h1>{profile.displayName}’s Profile</h1><p>{profile.isSelf ? 'Your public activity and private account statistics.' : 'Public creations and activity.'}</p></div>
       <ProfileFriendAction key={`${currentUser.uid}:${profile.id}`} profile={profile} onRefresh={() => setRetry(value => value + 1)} />
     </div>
+    {(profile.isSelf ? username : profile.username) && <p className="profile-username">@{profile.isSelf ? username : profile.username}</p>}
+    {profile.isSelf && <section className="friend-section"><h2>Account username</h2>
+      {usernameIsDefault && <p>This username was assigned to your existing account. You can choose your own below.</p>}
+      <UsernameForm key={currentUser.uid} username={username} onSave={updateUsername} />
+    </section>}
     <p className="profile-privacy">Published creations are visible here. Filled choices and pool statistics are shared only with you and accepted friends. Private pool predictions and unpublished drafts are never included.</p>
     <section className="profile-stats" aria-label="Profile statistics">
       {statLabels.filter(([key]) => key.startsWith('created') || profile.canViewPrivate).map(([key, label]) => <div className="profile-stat" key={key}><strong>{profile.stats[key] == null ? '—' : profile.stats[key]}</strong><span>{label}</span></div>)}

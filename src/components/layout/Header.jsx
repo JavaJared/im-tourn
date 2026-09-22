@@ -5,7 +5,7 @@ import ViewLink from './ViewLink.jsx';
 import AuthModal from '../dialogs/AuthModal.jsx';
 
 const Header = ({ onNavigate, currentView }) => {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, username, logout } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState('login');
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -118,7 +118,7 @@ const Header = ({ onNavigate, currentView }) => {
                   {currentUser.displayName?.[0]?.toUpperCase() ||
                     currentUser.email?.[0]?.toUpperCase()}
                 </span>
-                <span className="user-name">{currentUser.displayName || 'User'}</span>
+                <span className="user-name">{username ? `@${username}` : currentUser.displayName || 'User'}</span>
               </button>
 
               {showUserMenu && (

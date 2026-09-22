@@ -1,0 +1,6 @@
+.username-setup { max-width: 640px; padding: 2rem 1rem; margin: 0 auto; }
+.username-form { display: flex; flex-direction: column; align-items: flex-start; gap: .75rem; max-width: 600px; margin-bottom: 1rem; }
+.username-form p { margin: 0; line-height: 1.5; }
+.username-form input { width: 100%; box-sizing: border-box; min-height: 44px; }
+.username-form button { min-height: 44px; }
+.profile-username { overflow-wrap: anywhere; }
