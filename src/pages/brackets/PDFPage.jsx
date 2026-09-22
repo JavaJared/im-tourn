@@ -1,3 +1,5 @@
+import LegacyBracketBoard from '../../components/LegacyBracketBoard';
+import { BracketFrame, bracketFrameStyles as S } from '../../components/BracketFrame';
 import { useAuth } from '../../contexts/AuthContext';
 
 const PDFPage = ({ bracket, onBack }) => {
@@ -213,81 +215,17 @@ const PDFPage = ({ bracket, onBack }) => {
   };
 
   return (
-    <div className="pdf-container">
-      <div className="pdf-header">
-        <h1>Your Bracket is Ready!</h1>
-
-      </div>
-
-      <div className="pdf-preview-display">
-        <h2 className="preview-title">{bracket.title}</h2>
-        <p className="preview-subtitle">
-          {bracket.category} • {bracket.size} Entries
-        </p>
-
-        <div className="preview-bracket">
-          {bracket.matchups.map((round, roundIndex) => (
-            <div key={roundIndex} className="preview-round">
-              <div className="preview-round-title">
-                {getRoundName(roundIndex, bracket.matchups.length)}
-              </div>
-              <div className="preview-matchups">
-                {round.map((match) => (
-                  <div key={match.id} className="preview-matchup">
-                    <div className={`preview-entry ${match.winner === 1 ? 'winner' : ''}`}>
-                      {match.entry1 ? (
-                        <>
-                          <span className="preview-seed">{match.entry1.seed}</span>
-                          <span>{match.entry1.name}</span>
-                        </>
-                      ) : (
-                        <span className="tbd">TBD</span>
-                      )}
-                    </div>
-                    <div className={`preview-entry ${match.winner === 2 ? 'winner' : ''}`}>
-                      {match.entry2 ? (
-                        <>
-                          <span className="preview-seed">{match.entry2.seed}</span>
-                          <span>{match.entry2.name}</span>
-                        </>
-                      ) : (
-                        <span className="tbd">TBD</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
+    <BracketFrame onExit={onBack}>
+      <header style={S.top}>
+        <div style={S.brand}>
+          <h1 style={{ ...S.title, margin: 0 }}>{bracket.title}</h1>
+          <span style={S.sub}>Read only</span>
         </div>
-
-        {bracket.champion && (
-          <div className="preview-champion">
-            <span>🏆 CHAMPION: </span>
-            <strong>{bracket.champion.name}</strong>
-          </div>
-        )}
-      </div>
-
-      <div className="pdf-actions">
-        <button className="back-btn" onClick={onBack}>
-          Back to Brackets
-        </button>
-        <button className="download-btn" onClick={downloadPDF}>
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
-          </svg>
-          Download PDF
-        </button>
-      </div>
-    </div>
+        <button style={S.ghost} onClick={downloadPDF}>Download PDF</button>
+      </header>
+      <div style={S.scroll}><LegacyBracketBoard matchups={bracket.matchups} /></div>
+      {bracket.champion && <div style={S.notice}>Champion: <strong>{bracket.champion.name}</strong></div>}
+    </BracketFrame>
   );
 };
 

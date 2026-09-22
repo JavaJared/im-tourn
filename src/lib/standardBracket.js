@@ -144,7 +144,9 @@ export function generateSeededBracket(entries) {
  * engine's own resolution, so propagated entry copies in later rounds are
  * ignored rather than trusted.
  */
-export function convertLegacyMatchups(matchups) {
+// Display adapters use positional IDs to keep repeated or missing legacy seeds distinct.
+// The default retains the IDs used by existing pool/scoring integrations.
+export function convertLegacyMatchups(matchups, { positionalIds = false } = {}) {
   if (!Array.isArray(matchups) || matchups.length === 0) {
     throw new Error('matchups must be a non-empty array of rounds');
   }
@@ -162,7 +164,7 @@ export function convertLegacyMatchups(matchups) {
   // first-round position, and are stable for a given input.
   const nameMap = {};
   const pidFor = (entry, fallbackIdx) => {
-    const n = entry.seed != null ? entry.seed : fallbackIdx + 1;
+    const n = !positionalIds && entry.seed != null ? entry.seed : fallbackIdx + 1;
     return `p${n}`;
   };
   const firstRound = matchups[0];

@@ -1,3 +1,5 @@
+import LegacyBracketBoard from '../LegacyBracketBoard';
+import { BracketFrame, bracketFrameStyles as S } from '../BracketFrame';
 import UserLink from '../layout/UserLink';
 import { callServer } from '../../services/server';
 import { db } from '../../firebase';
@@ -120,14 +122,6 @@ const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
     } finally { votesPending.current.delete(submission.id); }
   };
 
-  const getRoundName = (roundIndex, totalRounds) => {
-    const remaining = totalRounds - roundIndex;
-    if (remaining === 1) return 'Finals';
-    if (remaining === 2) return 'Semi-Finals';
-    if (remaining === 3) return 'Quarter-Finals';
-    return `Round ${roundIndex + 1}`;
-  };
-
   if (!isOpen) return null;
 
   return (
@@ -225,45 +219,9 @@ const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
                   )}
                 </div>
 
-                <div className="submission-bracket">
-                  {selectedSubmission.matchups.map((round, roundIndex) => (
-                    <div key={roundIndex} className="submission-round">
-                      <div className="submission-round-title">
-                        {getRoundName(roundIndex, selectedSubmission.matchups.length)}
-                      </div>
-                      <div className="submission-matchups">
-                        {round.map((match, matchIndex) => (
-                          <div key={`${roundIndex}-${matchIndex}`} className="submission-matchup">
-                            <div
-                              className={`submission-entry ${match.winner === 1 ? 'winner' : ''}`}
-                            >
-                              {match.entry1 ? (
-                                <>
-                                  <span className="submission-seed">{match.entry1.seed}</span>
-                                  <span className="submission-entry-name">{match.entry1.name}</span>
-                                </>
-                              ) : (
-                                <span className="submission-entry-name tbd">TBD</span>
-                              )}
-                            </div>
-                            <div
-                              className={`submission-entry ${match.winner === 2 ? 'winner' : ''}`}
-                            >
-                              {match.entry2 ? (
-                                <>
-                                  <span className="submission-seed">{match.entry2.seed}</span>
-                                  <span className="submission-entry-name">{match.entry2.name}</span>
-                                </>
-                              ) : (
-                                <span className="submission-entry-name tbd">TBD</span>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <BracketFrame>
+                  <div style={S.scroll}><LegacyBracketBoard matchups={selectedSubmission.matchups} /></div>
+                </BracketFrame>
               </div>
             )}
 

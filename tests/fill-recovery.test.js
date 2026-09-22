@@ -60,9 +60,9 @@ function mount(props = {}) {
 }
 const picks = (tree) =>
   tree.root.findAll(
-    (node) => node.type === 'button' && node.props.className?.startsWith('matchup-entry'),
+    (node) => node.type === 'button' && node.props.className === 'pick-control',
   );
-const submit = (tree) => tree.root.findByProps({ className: 'submit-btn' });
+const submit = (tree) => tree.root.findByProps({ className: 'legacy-submit' });
 function complete(tree) {
   for (const index of [0, 2, 4]) act(() => picks(tree)[index].props.onClick());
 }
@@ -193,7 +193,7 @@ describe('legacy fill recovery', () => {
 it('does not allow a premature final pick to submit an unfinished bracket', () => {
   const tree = mount();
   act(() => picks(tree)[0].props.onClick());
-  act(() => picks(tree)[4].props.onClick());
+  expect(picks(tree)).toHaveLength(4); // The final stays non-interactive until both entrants advance.
   expect(submit(tree).props.disabled).toBe(true);
 });
 it('does not navigate away from a new page when an earlier save finishes', async () => {

@@ -8,7 +8,8 @@ import {
   selectFillWinner,
 } from '../../lib/fillDraft';
 import { useAuth } from '../../contexts/AuthContext';
-import RoundNavigator, { legacyRounds } from '../../components/RoundNavigator';
+import LegacyBracketBoard from '../../components/LegacyBracketBoard';
+import { BracketFrame, bracketFrameStyles as S } from '../../components/BracketFrame';
 import { submitFilledBracket } from '../../services/bracketService';
 
 const FillPage = (props) => {
@@ -287,111 +288,29 @@ const FillEditor = ({ bracket, onSubmit, onBack, currentUser, draftKey }) => {
   };
 
   return (
-    <div className="fill-container">
-      <div className="fill-header">
-        <h1>{bracket.title}</h1>
-
-        <p role={draftFailed ? "alert" : "status"}>{draftStatus} {draftFailed && <button type="button" onClick={() => persistDraft(matchups)}>Retry draft save</button>}</p>
-        <p className="bracket-author-fill">Created by <UserLink userId={bracket.userId} /></p>
-        <button className="download-blank-btn" onClick={downloadBlankBracket}>
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
-          </svg>
-          Download Blank Bracket
-        </button>
-      </div>
-
-      <RoundNavigator rounds={legacyRounds(matchups)} editable={!submitting} label={r => getRoundName(r, matchups.length)}>{({ roundProps, matchProps }) => <div className="bracket-wrapper">
-        {matchups.map((round, roundIndex) => (
-          <div key={roundIndex} className="round" {...roundProps(roundIndex)}>
-            <div className="round-title">{getRoundName(roundIndex, matchups.length)}</div>
-            <div className="matchups-container">
-              {round.map((match, matchIndex) => (
-                <div key={match.id || matchIndex} className="matchup" {...matchProps(roundIndex + '-' + matchIndex)}>
-                  <button
-                    type="button"
-                    disabled={!match.entry1 || submitting}
-                    aria-pressed={match.winner === 1}
-                    className={`matchup-entry ${!match.entry1 ? 'empty' : ''} ${match.winner === 1 ? 'selected' : ''}`}
-                    onClick={() => match.entry1 && handleSelectWinner(roundIndex, matchIndex, 1)}
-                  >
-                    {match.entry1 ? (
-                      <>
-                        <span className="entry-seed-small">{match.entry1.seed}</span>
-                        <span className="entry-name">{match.entry1.name}</span>
-                      </>
-                    ) : (
-                      <span className="entry-name tbd">TBD</span>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!match.entry2 || submitting}
-                    aria-pressed={match.winner === 2}
-                    className={`matchup-entry ${!match.entry2 ? 'empty' : ''} ${match.winner === 2 ? 'selected' : ''}`}
-                    onClick={() => match.entry2 && handleSelectWinner(roundIndex, matchIndex, 2)}
-                  >
-                    {match.entry2 ? (
-                      <>
-                        <span className="entry-seed-small">{match.entry2.seed}</span>
-                        <span className="entry-name">{match.entry2.name}</span>
-                      </>
-                    ) : (
-                      <span className="entry-name tbd">TBD</span>
-                    )}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>}</RoundNavigator>
-
-      {isComplete() && (
-        <div className="champion-display">
-          <div className="champion-label">🏆 CHAMPION 🏆</div>
-          <div className="champion-name">{getChampion()?.name}</div>
+    <BracketFrame onExit={submitting ? undefined : onBack}>
+      <header style={S.top}>
+        <div style={S.brand}>
+          <h1 style={{ ...S.title, margin: 0 }}>{bracket.title}</h1>
+          <span style={S.sub}>Created by <UserLink userId={bracket.userId} /></span>
         </div>
-      )}
-
-      {submitError && (
-        <p className="error-message" role="alert">
-          {submitError}
-        </p>
-      )}
-      {submitting && <p role="status">Saving your bracket. Please keep this page open.</p>}
-      {!currentUser && (
-        <p>
-          Sign in before filling to save a submission to your account. As a guest, you can export
-          your picks.
-        </p>
-      )}
-      <div className="submit-section">
-        <button className="back-btn" onClick={onBack} disabled={submitting}>
-          Cancel
-        </button>
-        <button
-          className="submit-btn"
-          disabled={!isComplete() || submitting}
-          onClick={handleSubmit}
-        >
-          {submitting
-            ? 'Saving...'
-            : submitError
-              ? 'Retry Submission →'
-              : currentUser
-                ? 'Submit Bracket →'
-                : 'Export Bracket →'}
-        </button>
+        <div style={S.topRight}>
+          <button style={S.ghost} onClick={downloadBlankBracket}>Download blank PDF</button>
+          <button className="legacy-submit" style={{ ...S.primary, ...(!isComplete() || submitting ? S.primaryOff : {}) }}
+            disabled={!isComplete() || submitting} onClick={handleSubmit}>
+            {submitting ? 'Saving…' : submitError ? 'Retry save' : currentUser ? 'Save my bracket' : 'Export my bracket'}
+          </button>
+        </div>
+      </header>
+      <p style={S.notice} role={draftFailed ? 'alert' : 'status'}>{draftStatus} {draftFailed && <button type="button" style={S.ghost} onClick={() => persistDraft(matchups)}>Retry draft save</button>}</p>
+      {submitError && <p style={S.notice} role="alert">{submitError}</p>}
+      {submitting && <p style={S.notice} role="status">Saving your bracket. Please keep this page open.</p>}
+      {!currentUser && <p style={S.notice}>Guest picks can be exported. Sign in to save to your account.</p>}
+      <div style={S.scroll}>
+        <LegacyBracketBoard matchups={matchups} editable={!submitting} onPick={handleSelectWinner} />
       </div>
-    </div>
+      {isComplete() && <div style={S.notice}>Champion: <strong>{getChampion()?.name}</strong></div>}
+    </BracketFrame>
   );
 };
 
