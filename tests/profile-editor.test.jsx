@@ -1,0 +1,44 @@
+import React from 'react';
+import { act, create } from 'react-test-renderer';
+import { afterEach, expect, test, vi } from 'vitest';
+import ProfileEditor from '../src/pages/friends/ProfileEditor';
+import ProfilePage from '../src/pages/friends/ProfilePage';
+const mocks = vi.hoisted(() => ({ call: vi.fn(), username: 'alice', saveUsername: vi.fn() }));
+vi.mock('../src/services/server', () => ({ callServer: (...args) => mocks.call(...args) }));
+vi.mock('../src/lib/useDialog', () => ({ useDialog: () => ({current:null}) }));
+vi.mock('../src/contexts/AuthContext', () => ({ useAuth: () => ({ currentUser: {uid:'alice'}, username: mocks.username, updateUsername: mocks.saveUsername }) }));
+vi.mock('../src/lib/usePagedCatalog', () => ({ usePagedCatalog: () => ({items:[], loading:false, error:'', hasMore:false}) }));
+let tree;
+afterEach(() => { if (tree) act(() => tree.unmount()); mocks.call.mockReset(); });
+test('editor keeps changes after errors and supports retry and photo removal', async () => {
+  const saved = vi.fn();
+  await act(async () => { tree = create(<ProfileEditor profile={{bio:'Old bio', photoURL:'https://example.com/photo.jpg'}} username="alice" updateUsername={mocks.saveUsername} onSaved={saved} onClose={()=>{}} />); });
+  expect(tree.root.findByProps({role:'dialog'}).props['aria-modal']).toBe('true');
+  await act(async () => tree.root.findByType('textarea').props.onChange({target:{value:'New bio'}}));
+  await act(async () => tree.root.findAllByType('button').find(b=>b.children.includes('Remove photo')).props.onClick());
+  mocks.call.mockRejectedValueOnce(new Error('Offline')).mockResolvedValueOnce({bio:'New bio',photoURL:null});
+  const submit = () => tree.root.findAllByType('form')[0].props.onSubmit({preventDefault(){}});
+  await act(submit);
+  expect(JSON.stringify(tree.toJSON())).toContain('Offline');
+  expect(tree.root.findByType('textarea').props.value).toBe('New bio');
+  expect(saved).not.toHaveBeenCalled();
+  await act(submit);
+  expect(mocks.call).toHaveBeenLastCalledWith('updateProfileDetails',{bio:'New bio',photo:null});
+  expect(saved).toHaveBeenCalledWith({bio:'New bio',photoURL:null});
+  expect(JSON.stringify(tree.toJSON())).toContain('Profile saved.');
+});
+test('profile header shows username, bio and friend count with owner editing hidden until opened', async () => {
+  mocks.call.mockResolvedValue({id:'alice', isSelf:true, username:'alice', bio:'My bio', friendCount:3, stats:{}, canViewPrivate:true});
+  await act(async () => { tree = create(<ProfilePage onNavigate={()=>{}} />); });
+  expect(tree.root.findByType('h1').children.join('')).toBe('@alice');
+  expect(JSON.stringify(tree.toJSON())).toContain('My bio');
+  expect(tree.root.findAllByType('form')).toHaveLength(0);
+  await act(async () => tree.root.findByProps({'aria-label':'Edit profile'}).props.onClick());
+  expect(tree.root.findByProps({role:'dialog'})).toBeTruthy();
+});
+test('another user cannot see edit controls', async () => {
+  mocks.call.mockResolvedValue({id:'bob', isSelf:false, username:'bob', bio:'', friendCount:0, stats:{}, canViewPrivate:false, relationship:'none', canSendFriendRequest:true});
+  await act(async () => { tree = create(<ProfilePage profileId="bob" onNavigate={()=>{}} />); });
+  expect(tree.root.findAllByProps({'aria-label':'Edit profile'})).toHaveLength(0);
+  expect(JSON.stringify(tree.toJSON())).toContain('Add friend');
+});

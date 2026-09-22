@@ -17,6 +17,33 @@ run('accepted friends and shared activity', () => {
     pairRef = require('../functions/friends').internal.pairRef;
   });
   beforeEach(async () => {for (const name of ['accountProfiles','usernames','friendships','friendProfiles','friendCodes','friendRequestLimits','brackets','customBrackets','submissions','rankings','rankingVotes','rankingEntries','bracketPools','poolEntries']) await db.recursiveDelete(db.collection(name));});
+  test('profile details edits are authenticated, owner-only, and preserve usernames', async () => {
+    await expect(call('updateProfileDetails', null, {bio:'hello'})).rejects.toMatchObject({code:'unauthenticated'});
+    await db.doc('accountProfiles/alice').set({username:'alice_name'});
+    await db.doc('accountProfiles/bob').set({bio:'Bob bio'});
+    await call('updateProfileDetails', 'alice', {profileId:'bob', bio:'Hello from Alice'});
+    expect((await db.doc('accountProfiles/bob').get()).data().bio).toBe('Bob bio');
+    expect((await call('getUserProfile', 'bob', {profileId:'alice'}))).toMatchObject({bio:'Hello from Alice', username:'alice_name', friendCount:0});
+    await expect(call('updateProfileDetails', 'alice', {bio:'too fast'})).rejects.toMatchObject({code:'resource-exhausted'});
+    await connect();
+    expect((await call('getUserProfile', 'alice')).friendCount).toBe(1);
+    await call('respondToFriend','alice',{friendId:'bob',action:'remove'});
+    expect((await call('getUserProfile', 'alice')).friendCount).toBe(0);
+  });
+  test('profile photos upload to the owner path and can be removed without changing the username', async () => {
+    const { getStorage } = require('../functions/node_modules/firebase-admin/lib/storage');
+    await db.doc('accountProfiles/alice').set({username:'alice_name'});
+    const result = await call('updateProfileDetails','alice',{bio:'Photo bio',photo:'/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDzWiiivSOA/9k='});
+    const account = (await db.doc('accountProfiles/alice').get()).data();
+    expect(account.photoPath).toMatch(/^profilePhotos\/alice\/.*\.jpg$/);
+    expect(result.photoURL).toContain(encodeURIComponent(account.photoPath));
+    const file = getStorage().bucket(process.env.FIREBASE_STORAGE_BUCKET || 'i-m-tourn.firebasestorage.app').file(account.photoPath);
+    expect((await file.exists())[0]).toBe(true);
+    await db.doc('accountProfiles/alice').update({profileEditAt:Timestamp.fromMillis(0)});
+    await call('updateProfileDetails','alice',{bio:'Photo bio',photo:null});
+    expect((await file.exists())[0]).toBe(false);
+    expect((await db.doc('accountProfiles/alice').get()).data()).toMatchObject({username:'alice_name',photoURL:null,photoPath:null});
+  });
   test('codes are stable, do not expose emails, and require sign-in',async()=>{
     await expect(call('getFriendProfile',null)).rejects.toMatchObject({code:'unauthenticated'});
     const one = await call('getFriendProfile','alice');

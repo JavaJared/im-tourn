@@ -209,6 +209,7 @@ exports.getUserProfile = onCall(async req => {
   ]);
 
   const account = await safeProfileQuery('username', () => db.doc(`accountProfiles/${profileId}`).get(), emptyProfile);
+  const friendTotal = await safeProfileQuery('friendCount', () => db.collection('friendships').where('members', 'array-contains', profileId).where('status', '==', 'accepted').count().get(), null);
   const profileData = profileSnap.data() || {};
   let displayName = name(profileData.displayName);
   if (displayName === 'I’m Tourn user') {
@@ -241,6 +242,9 @@ exports.getUserProfile = onCall(async req => {
     id: profileId,
     displayName,
     username: account.data()?.username || null,
+    bio: typeof account.data()?.bio === 'string' ? account.data().bio.slice(0, 300) : '',
+    photoURL: account.data()?.photoURL || null,
+    friendCount: friendTotal ? friendTotal.data().count : null,
     isSelf: viewerId === profileId,
     relationship,
     canViewPrivate: privateAccess,

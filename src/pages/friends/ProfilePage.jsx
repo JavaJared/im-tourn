@@ -1,4 +1,6 @@
-import UsernameForm from '../../components/account/UsernameForm';
+import ProfileAvatar from './ProfileAvatar';
+import ProfileEditor from './ProfileEditor';
+import './profile.css';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { callServer } from '../../services/server';
@@ -51,12 +53,13 @@ function ActivityList({ profileId, kind, mode, onNavigate, onSelect, canViewPriv
 export default function ProfilePage({ profileId, onNavigate }) {
   const { currentUser, username, updateUsername } = useAuth();
   const targetId = profileId || currentUser?.uid;
+  const [editing, setEditing] = useState(false);
   const [profile, setProfile] = useState(null), [error, setError] = useState(''), [retry, setRetry] = useState(0);
   const [kind, setKind] = useState('brackets'), [mode, setMode] = useState('created'), [selected, setSelected] = useState(null);
 
   useEffect(() => {
     let active = true;
-    setProfile(null); setError(''); setSelected(null); setMode('created');
+    setProfile(null); setError(''); setSelected(null); setMode('created'); setEditing(false);
     if (targetId && currentUser) callServer('getUserProfile', { profileId: targetId }).then(
       value => { if (active) setProfile(value); },
       reason => { if (active) setError(reason.message || 'This profile could not be loaded.'); },
@@ -69,16 +72,23 @@ export default function ProfilePage({ profileId, onNavigate }) {
   if (!profile) return <div className="home-container"><p role="status">Loading profile…</p></div>;
 
   return <div className="home-container profile-page">
-    <div className="profile-heading">
-      <div className="profile-avatar" aria-hidden="true">{profile.displayName?.[0]?.toUpperCase() || '?'}</div>
-      <div><h1>{profile.displayName}’s Profile</h1></div>
-      <ProfileFriendAction key={`${currentUser.uid}:${profile.id}`} profile={profile} onRefresh={() => setRetry(value => value + 1)} />
-    </div>
-    {(profile.isSelf ? username : profile.username) && <p className="profile-username">@{profile.isSelf ? username : profile.username}</p>}
-    {profile.isSelf && <section className="friend-section"><h2>Account username</h2>
-
-      <UsernameForm key={currentUser.uid} username={username} onSave={updateUsername} />
-    </section>}
+    <header className="profile-hero">
+      {profile.isSelf && <button className="profile-edit-button back-btn" aria-label="Edit profile" onClick={() => setEditing(true)}>
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m16 3 5 5-12 12-6 1 1-6Z M14 5l5 5" /></svg>
+      </button>}
+      <ProfileAvatar photoURL={profile.photoURL} username={profile.isSelf ? username : profile.username} />
+      <div className="profile-identity">
+        <h1>@{(profile.isSelf ? username : profile.username) || 'user'}</h1>
+        <div className="profile-social">
+          {profile.isSelf ? <button className="back-btn" onClick={() => onNavigate('friends')}><strong>{profile.friendCount ?? '—'}</strong> {profile.friendCount === 1 ? 'friend' : 'friends'}</button>
+            : <span><strong>{profile.friendCount ?? '—'}</strong> {profile.friendCount === 1 ? 'friend' : 'friends'}</span>}
+          <ProfileFriendAction key={`${currentUser.uid}:${profile.id}`} profile={profile} onRefresh={() => setRetry(value => value + 1)} />
+        </div>
+        {profile.bio && <p className="profile-bio">{profile.bio}</p>}
+        {profile.isSelf && !profile.bio && <button className="profile-add-bio" onClick={() => setEditing(true)}>Add bio</button>}
+      </div>
+    </header>
+    {editing && profile.isSelf && <ProfileEditor key={targetId} profile={profile} username={username} updateUsername={updateUsername} onClose={() => setEditing(false)} onSaved={details => setProfile(previous => ({ ...previous, ...details }))} />}
     <section className="profile-stats" aria-label="Profile statistics">
       {statLabels.filter(([key]) => key.startsWith('created') || profile.canViewPrivate).map(([key, label]) => <div className="profile-stat" key={key}><strong>{profile.stats[key] == null ? '—' : profile.stats[key]}</strong><span>{label}</span></div>)}
     </section>

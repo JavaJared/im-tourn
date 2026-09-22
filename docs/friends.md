@@ -24,3 +24,11 @@ Backend release 5 deploys six callable APIs and verifies their query indexes bef
 `tests/friends-server.test.js` runs in the existing Firestore emulator CI gate, covering consent transitions, quotas, revocation, publication status, pagination, custom/legacy picks, ranking order and ownership. `tests/rules.test.js` checks clients cannot read/write friend collections. `tests/friends-ui.test.jsx` checks request actions, accepted-only selectors, server filter parameters, dialogs and routing.
 
 Manual authenticated acceptance: with two accounts, exchange a code, accept, inspect created and filled activity in Friends and both browse pages, remove the friendship, then refresh and verify history is denied. Existing Android installations require an updated APK to show the feature.
+
+## Profile photos and bios
+
+Profiles show the account username, a 300-character plain-text bio, a photo, and the accepted-friend count. Saved activities retain the existing friendship restrictions. The corner edit button opens the accessible editor for the account owner. Username changes use the existing unique-name registry.
+
+`updateProfileDetails` authenticates the owner and validates the bio and bounded JPEG payload. The browser center-crops images to 512 × 512 and compresses them before calling the server. Photos are stored under `profilePhotos/{uid}/{uuid}.jpg` using Admin Storage, with a download token returned in the profile. These are shareable profile images, not private attachments. Direct client writes remain denied by the existing rules; no Storage rules deployment is needed. Replaced/removed photos are deleted after the account record saves, and failed saves clean up new uploads. The callable rate-limits edits to one attempt per five seconds.
+
+Deploy the backend functions and the `friendships` members/status index through the existing backend workflow. A failed friend count is displayed as unknown rather than zero.
