@@ -66,7 +66,7 @@ export function readFillDraft(key, source) {
         }
       }
     }
-    return { matchups, restored: true };
+    return { matchups, restored: true, ...(Number.isFinite(draft.updatedAt) ? { updatedAt: draft.updatedAt } : {}) };
   } catch {
     return { matchups: source, restored: false };
   }
@@ -78,6 +78,7 @@ export function saveFillDraft(key, source, matchups) {
       key,
       JSON.stringify({
         source: JSON.stringify(source),
+        updatedAt: Date.now(),
         picks: matchups.map((round) => round.map((match) => match.winner ?? null)),
       }),
     );

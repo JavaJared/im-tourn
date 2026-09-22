@@ -122,3 +122,4 @@ for (const [name, callable] of Object.entries(require('./usernames'))) { if (nam
 
 exports.updateProfileDetails = require('./profile-details').updateProfileDetails;
 exports.getPublicUsernames = require('./public-usernames').getPublicUsernames;
+exports.getBracketPickView = require('./bracket-pick-views').getBracketPickView;

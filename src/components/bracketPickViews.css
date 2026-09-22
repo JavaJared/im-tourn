@@ -1,0 +1,10 @@
+.bracket-pick-tabs { display:flex; flex-wrap:wrap; gap:8px; padding:12px 18px; border-bottom:1px solid var(--line); }
+.bracket-pick-tabs button, .bracket-pick-summary button, .bracket-pick-summary select { min-height:44px; padding:8px 12px; background:var(--surface2); color:var(--text); border:1px solid #667086; border-radius:8px; font:inherit; cursor:pointer; }
+.bracket-pick-tabs button[aria-pressed=true] { color:#0c0e13; background:#2bd4c0; border-color:#2bd4c0; font-weight:700; }
+.bracket-pick-tabs button:disabled { opacity:.6; cursor:wait; }
+.bracket-pick-summary { padding:12px 18px; }
+.bracket-pick-summary p { margin:8px 0; }
+.bracket-pick-summary details { max-width:65ch; margin-bottom:12px; }
+.bracket-pick-summary summary { cursor:pointer; min-height:44px; display:list-item; }
+.bracket-pick-summary select { max-width:100%; }
+.engine-support { display:block; font-size:10px; color:#c6d0e2; font-weight:400; }

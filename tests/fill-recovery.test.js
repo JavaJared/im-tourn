@@ -9,7 +9,8 @@ import {
   selectFillWinner,
 } from '../src/lib/fillDraft.js';
 
-const mocks = vi.hoisted(() => ({ user: null, submit: vi.fn() }));
+const mocks = vi.hoisted(() => ({ user: null, submit: vi.fn(), load:vi.fn() }));
+vi.mock('../src/services/server',()=>({callServer:(...args)=>mocks.load(...args)}));
 vi.mock('../src/contexts/AuthContext', () => ({
   useAuth: () => ({ currentUser: mocks.user }),
 }));
@@ -32,6 +33,7 @@ beforeEach(() => {
   trees = [];
   mocks.user = null;
   mocks.submit.mockReset();
+  mocks.load.mockResolvedValue({found:false});
   const data = new Map();
   vi.stubGlobal('localStorage', {
     getItem: (key) => data.get(key) ?? null,
@@ -43,9 +45,9 @@ afterEach(() => {
   act(() => trees.forEach((tree) => tree.unmount()));
   vi.unstubAllGlobals();
 });
-function mount(props = {}) {
+async function mount(props = {}) {
   let tree;
-  act(() => {
+  await act(async () => {
     tree = create(
       createElement(FillPage, {
         bracket: bracket(),
@@ -69,11 +71,11 @@ function complete(tree) {
 
 describe('legacy fill recovery', () => {
   it('restores a complete bracket after remount and clears it after guest export', async () => {
-    const first = mount();
+    const first = await mount();
     complete(first);
     act(() => first.unmount());
     const onSubmit = vi.fn();
-    const restored = mount({ onSubmit });
+    const restored = await mount({ onSubmit });
     expect(picks(restored).filter((p) => p.props['aria-pressed'])).toHaveLength(3);
     expect(submit(restored).props.disabled).toBe(false);
     await act(() => submit(restored).props.onClick());
@@ -92,7 +94,7 @@ describe('legacy fill recovery', () => {
         }),
     );
     const onSubmit = vi.fn();
-    const tree = mount({ onSubmit });
+    const tree = await mount({ onSubmit });
     complete(tree);
     let pending;
     act(() => {
@@ -117,16 +119,16 @@ describe('legacy fill recovery', () => {
     expect(localStorage.getItem(fillDraftKey('bracket-one', 'user-a'))).toBeNull();
   });
 
-  it('isolates drafts when the account or bracket changes without unmounting the route', () => {
+  it('isolates drafts when the account or bracket changes without unmounting the route', async () => {
     const source = bracket();
     const props = { bracket: source, onSubmit: vi.fn(), onBack: vi.fn() };
-    const tree = mount(props);
+    const tree = await mount(props);
     complete(tree);
     mocks.user = { uid: 'user-a' };
-    act(() => tree.update(createElement(FillPage, props)));
+    await act(async () => tree.update(createElement(FillPage, props)));
     expect(picks(tree).some((p) => p.props['aria-pressed'])).toBe(false);
     complete(tree);
-    act(() =>
+    await act(async () =>
       tree.update(
         createElement(FillPage, {
           ...props,
@@ -136,15 +138,15 @@ describe('legacy fill recovery', () => {
     );
     expect(picks(tree).some((p) => p.props['aria-pressed'])).toBe(false);
     mocks.user = null;
-    act(() => tree.update(createElement(FillPage, props)));
+    await act(async () => tree.update(createElement(FillPage, props)));
     expect(picks(tree).filter((p) => p.props['aria-pressed'])).toHaveLength(3);
   });
 
-  it('keeps editing usable and reports when browser storage fails', () => {
+  it('keeps editing usable and reports when browser storage fails', async () => {
     localStorage.setItem = () => {
       throw new Error('Quota exceeded');
     };
-    const tree = mount();
+    const tree = await mount();
     complete(tree);
     expect(submit(tree).props.disabled).toBe(false);
     expect(tree.root.findByProps({ role: 'alert' }).children.join('')).toContain('could not save');
@@ -190,8 +192,8 @@ describe('legacy fill recovery', () => {
   });
 });
 
-it('does not allow a premature final pick to submit an unfinished bracket', () => {
-  const tree = mount();
+it('does not allow a premature final pick to submit an unfinished bracket', async () => {
+  const tree = await mount();
   act(() => picks(tree)[0].props.onClick());
   expect(picks(tree)).toHaveLength(4); // The final stays non-interactive until both entrants advance.
   expect(submit(tree).props.disabled).toBe(true);
@@ -206,7 +208,7 @@ it('does not navigate away from a new page when an earlier save finishes', async
       }),
   );
   const onSubmit = vi.fn();
-  const tree = mount({ onSubmit });
+  const tree = await mount({ onSubmit });
   complete(tree);
   let pending;
   act(() => {
@@ -218,4 +220,18 @@ it('does not navigate away from a new page when an earlier save finishes', async
     await pending;
   });
   expect(onSubmit).not.toHaveBeenCalled();
+});
+
+it('opens account picks by default and restores newer local drafts instead', async () => {
+  mocks.user={uid:'restore-user'};
+  let matchups=bracket().matchups;
+  matchups=selectFillWinner(matchups,0,0,1);matchups=selectFillWinner(matchups,0,1,1);matchups=selectFillWinner(matchups,1,0,1);
+  mocks.load.mockResolvedValue({found:true,matchups,savedAt:Date.now()-10000});
+  const account=await mount();
+  expect(picks(account).filter(p=>p.props['aria-pressed'])).toHaveLength(3);
+  const key=fillDraftKey('bracket-one','restore-user');
+  saveFillDraft(key,bracket().matchups,selectFillWinner(bracket().matchups,0,0,2));
+  const draft=await mount();
+  expect(picks(draft).filter(p=>p.props['aria-pressed'])).toHaveLength(1);
+  expect(JSON.stringify(draft.toJSON())).toContain('Unsaved picks restored');
 });

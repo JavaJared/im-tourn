@@ -16,7 +16,7 @@ run('accepted friends and shared activity', () => {
     const admin = require('../functions/node_modules/firebase-admin/lib/firestore'); db=admin.getFirestore(); Timestamp=admin.Timestamp;
     pairRef = require('../functions/friends').internal.pairRef;
   });
-  beforeEach(async () => {for (const name of ['accountProfiles','usernames','friendships','friendProfiles','friendCodes','friendRequestLimits','brackets','customBrackets','submissions','rankings','rankingVotes','rankingEntries','bracketPools','poolEntries']) await db.recursiveDelete(db.collection(name));});
+  beforeEach(async () => {for (const name of ['_bracketConsensus','accountProfiles','usernames','friendships','friendProfiles','friendCodes','friendRequestLimits','brackets','customBrackets','submissions','rankings','rankingVotes','rankingEntries','bracketPools','poolEntries']) await db.recursiveDelete(db.collection(name));});
   test('profile details edits are authenticated, owner-only, and preserve usernames', async () => {
     await expect(call('updateProfileDetails', null, {bio:'hello'})).rejects.toMatchObject({code:'unauthenticated'});
     await db.doc('accountProfiles/alice').set({username:'alice_name'});
@@ -54,6 +54,36 @@ run('accepted friends and shared activity', () => {
     expect((await call('listFriends','bob')).items[0]).toMatchObject({username:'alice_current',displayName:'@alice_current'});
     await db.doc('accountProfiles/alice').update({username:'alice_renamed'});
     expect((await call('listFriends','bob')).items[0]).toMatchObject({username:'alice_renamed',displayName:'@alice_renamed'});
+  });
+  test('bracket views use latest completed picks once per user and exclude private pools', async () => {
+    const matchups=[[{entry1:{name:'A',seed:1},entry2:{name:'B',seed:2},winner:null}]];
+    await db.doc('brackets/consensus').set({matchups:JSON.stringify(matchups)});
+    const save=async(id,userId,winner,time)=>db.doc(`submissions/${id}`).set({bracketId:'consensus',userId,submittedAt:Timestamp.fromMillis(time),matchups:JSON.stringify([[{...matchups[0][0],winner}]])});
+    await save('alice-old','alice',1,1000);await save('alice-new','alice',2,2000);await save('alice-incomplete','alice',null,3000);await save('bob-only','bob',1,1000);
+    await db.doc('poolEntries/private').set({poolId:'secret',userId:'eve',predictions:{m1:'p2'}});
+    const args={type:'legacy',bracketId:'consensus'};
+    const mine=await call('getBracketPickView','alice',{...args,mode:'mine',friendId:'bob'});
+    expect(mine.matchups[0][0].winner).toBe(2);expect(mine.savedAt).toBe(2000);
+    const community=await call('getBracketPickView',null,{...args,mode:'community'});
+    expect(community.sampleSize).toBe(2);expect(community.support.m1.counts).toEqual({p1:1,p2:1});
+    expect(community.partial).toBe(false);
+    await expect(call('getBracketPickView','bob',{...args,mode:'friend',friendId:'alice'})).rejects.toMatchObject({code:'permission-denied'});
+    await connect();
+    expect((await call('getBracketPickView','bob',{...args,mode:'friend',friendId:'alice'})).matchups[0][0].winner).toBe(2);
+    await call('respondToFriend','alice',{friendId:'bob',action:'remove'});
+    await expect(call('getBracketPickView','bob',{...args,mode:'friend',friendId:'alice'})).rejects.toMatchObject({code:'permission-denied'});
+    await expect(call('getBracketPickView',null,{...args,mode:'mine'})).rejects.toMatchObject({code:'unauthenticated'});
+  });
+  test('custom pick views reject unpublished brackets and invalid submissions', async () => {
+    const source={status:'published',rounds:[{ids:['m1']}],boxes:{m1:{slotA:{type:'named',participantId:'a',name:'A'},slotB:{type:'named',participantId:'b',name:'B'}}}};
+    await db.doc('customBrackets/consensus-custom').set(source);
+    await db.doc('customBrackets/consensus-custom/submissions/alice').set({userId:'alice',picks:{m1:'a'},createdAt:Timestamp.fromMillis(1000)});
+    await db.doc('customBrackets/consensus-custom/submissions/bob').set({userId:'bob',picks:{m1:'removed'},createdAt:Timestamp.fromMillis(2000)});
+    const args={type:'custom',bracketId:'consensus-custom'};
+    expect((await call('getBracketPickView','alice',{...args,mode:'mine'})).picks).toEqual({m1:'a'});
+    expect((await call('getBracketPickView',null,{...args,mode:'community'})).sampleSize).toBe(1);
+    await db.doc('customBrackets/consensus-custom').update({status:'draft'});
+    await expect(call('getBracketPickView',null,{...args,mode:'community'})).rejects.toMatchObject({code:'not-found'});
   });
   test('codes are stable, do not expose emails, and require sign-in',async()=>{
     await expect(call('getFriendProfile',null)).rejects.toMatchObject({code:'unauthenticated'});

@@ -3,12 +3,13 @@ import { act, create } from 'react-test-renderer';
 import { beforeEach, afterEach, expect, test, vi } from 'vitest';
 import CustomBracketFill from '../src/components/CustomBracketFill';
 import { generateSeededBracket } from '../src/lib/standardBracket';
-const mocks = vi.hoisted(() => ({ state:null, status:'published', own:vi.fn(), all:vi.fn(), submit:vi.fn() }));
+const mocks = vi.hoisted(() => ({ state:null, status:'published', own:vi.fn(), all:vi.fn(), submit:vi.fn(),load:vi.fn() }));
 vi.mock('../src/services/customBracketService',()=>({subscribeToBracket:(_id,callback)=>{callback(mocks.state,{exists:true,raw:{title:'Saved',status:mocks.status}});return ()=>{};},getCustomFill:mocks.own,getCustomFills:mocks.all,submitCustomFill:mocks.submit}));
 vi.mock('../src/components/BracketBoard',()=>({default:({state,editable})=>createElement('section',{'data-pick':state.boxes[state.rounds[0][0]].result?.winnerId,'data-editable':editable})}));
+vi.mock('../src/services/server',()=>({callServer:(...args)=>mocks.load(...args)}));
 vi.mock('../src/lib/exportBracketPdf',()=>({exportBracketPdf:vi.fn()}));
 let tree;
-beforeEach(()=>{ vi.clearAllMocks(); mocks.own.mockReset(); mocks.all.mockReset(); mocks.status='published'; mocks.state=generateSeededBracket(['A','B']); });
+beforeEach(()=>{ vi.clearAllMocks(); mocks.own.mockReset(); mocks.load.mockReset().mockResolvedValue({found:false}); mocks.all.mockReset(); mocks.status='published'; mocks.state=generateSeededBracket(['A','B']); });
 afterEach(()=>{if(tree)act(()=>tree.unmount());vi.unstubAllGlobals();});
 test('saved activity opens the account submission instead of overwriting it with a local draft',async()=>{
  mocks.state=generateSeededBracket(['A','B']); const box=mocks.state.rounds[0][0];
@@ -56,4 +57,18 @@ test('normal fill mode still permits saving current picks',async()=>{
  expect(tree.root.findByType('section').props['data-editable']).toBe(true);
  await act(async()=>tree.root.findAllByType('button').find(button=>button.props.onClick&&button.props.disabled===false).props.onClick());
  expect(mocks.submit).toHaveBeenCalledWith('b',expect.objectContaining({userId:'alice'}));
+});
+
+test('normal fill defaults to account picks and preserves newer local drafts',async()=>{
+ const box=mocks.state.rounds[0][0];
+ mocks.load.mockResolvedValue({found:true,picks:{[box]:'p1'},savedAt:200});
+ vi.stubGlobal('localStorage',{getItem:()=>null});
+ await act(async()=>{tree=create(createElement(CustomBracketFill,{bracketId:'b',currentUserId:'alice'}));});
+ expect(tree.root.findByType('section').props['data-pick']).toBe('p1');
+ expect(mocks.all).not.toHaveBeenCalled();
+ act(()=>tree.unmount());
+ vi.stubGlobal('localStorage',{getItem:()=>JSON.stringify({picks:{[box]:'p2'},updatedAt:300})});
+ await act(async()=>{tree=create(createElement(CustomBracketFill,{bracketId:'b',currentUserId:'alice'}));});
+ expect(tree.root.findByType('section').props['data-pick']).toBe('p2');
+ expect(JSON.stringify(tree.toJSON())).toContain('Unsaved picks restored');
 });

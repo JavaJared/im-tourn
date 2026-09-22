@@ -1,3 +1,5 @@
+import BracketPickViews from '../../components/BracketPickViews';
+import { callServer } from '../../services/server';
 import UserLink from '../../components/layout/UserLink';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -29,6 +31,18 @@ const FillPage = (props) => {
 const FillEditor = ({ bracket, onSubmit, onBack, currentUser, draftKey }) => {
   const [draft] = useState(() => readFillDraft(draftKey, bracket.matchups));
   const [matchups, setMatchups] = useState(draft.matchups);
+  const [view,setView]=useState('mine'),[loadingSaved,setLoadingSaved]=useState(!!currentUser),[loadError,setLoadError]=useState(''),[loadAttempt,setLoadAttempt]=useState(0);
+  useEffect(()=>{
+    let active=true;
+    if(!currentUser)return;
+    setLoadingSaved(true);setLoadError('');
+    callServer('getBracketPickView',{type:'legacy',bracketId:bracket.id,mode:'mine'}).then(result=>{
+      if(!active)return;
+      if(result.found&&(!draft.restored||(draft.updatedAt!=null&&draft.updatedAt<=result.savedAt))){setMatchups(result.matchups);setDraftStatus('Saved picks loaded.');}
+      else if(draft.restored)setDraftStatus('Unsaved picks restored from this device.');
+    },error=>{if(active)setLoadError(error.message||'Saved picks could not be loaded.');}).finally(()=>{if(active)setLoadingSaved(false);});
+    return ()=>{active=false;};
+  },[bracket.id,currentUser?.uid,loadAttempt]);
   const [draftStatus, setDraftStatus] = useState(
     draft.restored ? 'Saved picks restored.' : 'Picks save automatically on this device.',
   );
@@ -58,7 +72,7 @@ const FillEditor = ({ bracket, onSubmit, onBack, currentUser, draftKey }) => {
   };
 
   const handleSelectWinner = (roundIndex, matchIndex, entryNum) => {
-    if (submittingRef.current) return;
+    if (submittingRef.current || loadingSaved || loadError || view!=='mine') return;
     const next = selectFillWinner(matchups, roundIndex, matchIndex, entryNum);
     setMatchups(next);
     persistDraft(next);
@@ -78,7 +92,7 @@ const FillEditor = ({ bracket, onSubmit, onBack, currentUser, draftKey }) => {
   };
 
   const handleSubmit = async () => {
-    if (submittingRef.current || !isComplete()) return;
+    if (submittingRef.current || loadingSaved || loadError || view!=='mine' || !isComplete()) return;
     submittingRef.current = true;
     setSubmitting(true);
     setSubmitError('');
@@ -296,20 +310,24 @@ const FillEditor = ({ bracket, onSubmit, onBack, currentUser, draftKey }) => {
         </div>
         <div style={S.topRight}>
           <button style={S.ghost} onClick={downloadBlankBracket}>Download blank PDF</button>
-          <button className="legacy-submit" style={{ ...S.primary, ...(!isComplete() || submitting ? S.primaryOff : {}) }}
-            disabled={!isComplete() || submitting} onClick={handleSubmit}>
+          {view==='mine' && <button className="legacy-submit" style={{ ...S.primary, ...(!isComplete() || submitting ? S.primaryOff : {}) }}
+            disabled={!isComplete() || submitting || loadingSaved || !!loadError} onClick={handleSubmit}>
             {submitting ? 'Saving…' : submitError ? 'Retry save' : currentUser ? 'Save my bracket' : 'Export my bracket'}
-          </button>
+          </button>}
         </div>
       </header>
-      <p style={S.notice} role={draftFailed ? 'alert' : 'status'}>{draftStatus} {draftFailed && <button type="button" style={S.ghost} onClick={() => persistDraft(matchups)}>Retry draft save</button>}</p>
+      {view==='mine' && <p style={S.notice} role={draftFailed ? 'alert' : 'status'}>{draftStatus} {draftFailed && <button type="button" style={S.ghost} onClick={() => persistDraft(matchups)}>Retry draft save</button>}</p>}
       {submitError && <p style={S.notice} role="alert">{submitError}</p>}
       {submitting && <p style={S.notice} role="status">Saving your bracket. Please keep this page open.</p>}
       {!currentUser && <p style={S.notice}>Guest picks can be exported. Sign in to save to your account.</p>}
       <div style={S.scroll}>
-        <LegacyBracketBoard matchups={matchups} editable={!submitting} onPick={handleSelectWinner} />
+        <BracketPickViews type="legacy" bracketId={bracket.id} userId={currentUser?.uid} view={view} onView={setView} disabled={submitting}>
+          {loadingSaved && <p role="status" style={S.notice}>Loading your saved picks…</p>}
+          {loadError && <p role="alert" style={S.notice}>{loadError} <button style={S.ghost} onClick={()=>setLoadAttempt(n=>n+1)}>Retry saved picks</button></p>}
+          <LegacyBracketBoard matchups={matchups} editable={!submitting&&!loadingSaved&&!loadError} onPick={handleSelectWinner} />
+        </BracketPickViews>
       </div>
-      {isComplete() && <div style={S.notice}>Champion: <strong>{getChampion()?.name}</strong></div>}
+      {view==='mine' && isComplete() && <div style={S.notice}>Champion: <strong>{getChampion()?.name}</strong></div>}
     </BracketFrame>
   );
 };

@@ -4,3 +4,6 @@ export * from './weeklyState';
 export { getChampion, setResult } from './customBracket';
 export { computeConsensus } from '../services/interactiveSort';
 export { validateLegacyMatchups, validateStructure } from './recordValidation';
+
+export { pickSource, compatiblePickState, consensusBracket } from './bracketConsensus';
+export { structureFromState } from './standardBracket';

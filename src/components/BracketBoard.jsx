@@ -57,7 +57,7 @@ export function resolveSlot(state, loc, nameMap, boxId, slot, seedMap) {
   return { kind: 'player', pid, name: (nameMap && nameMap[pid]) || '—', seed: seedMap ? seedMap[pid] : undefined };
 }
 
-export default function BracketBoard({ state, nameMap, seedMap, editable, onPick, official, sc, highlight }) {
+export default function BracketBoard({ state, nameMap, seedMap, editable, onPick, official, sc, highlight, support }) {
   const loc = useMemo(() => locate(state), [state]);
   const layout = useMemo(() => computeLayout(state), [state]);
   const rounds = state.rounds.map(round => round.map(id => {
@@ -81,14 +81,14 @@ export default function BracketBoard({ state, nameMap, seedMap, editable, onPick
       {state.rounds.map((round, r) => <div key={r} className="engine-round" {...roundProps(r)}>{round.map((id) => (
         <Card key={id} id={id} pos={layout.positions[id]} matchProps={matchProps(id)}
           a={resolveSlot(state, loc, nameMap, id, 'A', seedMap)} b={resolveSlot(state, loc, nameMap, id, 'B', seedMap)}
-          result={state.boxes[id].result} editable={editable} onPick={onPick}
+          support={support?.[id]} result={state.boxes[id].result} editable={editable} onPick={onPick}
           official={official ? official[id] : null} sc={sc} hl={highlight ? highlight.has(id) : false} />
       ))}</div>)}
     </div>}</RoundNavigator>
   );
 }
 
-function Card({ id, pos, a, b, result, editable, onPick, official, sc, hl, matchProps }) {
+function Card({ id, pos, a, b, result, editable, onPick, official, sc, hl, matchProps, support }) {
   if (!pos) return null;
   const decidable = a.kind === 'player' && b.kind === 'player';
   const hasBye = a.kind === 'bye' || b.kind === 'bye';
@@ -109,14 +109,14 @@ function Card({ id, pos, a, b, result, editable, onPick, official, sc, hl, match
 <PickControl editable={click} selected={isW} label={`Pick ${sl.name} in matchup ${id.toUpperCase()}`} onPick={() => onPick(id, sl.pid)}>
         {isW && (graded && !pickRight ? <X size={14} strokeWidth={3} /> : <Check size={14} strokeWidth={3} />)}
         {sl.seed != null && <span style={BS.seed}>{sl.seed}</span>}
-        <span className="engine-name" style={BS.name}>{sl.name}</span></PickControl>
+        <span className="engine-name" style={BS.name}>{sl.name}{support && <small className="engine-support">{support.sampleSize ? Math.round(100*(support.counts[sl.pid]||0)/support.sampleSize) : 0}% advance ({support.counts[sl.pid]||0}/{support.sampleSize})</small>}</span></PickControl>
         {showScore && (sc.editable
           ? <input aria-label={`Score for ${sl.name} in matchup ${id.toUpperCase()}`} className="cb-score" value={scoreVal} inputMode="numeric" placeholder="–" onClick={(e) => e.stopPropagation()} onChange={(e) => sc.change(id, side, e.target.value)} onBlur={(e) => sc.blur(id, side, e.target.value)} />
           : (scoreVal !== '' && <span style={BS.scoreText}>{scoreVal}</span>))}
       </div>
     );
   };
-  return <div className="engine-card" {...matchProps} style={{ ...BS.card, left: pos.x, top: pos.y, width: CARDW, ...(hl ? BS.cardHl : {}) }}><div style={BS.tag}>{id.toUpperCase()}{sc && result?.winnerId != null && <span style={BS.finalTag}> final</span>}</div>{slot(a, 'a')}<div style={BS.vs}>vs</div>{slot(b, 'b')}</div>;
+  return <div className="engine-card" {...matchProps} style={{ ...BS.card, left: pos.x, top: pos.y, width: CARDW, ...(hl ? BS.cardHl : {}) }}><div style={BS.tag}>{id.toUpperCase()}{support?.tied && ' · Tie'}{support?.noSupport && ' · No community pick'}{sc && result?.winnerId != null && <span style={BS.finalTag}> final</span>}</div>{slot(a, 'a')}<div style={BS.vs}>vs</div>{slot(b, 'b')}</div>;
 }
 
 /* Board-scoped styles. Values match the CustomPoolDetail design system

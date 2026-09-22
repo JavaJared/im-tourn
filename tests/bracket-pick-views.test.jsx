@@ -1,0 +1,27 @@
+import React from 'react';
+import {act,create} from 'react-test-renderer';
+import {afterEach,expect,test,vi} from 'vitest';
+import BracketPickViews from '../src/components/BracketPickViews';
+import BracketBoard from '../src/components/BracketBoard';
+import {generateSeededBracket} from '../src/lib/standardBracket';
+const mocks=vi.hoisted(()=>({call:vi.fn()}));
+vi.mock('../src/services/server',()=>({callServer:(...args)=>mocks.call(...args)}));
+vi.mock('../src/lib/usePagedCatalog',()=>({usePagedCatalog:()=>({items:[{status:'accepted',friendId:'bob'},{status:'pending',friendId:'eve'}],loading:false,error:'',hasMore:false})}));
+let tree;
+afterEach(()=>{if(tree)act(()=>tree.unmount());mocks.call.mockReset();});
+test('community and friend picks are read-only and never replace the editable child',async()=>{
+ const state=generateSeededBracket(['A','B']);
+ mocks.call.mockResolvedValue({state,sampleSize:0,nameMap:{},found:true});
+ const props={type:'custom',bracketId:'b',userId:'alice',onView:vi.fn(),children:<p>My original picks</p>};
+ await act(async()=>{tree=create(<BracketPickViews {...props} view="mine"/>);});
+ expect(mocks.call).not.toHaveBeenCalled();
+ await act(async()=>tree.update(<BracketPickViews {...props} view="community"/>));
+ expect(tree.root.findByType(BracketBoard).props.editable).toBe(false);
+ expect(mocks.call).toHaveBeenCalledWith('getBracketPickView',{type:'custom',bracketId:'b',mode:'community'});
+ await act(async()=>tree.update(<BracketPickViews {...props} view="friends"/>));
+ expect(tree.root.findAllByType('option').map(o=>o.props.value)).toEqual(['','bob']);
+ await act(async()=>tree.root.findByType('select').props.onChange({target:{value:'bob'}}));
+ expect(mocks.call).toHaveBeenCalledWith('getBracketPickView',{type:'custom',bracketId:'b',mode:'friend',friendId:'bob'});
+ await act(async()=>tree.update(<BracketPickViews {...props} view="mine"/>));
+ expect(JSON.stringify(tree.toJSON())).toContain('My original picks');
+});
