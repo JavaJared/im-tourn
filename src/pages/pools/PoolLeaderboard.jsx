@@ -42,7 +42,7 @@ export default function PoolLeaderboard({
                 {index === 0 && entries.length > 1 ? '👑' : `#${index + 1}`}
               </span>
               <span className="lb-name">
-                <UserLink userId={participantEntry.userId} name={participantEntry.userDisplayName} onNavigate={onNavigate} />
+                <UserLink userId={participantEntry.userId} onNavigate={onNavigate} />
                 {entryStatus && (
                   <>
                     {' '}

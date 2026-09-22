@@ -343,7 +343,7 @@ const PredictionPoolDetailPage = ({ poolId, onNavigate }) => {
           <button className="back-link" onClick={() => setViewingEntry(null)}>
             ← Back to Leaderboard
           </button>
-          <h3>Viewing <UserLink userId={viewingEntry.userId} name={viewingEntry.userDisplayName} />’s Predictions</h3>
+          <h3>Viewing <UserLink userId={viewingEntry.userId} />’s Predictions</h3>
           <span className="participant-score">Score: {viewingEntry.score} pts</span>
         </div>
       )}
@@ -451,7 +451,7 @@ const PredictionPoolDetailPage = ({ poolId, onNavigate }) => {
                 <span className="lb-rank">
                   {index === 0 && entries.length > 1 ? '👑' : `#${index + 1}`}
                 </span>
-                <span className="lb-name"><UserLink userId={participantEntry.userId} name={participantEntry.userDisplayName} /></span>
+                <span className="lb-name"><UserLink userId={participantEntry.userId} /></span>
                 <span className="lb-score">{participantEntry.score}</span>
                 <span className="lb-action">
                   {participantEntry.submittedAt && participantEntry.predictions && !participantEntry.dataError && (

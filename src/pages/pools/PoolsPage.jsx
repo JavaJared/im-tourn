@@ -206,7 +206,7 @@ const PoolsPage = ({ onNavigate }) => {
                   <h3 className="pool-title">{pool.name}</h3>
                   <p className="pool-bracket">{pool.bracketTitle}</p>
                   <div className="pool-meta">
-                    <span className="pool-host">Hosted by <UserLink userId={pool.hostId} name={pool.hostDisplayName} /></span>
+                    <span className="pool-host">Hosted by <UserLink userId={pool.hostId} /></span>
                   </div>
                 </div>
               );

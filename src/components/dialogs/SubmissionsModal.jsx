@@ -170,11 +170,11 @@ const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
                   <div className="submission-top-row">
                     <div className="submission-user">
                       <span className="submission-avatar">
-                        {submission.userDisplayName?.[0]?.toUpperCase() || '?'}
+                        <span aria-hidden="true">●</span>
                       </span>
                       <div className="submission-info">
                         <span className="submission-name">
-                          <UserLink userId={submission.userId} name={submission.userDisplayName || 'Anonymous'} />
+                          <UserLink userId={submission.userId} />
                         </span>
                         <span className="submission-date">{submission.submittedAt}</span>
                       </div>
@@ -217,7 +217,7 @@ const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
             {selectedSubmission && (
               <div className="submission-bracket-view">
                 <div className="submission-bracket-header">
-                  <h3><UserLink userId={selectedSubmission.userId} name={selectedSubmission.userDisplayName} />’s Picks</h3>
+                  <h3><UserLink userId={selectedSubmission.userId} />’s Picks</h3>
                   {selectedSubmission.champion && (
                     <div className="submission-champion-display">
                       🏆 {selectedSubmission.champion.name}

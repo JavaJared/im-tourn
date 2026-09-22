@@ -347,7 +347,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
           <>
             <div style={S.viewBanner}>
               <button style={S.backMini} onClick={() => setViewingEntry(null)}>← Back</button>
-              <span style={S.viewName}><UserLink userId={viewingEntry.userId} name={viewingEntry.userDisplayName || viewingEntry.displayName || 'Entry'} />’s bracket</span>
+              <span style={S.viewName}><UserLink userId={viewingEntry.userId} />’s bracket</span>
               {viewingStatus && <StatusBadge status={viewingStatus.status} />}
               <span style={S.viewScore}>{currentViewingEntry?.total ?? '—'} pts</span>
             </div>

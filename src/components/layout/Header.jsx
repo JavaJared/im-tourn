@@ -115,10 +115,10 @@ const Header = ({ onNavigate, currentView }) => {
             }}>
               <button className="user-btn" aria-expanded={showUserMenu} aria-controls="account-links" onClick={() => setShowUserMenu(!showUserMenu)}>
                 <span className="user-avatar">
-                  {currentUser.displayName?.[0]?.toUpperCase() ||
+                  {username?.[0]?.toUpperCase() ||
                     currentUser.email?.[0]?.toUpperCase()}
                 </span>
-                <span className="user-name">{username ? `@${username}` : currentUser.displayName || 'User'}</span>
+                <span className="user-name">{username ? `@${username}` : '…'}</span>
               </button>
 
               {showUserMenu && (

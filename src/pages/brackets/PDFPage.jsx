@@ -1,7 +1,7 @@
 import { useAuth } from '../../contexts/AuthContext';
 
 const PDFPage = ({ bracket, onBack }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, username } = useAuth();
 
   const getRoundName = (roundIndex, totalRounds) => {
     const remaining = totalRounds - roundIndex;
@@ -43,7 +43,7 @@ const PDFPage = ({ bracket, onBack }) => {
     pdf.setFontSize(11);
     pdf.setTextColor(...mediumGray);
     pdf.text(
-      `${bracket.category} • ${bracket.size} Entries • Filled by ${currentUser?.displayName || 'Guest'}`,
+      `${bracket.category} • ${bracket.size} Entries • Filled by ${username ? `@${username}` : currentUser ? 'Username unavailable' : 'Guest'}`,
       pageWidth / 2,
       58,
       { align: 'center' },

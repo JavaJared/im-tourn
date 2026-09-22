@@ -1,3 +1,4 @@
+import UsernameText from '../../components/layout/UsernameText';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePagedCatalog } from '../../lib/usePagedCatalog';
 import './friends.css';
@@ -11,7 +12,7 @@ export default function FriendFilter({ friendId, mode, onFriendChange, onModeCha
     <label>Whose activity?
       <select value={friendId} onChange={e => onFriendChange(e.target.value)}>
         <option value="">Everyone</option>
-        {accepted.map(friend => <option key={friend.friendId} value={friend.friendId}>{friend.displayName}</option>)}
+        {accepted.map(friend => <option key={friend.friendId} value={friend.friendId}><UsernameText userId={friend.friendId} /></option>)}
       </select>
     </label>
     {friendId && <label>Friend’s activity

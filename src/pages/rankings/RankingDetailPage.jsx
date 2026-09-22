@@ -116,7 +116,7 @@ export const RankingDetailPage = ({ rankingId, onNavigate }) => {
           )}
         </div>
         <p className="pool-detail-meta">
-          by <UserLink userId={ranking.hostId} name={ranking.hostDisplayName} onNavigate={onNavigate} /> · {ranking.entryCount} entries · {ranking.voteCount || 0} {(ranking.voteCount === 1) ? 'vote' : 'votes'}
+          by <UserLink userId={ranking.hostId} onNavigate={onNavigate} /> · {ranking.entryCount} entries · {ranking.voteCount || 0} {(ranking.voteCount === 1) ? 'vote' : 'votes'}
           {ranking.category && <> · {ranking.category}</>}
         </p>
 

@@ -1,3 +1,4 @@
+const { resolveUsernames } = require('./public-usernames').internal;
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getAuth } = require('firebase-admin/auth');
 const { getFirestore, FieldValue, FieldPath } = require('firebase-admin/firestore');
@@ -105,6 +106,8 @@ exports.listFriends = onCall(async req => {
     const data = doc.data(), friendId = data.members.find(id => id !== uid);
     return { id: doc.id, friendId, displayName: name(data.names?.[friendId]), status: data.status, incoming: data.requester !== uid };
   });
+  const usernames = await resolveUsernames(items.map(item => item.friendId));
+  for (const item of items) { item.username = usernames[item.friendId]; item.displayName = item.username ? `@${item.username}` : 'Username unavailable'; }
   return { items, nextCursor: snap.size > 25 ? page.at(-1).id : null };
 });
 

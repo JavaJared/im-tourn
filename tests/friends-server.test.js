@@ -44,6 +44,17 @@ run('accepted friends and shared activity', () => {
     expect((await file.exists())[0]).toBe(false);
     expect((await db.doc('accountProfiles/alice').get()).data()).toMatchObject({username:'alice_name',photoURL:null,photoPath:null});
   });
+  test('public username lookup exposes only canonical handles and enforces its batch limit', async () => {
+    await db.doc('accountProfiles/alice').set({username:'alice_current',bio:'private field',photoPath:'private path'});
+    expect(await call('getPublicUsernames',null,{userIds:['alice','missing','alice']})).toEqual({usernames:{alice:'alice_current',missing:null}});
+    await expect(call('getPublicUsernames','bob',{userIds:['../alice']})).rejects.toMatchObject({code:'invalid-argument'});
+    await expect(call('getPublicUsernames','bob',{userIds:Array(51).fill('alice')})).rejects.toMatchObject({code:'invalid-argument'});
+    const b=await call('getFriendProfile','bob');
+    await call('sendFriendRequest','alice',{code:b.code});
+    expect((await call('listFriends','bob')).items[0]).toMatchObject({username:'alice_current',displayName:'@alice_current'});
+    await db.doc('accountProfiles/alice').update({username:'alice_renamed'});
+    expect((await call('listFriends','bob')).items[0]).toMatchObject({username:'alice_renamed',displayName:'@alice_renamed'});
+  });
   test('codes are stable, do not expose emails, and require sign-in',async()=>{
     await expect(call('getFriendProfile',null)).rejects.toMatchObject({code:'unauthenticated'});
     const one = await call('getFriendProfile','alice');

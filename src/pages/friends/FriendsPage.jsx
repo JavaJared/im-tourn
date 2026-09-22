@@ -1,3 +1,4 @@
+import UsernameText from '../../components/layout/UsernameText';
 import UserLink from '../../components/layout/UserLink';
 import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -14,7 +15,7 @@ function FriendActivities({ friend, onNavigate }) {
   const catalog = usePagedCatalog(kind === 'brackets' ? ['legacy','custom'] : ['ranking'], { endpoint:'listFriendActivities', params:{friendId:friend.friendId, mode} });
   const open = item => mode === 'filled' ? setSelected(item) : onNavigate(`${item.activityType === 'ranking' ? 'ranking-' : item.activityType === 'custom' ? 'custom-bracket-' : 'fill-bracket-'}${item.bracketId}`);
   return <section className="friend-section">
-    <h2 ref={heading} tabIndex={-1}>{friend.displayName}’s activity</h2>
+    <h2 ref={heading} tabIndex={-1}><UsernameText userId={friend.friendId} />’s activity</h2>
     <div className="friend-filter">
       <label>Activity type<select value={kind} onChange={e => {setKind(e.target.value); setSelected(null);}}><option value="brackets">Brackets</option><option value="rankings">Rankings</option></select></label>
       <label>Participation<select value={mode} onChange={e => {setMode(e.target.value); setSelected(null);}}><option value="created">Created</option><option value="filled">Filled out / voted in</option></select></label>
@@ -66,8 +67,8 @@ export default function FriendsPage({ onNavigate }) {
       <h2>{title}</h2>
       {!friends.loading && !friends.error && !list.length && <p>None on this page.</p>}
       <ul className="friend-list">{list.map(friend => <li key={friend.id}>
-        <UserLink userId={friend.friendId} name={friend.displayName} /><div className="friend-actions">
-          {friend.status === 'accepted' ? <><button className="nav-btn" onClick={() => onNavigate(`profile-${friend.friendId}`)}>View profile<span className="sr-only"> for {friend.displayName}</span></button><button className="back-btn" onClick={() => setSelected(friend)}>Activity preview<span className="sr-only"> for {friend.displayName}</span></button><button className="back-btn" disabled={busy} onClick={() => action(friend,'remove')}>Remove friend<span className="sr-only"> {friend.displayName}</span></button></> : friend.incoming ? <><button className="nav-btn" disabled={busy} onClick={() => action(friend,'accept')}>Accept<span className="sr-only"> {friend.displayName}</span></button><button className="back-btn" disabled={busy} onClick={() => action(friend,'decline')}>Decline<span className="sr-only"> {friend.displayName}</span></button></> : <button className="back-btn" disabled={busy} onClick={() => action(friend,'cancel')}>Cancel request<span className="sr-only"> to {friend.displayName}</span></button>}
+        <UserLink userId={friend.friendId} /><div className="friend-actions">
+          {friend.status === 'accepted' ? <><button className="nav-btn" onClick={() => onNavigate(`profile-${friend.friendId}`)}>View profile<span className="sr-only"> for <UsernameText userId={friend.friendId} /></span></button><button className="back-btn" onClick={() => setSelected(friend)}>Activity preview<span className="sr-only"> for <UsernameText userId={friend.friendId} /></span></button><button className="back-btn" disabled={busy} onClick={() => action(friend,'remove')}>Remove friend<span className="sr-only"> <UsernameText userId={friend.friendId} /></span></button></> : friend.incoming ? <><button className="nav-btn" disabled={busy} onClick={() => action(friend,'accept')}>Accept<span className="sr-only"> <UsernameText userId={friend.friendId} /></span></button><button className="back-btn" disabled={busy} onClick={() => action(friend,'decline')}>Decline<span className="sr-only"> <UsernameText userId={friend.friendId} /></span></button></> : <button className="back-btn" disabled={busy} onClick={() => action(friend,'cancel')}>Cancel request<span className="sr-only"> to <UsernameText userId={friend.friendId} /></span></button>}
         </div>
       </li>)}</ul>
     </section>)}

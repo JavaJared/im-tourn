@@ -1,3 +1,4 @@
+import UsernameText from './layout/UsernameText';
 import SaveNotice from './SaveNotice';
 import { exportBracketPdf } from '../lib/exportBracketPdf';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
@@ -126,7 +127,7 @@ export default function CustomBracketFill({ bracketId, currentUserId, currentUse
             const value = e.target.value; setViewing(value);
             if (value) setPred(applyPicks(blankPrediction(bracket), fills.find(f => f.id === value)?.picks || {}));
             else { setPred(draftRef.current || blankPrediction(bracket)); setSaved(false); }
-          }}><option value="">My current picks</option>{fills.map(f => <option key={f.id} value={f.id}>{f.displayName || 'Anonymous'} — saved</option>)}</select>}
+          }}><option value="">My current picks</option>{fills.map(f => <option key={f.id} value={f.id}><UsernameText userId={f.userId} /> — saved</option>)}</select>}
 
           {!openSaved && <button style={{ ...S.primary, ...(complete ? {} : S.primaryOff) }} disabled={!complete || !canEdit} onClick={save}>
             {saved ? <><Check size={14} strokeWidth={3} /> Saved</> : <><Send size={14} strokeWidth={2.5} /> {sending ? 'Saving…' : saveError ? 'Retry save' : 'Save my bracket'}</>}

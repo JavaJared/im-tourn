@@ -1,3 +1,4 @@
+import { rememberUsername } from '../services/publicUsernames';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { callServer } from '../services/server';
 
@@ -11,7 +12,7 @@ export default function useAccountUsername(user) {
     if (!uid) { setState({}); return; }
     setState({ uid, loading: true });
     callServer('getAccountUsername', {}).then(
-      data => { if (active) setState({ uid, ...data }); },
+      data => { if (active) { rememberUsername(uid, data.username); setState({ uid, ...data }); } },
       error => { if (active) setState({ uid, error: error.message || 'Could not load your username.' }); },
     );
     return () => { active = false; };
@@ -19,7 +20,7 @@ export default function useAccountUsername(user) {
   const updateUsername = useCallback(async username => {
     if (!uid) throw Error('Sign in to change your username.');
     const data = await callServer('setAccountUsername', { username });
-    if (activeUid.current === uid) setState({ uid, ...data });
+    if (activeUid.current === uid) { rememberUsername(uid, data.username); setState({ uid, ...data }); }
     return data;
   }, [uid]);
   return { account: state.uid === uid ? state : { loading: !!uid }, updateUsername,

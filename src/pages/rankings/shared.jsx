@@ -15,7 +15,7 @@ const RankingCard = ({ ranking, onClick, onNavigate }) => {
         <span className="ranking-card-stats">
           {ranking.entryCount} entries · {ranking.voteCount || 0} {(ranking.voteCount === 1) ? 'vote' : 'votes'}
         </span>
-        <span className="ranking-card-host">by <UserLink userId={ranking.hostId} name={ranking.hostDisplayName} onNavigate={onNavigate} /></span>
+        <span className="ranking-card-host">by <UserLink userId={ranking.hostId} onNavigate={onNavigate} /></span>
       </div>
     </div>
   );
@@ -60,7 +60,7 @@ const FeaturedRankingCard = ({ ranking, onClick, onNavigate }) => (
         <span className="ranking-card-stats">
           {ranking.entryCount} entries · {ranking.voteCount || 0} {(ranking.voteCount === 1) ? 'vote' : 'votes'}
         </span>
-        <span className="ranking-card-host">by <UserLink userId={ranking.hostId} name={ranking.hostDisplayName} /></span>
+        <span className="ranking-card-host">by <UserLink userId={ranking.hostId} /></span>
       </div>
     </div>
     <span className="featured-ranking-cta">{ranking.status === 'closed' ? 'See results →' : 'Vote now →'}</span>

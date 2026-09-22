@@ -121,3 +121,4 @@ for (const [name, callable] of Object.entries(require('./friends'))) {
 for (const [name, callable] of Object.entries(require('./usernames'))) { if (name !== 'internal') exports[name] = callable; }
 
 exports.updateProfileDetails = require('./profile-details').updateProfileDetails;
+exports.getPublicUsernames = require('./public-usernames').getPublicUsernames;

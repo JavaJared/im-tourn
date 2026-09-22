@@ -1,3 +1,4 @@
+import UsernameText from '../../components/layout/UsernameText';
 import { useState, useEffect, lazy } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
@@ -220,7 +221,7 @@ const AdminPage = () => {
           <div className="preview-bracket-card">
             <h3>{previewBracket.title}</h3>
             <p className="preview-meta">
-              {previewBracket.category} • Created by {previewBracket.userDisplayName}
+              {previewBracket.category} • Created by <UsernameText userId={previewBracket.userId} />
             </p>
             <div className="preview-entries">
               <strong>Entries:</strong>
