@@ -83,7 +83,7 @@ const CreatePage = ({ onPublish, onNavigate }) => {
     <div className="create-container">
       <div className="create-header">
         <h1>CREATE A BRACKET</h1>
-        <p>Set up your tournament and add your entries</p>
+
       </div>
 
       <div className="form-card">

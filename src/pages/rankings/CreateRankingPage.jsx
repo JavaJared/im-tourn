@@ -152,7 +152,7 @@ export const CreateRankingPage = ({ onNavigate }) => {
     <div className="home-container">
       <div className="page-header">
         <h1>Create Ranking</h1>
-        <p>Add 3–{MAX_RANKING_ENTRIES} entries. Voters will sort them head-to-head.</p>
+
       </div>
 
       <div className="create-pool-form">

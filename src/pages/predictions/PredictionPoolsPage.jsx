@@ -62,7 +62,7 @@ const PredictionPoolsPage = ({ onNavigate }) => {
       <div className="home-container">
         <div className="page-header">
           <h1>Prediction Pools</h1>
-          <p>Compete with friends to predict category winners</p>
+
         </div>
         <div className="empty-state">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -89,7 +89,7 @@ const PredictionPoolsPage = ({ onNavigate }) => {
     <div className="home-container">
       <div className="page-header">
         <h1>Prediction Pools</h1>
-        <p>Compete with friends to predict category winners</p>
+
       </div>
 
       <div className="pools-actions">

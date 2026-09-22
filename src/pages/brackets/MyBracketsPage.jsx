@@ -62,7 +62,7 @@ const MyBracketsPage = ({ onFillOut, onNavigate }) => {
     <div className="home-container">
       <div className="page-header">
         <h1>My Brackets</h1>
-        <p>Brackets you've created</p>
+
       </div>
 
       {loading ? (

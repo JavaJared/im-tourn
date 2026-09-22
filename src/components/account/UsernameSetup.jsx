@@ -6,7 +6,7 @@ export default function UsernameSetup({ account, onSave, onRetry, onLogout }) {
     <h1>{account.loading || account.error ? 'Account setup' : 'Choose your username'}</h1>
     {account.loading ? <p role="status">Loading your account…</p>
       : account.error ? <><p role="alert">{account.error}</p><button className="nav-btn" onClick={onRetry}>Retry account setup</button></>
-      : <><p>Your account is created. Choose a unique username to finish signup so friends can find you. You can change it later from your profile.</p><UsernameForm onSave={onSave} setup /></>}
+      : <><UsernameForm onSave={onSave} setup /></>}
     <button className="back-btn" onClick={onLogout}>Log out</button>
   </main>;
 }

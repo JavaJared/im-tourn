@@ -95,7 +95,7 @@ const CreatePredictionPoolPage = ({ onNavigate }) => {
     <div className="home-container">
       <div className="page-header">
         <h1>Create Prediction Pool</h1>
-        <p>Set up categories for your friends to predict</p>
+
       </div>
 
       <div className="create-pool-form prediction-pool-form">

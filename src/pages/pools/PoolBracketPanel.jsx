@@ -24,7 +24,7 @@ export default function PoolBracketPanel({
     <div className="pool-bracket-container">
       {pool.status === 'open' && !entry?.submittedAt && currentUser && entry && !viewingEntry && (
         <div className="prediction-instructions">
-          <p>Click on entries to make your predictions. Submit before the pool locks!</p>
+
           <button
             className="submit-predictions-btn"
             onClick={handleSubmitPredictions}
@@ -43,7 +43,7 @@ export default function PoolBracketPanel({
 
       {activeTab === 'results' && isHost && !viewingEntry && (
         <div className="host-instructions">
-          <p>Click on entries to set the actual results as games are played.</p>
+
         </div>
       )}
 

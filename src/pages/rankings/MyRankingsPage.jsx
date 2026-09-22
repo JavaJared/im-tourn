@@ -50,7 +50,7 @@ export const MyRankingsPage = ({ onNavigate }) => {
     <div className="home-container">
       <div className="page-header">
         <h1>My Rankings</h1>
-        <p>Rankings you've created and voted on</p>
+
       </div>
 
       <div className="ranking-detail-tabs">

@@ -20,7 +20,7 @@ export default function FriendActivityDialog({ selection, friendId, onClose }) {
     <section ref={ref} role="dialog" aria-modal="true" aria-labelledby="friend-picks-heading" className="friend-dialog" onClick={e => e.stopPropagation()}>
       <button className="back-btn" onClick={onClose}>Close saved choices</button>
       <h2 id="friend-picks-heading">{selection.title} — friend’s saved choices</h2>
-      <p>Read only. These are standalone saved choices, not private pool predictions.</p>
+
       {error ? <div role="alert"><p>{error}</p><button onClick={() => setRetry(n => n + 1)}>Retry</button></div> : !result ? <p role="status">Loading saved choices…</p> : result.sections.map((section, i) => <section key={i}><h3>{section.title}</h3><ol>{section.choices.map((choice, j) => <li key={j}>{choice}</li>)}</ol></section>)}
     </section>
   </div>;

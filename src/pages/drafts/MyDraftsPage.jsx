@@ -20,7 +20,7 @@ export const MyDraftsPage = ({ onNavigate }) => {
   const list = activeTab === 'created' ? created : joined;
   return (
     <div className="home-container">
-      <div className="page-header"><h1>My Drafts</h1><p>Drafts you've created and joined</p></div>
+      <div className="page-header"><h1>My Drafts</h1></div>
       <div className="ranking-detail-tabs">
         <button className={`ranking-tab ${activeTab === 'created' ? 'active' : ''}`} onClick={() => setActiveTab('created')}>Created ({created.length})</button>
         <button className={`ranking-tab ${activeTab === 'joined' ? 'active' : ''}`} onClick={() => setActiveTab('joined')}>Joined ({joined.length})</button>

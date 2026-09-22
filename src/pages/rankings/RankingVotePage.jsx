@@ -197,7 +197,7 @@ export const RankingVotePage = ({ rankingId, onNavigate }) => {
       <div className="home-container">
         <div className="page-header">
           <h1>{ranking.title}</h1>
-          <p>Your final ranking — review before submitting</p>
+
         </div>
 
         <ol className="ranking-results-list">

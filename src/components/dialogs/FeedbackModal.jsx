@@ -78,9 +78,7 @@ const FeedbackModal = ({ isOpen, onClose }) => {
         ) : (
           <>
             <h2>Send Feedback</h2>
-            <p className="feedback-subtitle">
-              Help us improve I'm Tourn{!currentUser && ' · Log in to send feedback'}
-            </p>
+            {!currentUser && <p>Log in to send feedback.</p>}
             {feedbackError && <p role="alert">{feedbackError}</p>}
 
             {submitting && <p role="status">Sending feedback. Please wait…</p>}

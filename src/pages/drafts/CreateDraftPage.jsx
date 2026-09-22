@@ -29,7 +29,7 @@ export const CreateDraftPage = ({ onNavigate }) => {
 
   return (
     <div className="home-container">
-      <div className="page-header"><h1>Create Draft</h1><p>Set up a live snake draft for your group.</p></div>
+      <div className="page-header"><h1>Create Draft</h1></div>
       <div className="create-pool-form">
         <div className="form-group">
           <label>Title</label>

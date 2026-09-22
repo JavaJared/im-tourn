@@ -160,7 +160,7 @@ const AdminPage = () => {
     <div className="home-container">
       <div className="page-header">
         <h1>Admin Panel</h1>
-        <p>Manage the weekly bracket</p>
+
       </div>
 
       <FeedbackInbox />
@@ -252,10 +252,6 @@ const AdminPage = () => {
       {currentWeekly && (
         <div className="admin-section">
           <h2 className="admin-section-title">Manual Winner Selection</h2>
-          <p className="admin-hint">
-            Choose winners for the current round, then advance. Closed rounds stay fixed so existing
-            ballots keep their meaning.
-          </p>
 
           <div className="round-selector">
             {currentWeekly.matchups.map((round, roundIndex) => (

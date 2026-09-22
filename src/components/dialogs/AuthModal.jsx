@@ -116,7 +116,6 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
         {message && <p role="status">{message}</p>}
         {mode === 'reset' && <p>Enter your account email to request a password reset link.</p>}
 
-        {mode === 'signup' && <p>After creating your account, you’ll choose a unique username.</p>}
         <form onSubmit={handleSubmit}>
           {mode === 'signup' && (
             <div className="form-group">

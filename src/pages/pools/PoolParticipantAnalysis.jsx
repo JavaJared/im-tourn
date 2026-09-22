@@ -21,7 +21,6 @@ export default function PoolParticipantAnalysis({
           <span className="analysis-seed">#{analyzingParticipant.seed}</span>
           <h2>{analyzingParticipant.name}</h2>
         </div>
-        <p className="analysis-subtitle">How far do people have them going?</p>
 
         {(() => {
           const analysis = analyzeParticipant(analyzingParticipant);

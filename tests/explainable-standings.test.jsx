@@ -94,7 +94,7 @@ test('standings explains values, labels partial ranks, shares tied ranks, and ke
   const state=make(4), entry={id:'a',userId:'a',userDisplayName:'Alice',predictions:picksFromState(finish(state))};
   const scored={...entry,...explainEntry(state,entry,[1,2],{})};
   const html=renderToStaticMarkup(<PoolStandings entries={[scored,{...scored,id:'b',userId:'b',userDisplayName:'Bob'}]} nameMap={{}} partial analysisNotice="Partial standings" />);
-  for(const label of ['Base points','Remaining possible','upper bound','Loaded rank 1 (tie)']) expect(html).toContain(label);
+  for(const label of ['Base points','Remaining possible','Loaded rank 1 (tie)']) expect(html).toContain(label);
   expect(html).not.toContain('Loaded rank 2');
   const hidden=renderToStaticMarkup(<PoolStandings entries={[{...scored,predictionsHidden:true,...explainEntry(state,{predictionsHidden:true,score:0},[1,2],{})}]} nameMap={{}} analysisNotice="Picks private" />);
   expect(hidden).not.toContain('View picks'); expect(hidden).not.toContain('<dd>');

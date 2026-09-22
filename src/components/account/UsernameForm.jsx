@@ -19,7 +19,7 @@ export default function UsernameForm({ username = '', onSave, setup = false }) {
   }
   return <form onSubmit={submit} className="username-form">
     <label htmlFor="account-username">Username</label>
-    <p id="username-help">3–24 letters, numbers, or underscores. Start with a letter. Usernames are unique and not case-sensitive. The user_ prefix is reserved for default usernames.</p>
+    <p id="username-help">3–24 letters, numbers, or underscores; start with a letter.</p>
     <input id="account-username" className="form-input" value={value} onChange={event => setValue(event.target.value)}
       required minLength={3} maxLength={24} pattern="[a-zA-Z][a-zA-Z0-9_]{2,23}" autoComplete="username" autoCapitalize="none" spellCheck={false}
       aria-describedby="username-help" disabled={busy} />

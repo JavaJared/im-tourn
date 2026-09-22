@@ -52,7 +52,7 @@ export const KristinTiersPage = ({ onNavigate }) => {
       <div className="home-container">
         <div className="page-header">
           <h1>Kristin Tiers</h1>
-          <p>Sort anything into three tiers</p>
+
         </div>
         <div className="empty-state">
           <p>Log in to build your tier lists</p>
@@ -76,7 +76,7 @@ export const KristinTiersPage = ({ onNavigate }) => {
     <div className="home-container">
       <div className="page-header">
         <h1>Kristin Tiers</h1>
-        <p>Sort anything into three tiers — {TIER_SHAPE.map(t => t.slots).join(', ')} slots. Only you can see these.</p>
+
       </div>
 
       <div className="kt-create-row">

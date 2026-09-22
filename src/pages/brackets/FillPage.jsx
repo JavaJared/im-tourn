@@ -290,7 +290,7 @@ const FillEditor = ({ bracket, onSubmit, onBack, currentUser, draftKey }) => {
     <div className="fill-container">
       <div className="fill-header">
         <h1>{bracket.title}</h1>
-        <p>Click on entries to select winners for each matchup</p>
+
         <p role={draftFailed ? "alert" : "status"}>{draftStatus} {draftFailed && <button type="button" onClick={() => persistDraft(matchups)}>Retry draft save</button>}</p>
         <p className="bracket-author-fill">Created by <UserLink userId={bracket.userId} name={bracket.userDisplayName} /></p>
         <button className="download-blank-btn" onClick={downloadBlankBracket}>

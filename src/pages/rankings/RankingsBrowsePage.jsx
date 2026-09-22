@@ -51,7 +51,7 @@ export const RankingsBrowsePage = ({ onNavigate }) => {
     <div className="home-container">
       <div className="hero">
         <h1>RANK <span>ANYTHING</span></h1>
-        <p>Create a list, let the crowd sort it head-to-head, and discover the consensus.</p>
+
         {!currentUser && (
           <p className="hero-cta">Sign up to create and vote on rankings!</p>
         )}

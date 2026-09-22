@@ -43,7 +43,7 @@ export const DraftsBrowsePage = ({ onNavigate }) => {
     <div className="home-container">
       <div className="hero">
         <h1>LIVE <span>DRAFTS</span></h1>
-        <p>Create a draft room, invite friends, pick in real-time — just like the pros.</p>
+
         {!currentUser && <p className="hero-cta">Sign up to create or join a draft!</p>}
       </div>
       <div className="section-title">BROWSE DRAFTS</div>

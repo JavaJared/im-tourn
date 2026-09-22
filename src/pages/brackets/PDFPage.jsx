@@ -216,7 +216,7 @@ const PDFPage = ({ bracket, onBack }) => {
     <div className="pdf-container">
       <div className="pdf-header">
         <h1>Your Bracket is Ready!</h1>
-        <p>Download your completed bracket as a PDF</p>
+
       </div>
 
       <div className="pdf-preview-display">

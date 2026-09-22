@@ -77,8 +77,6 @@ export default function CustomBracketBuilder({ bracketId, onExit }) {
     return unsub;
   }, [bracketId]);
 
-
-
   const loc = useMemo(() => (state ? locate(state) : {}), [state]);
   const layout = useMemo(() => (state ? computeLayout(state) : null), [state]);
   const validation = useMemo(() => (state ? validateForPublish(state) : { valid: false, errors: [] }), [state]);
@@ -156,7 +154,7 @@ export default function CustomBracketBuilder({ bracketId, onExit }) {
         {!hasBoxes ? (
           <div style={S.empty} onMouseDown={(e) => e.stopPropagation()}>
             <p style={S.emptyTitle}>A blank canvas</p>
-            <p style={S.emptyText}>Place matchups wherever you like. Winners flow into the next round by position — nothing's checked until you publish.</p>
+
             <button style={S.bigAdd} onClick={onAddFirst}><Plus size={18} strokeWidth={2.5} /> Add the first matchup</button>
           </div>
         ) : (

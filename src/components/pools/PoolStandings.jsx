@@ -2,15 +2,14 @@ import UserLink from '../layout/UserLink';
 import { S } from './poolStyles';
 
 const statusText = { clinched: 'Clinched', eliminated: 'Eliminated', alive: 'Alive', unknown: 'Undetermined' };
-export default function PoolStandings({ entries, currentUserId, nameMap, analysis, analysisNotice, partial, stale, onView }) {
+export default function PoolStandings({ entries, currentUserId, nameMap, analysis, partial, stale, onView }) {
   let rank = 0;
   const scoreCounts = new Map();
   for (const entry of entries) if (entry.total != null) scoreCounts.set(entry.total, (scoreCounts.get(entry.total) || 0) + 1);
   return <section className="pool-standings" style={S.lb} aria-label="Standings">
     <h2>Standings</h2>
-    <p role="status">{analysisNotice}</p>
-    <p className="standings-help">Points come from correct picks. Equal scores share a rank and are ordered by remaining possible points, highest first. Remaining points are an upper bound, not a win probability. Entries with private or unavailable remaining points follow those with known values.</p>
-    {partial && <p>Ranks below compare only loaded entries, including your own entry.</p>}
+    {(stale || partial || !analysis?.analysisComplete) && <span role="status">{stale ? 'Standings may be stale' : partial ? 'Partial standings' : analysis ? 'Analysis incomplete' : 'Analysis unavailable'}</span>}
+
     {!entries.length && <p>No participants to display.</p>}
     {entries.map((e, index) => {
       if (index === 0 || e.total !== entries[index - 1].total) rank = index + 1;
@@ -29,7 +28,7 @@ export default function PoolStandings({ entries, currentUserId, nameMap, analysi
             <div><dt>Remaining possible</dt><dd>{e.remainingPossible === 0 ? '0' : `Up to ${e.remainingPossible}`}</dd></div>
             <div><dt>Final total ceiling</dt><dd>{e.maxPossibleScore}</dd></div>
           </dl>
-          <p className="standings-help">{e.correct} correct picks · Remaining: up to {e.remainingPossible} points.</p>
+          <p>{e.correct} correct picks</p>
         </>}
         <div className="standings-entry-footer">
           {status && <span>{statusText[status.status] || 'Undetermined'}{status.scenariosTruncated ? ' · winning paths incomplete' : ''}</span>}

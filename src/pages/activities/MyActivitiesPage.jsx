@@ -38,7 +38,7 @@ export default function MyActivitiesPage({ onNavigate, onFillOut, onViewSaved })
   };
   if (!currentUser) return <section className="activities-page"><h1>My Activities</h1><p>Sign in to find your brackets, saved picks, pools, and rankings in one place.</p><button className="nav-btn" onClick={() => setSignIn(true)}>Log in</button><AuthModal isOpen={signIn} onClose={() => setSignIn(false)} initialMode="login" /></section>;
   return <section className="activities-page">
-    <header className="activities-heading"><div><p className="activities-eyebrow">YOUR TOURNAMENT DESK</p><h1>My Activities</h1><p>Pick up where you left off, or revisit your saved picks.</p></div><button className="back-btn" disabled={catalog.loading} onClick={catalog.refresh}>Refresh</button></header>
+    <header className="activities-heading"><div><h1>My Activities</h1></div><button className="back-btn" disabled={catalog.loading} onClick={catalog.refresh}>Refresh</button></header>
     <div className="activities-shortcuts"><button onClick={() => onNavigate('weekly')}>Weekly bracket →</button><button onClick={() => onNavigate('create')}>Create a bracket →</button><button onClick={() => onNavigate('pools')}>Join a pool →</button></div>
     <div className="activities-controls"><div className="activities-filters" aria-label="Filter activities">{filters.map(([key,label]) => <button key={key} aria-pressed={filter === key} onClick={() => setFilter(key)}>{label}</button>)}</div><input type="search" aria-label="Search loaded activities" placeholder="Find an activity…" value={search} onChange={event => setSearch(event.target.value)} /></div>
     {(catalog.error || error) && <p role="alert" className="activities-error">{error || catalog.error}</p>}

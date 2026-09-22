@@ -222,9 +222,6 @@ export const RankingDetailPage = ({ rankingId, onNavigate }) => {
       {activeTab === 'personal' && userVote && (
         <div className="ranking-results">
           <h2>Your Ranking</h2>
-          <p className="ranking-results-sub">
-            Based on {userVote.comparisonsMade} head-to-head comparisons
-          </p>
           <ol className="ranking-results-list">
             {userVote.ranking.map((entryId, idx) => {
               const entry = entryMap.get(entryId);
@@ -246,9 +243,6 @@ export const RankingDetailPage = ({ rankingId, onNavigate }) => {
       {activeTab === 'consensus' && (
         <div className="ranking-results">
           <h2>Consensus Ranking</h2>
-          <p className="ranking-results-sub">
-            Combined from {ranking.voteCount || 0} {(ranking.voteCount === 1) ? 'voter' : 'voters'} using Borda count
-          </p>
           {consensus.length === 0 ? (
             <p className="empty-state">No votes yet. Be the first!</p>
           ) : (

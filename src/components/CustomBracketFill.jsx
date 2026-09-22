@@ -118,7 +118,7 @@ export default function CustomBracketFill({ bracketId, currentUserId, currentUse
       <header style={S.top}>
         <div style={S.brand}>
           <span style={S.title}>{title}</span>
-          <span style={S.sub}>{openSaved ? 'Your saved picks · Read only' : 'Tap a player to advance them — just for fun'}</span>
+          {openSaved && <span style={S.sub}>Read only</span>}
         </div>
         <div style={S.topRight}>
           <button style={S.ghost} onClick={() => exportBracketPdf(pred, nameMap, title).catch(e => flash(e.message))}>Download PDF</button>

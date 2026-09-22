@@ -352,7 +352,7 @@ const PredictionPoolDetailPage = ({ poolId, onNavigate }) => {
         <div className="prediction-categories-container">
           {canMakePredictions && (
             <div className="prediction-instructions">
-              <p>Select your prediction for each category, then submit!</p>
+
               <button
                 className="submit-predictions-btn"
                 onClick={handleSubmitPredictions}

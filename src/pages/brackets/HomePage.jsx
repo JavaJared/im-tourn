@@ -79,10 +79,7 @@ const HomePage = ({ onFillOut, onNavigate }) => {
         <h1>
           CREATE YOUR <span>ULTIMATE</span> BRACKET
         </h1>
-        <p>
-          Design custom tournament brackets for anything—movies, shows, teams, and more. Share them
-          with friends and settle the debate once and for all.
-        </p>
+
         <button className="nav-btn hero-cta" onClick={() => onNavigate('create')}>Create your bracket</button>
       </div>
 

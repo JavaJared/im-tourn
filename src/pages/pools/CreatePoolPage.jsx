@@ -19,8 +19,6 @@ const CreatePoolPage = ({ onNavigate }) => {
   // Scoring customization
   const [roundPoints, setRoundPoints] = useState([1, 2, 4, 8, 16, 32, 64]); // Points per round (up to 7 rounds for 128 entries)
 
-
-
   const { currentUser } = useAuth();
 
   useEffect(() => {
@@ -106,7 +104,7 @@ const CreatePoolPage = ({ onNavigate }) => {
     <div className="home-container">
       <div className="page-header">
         <h1>Create Bracket Pool</h1>
-        <p>Set up a prediction pool for your friends</p>
+
       </div>
 
       <div className="create-pool-form">
