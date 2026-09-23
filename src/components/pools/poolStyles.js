@@ -8,6 +8,9 @@ const CSS = `
 .cbpd .standings-breakdown dt,.cbpd .standings-help{font-size:13px;color:var(--muted);line-height:1.5}
 .cbpd .standings-breakdown dd{margin:4px 0 0;font-size:18px;font-weight:600}
 .cbpd .standings-entry-footer{margin-top:12px;font-size:13px}.cbpd .standings-entry-footer button{min-height:44px}
+.cbpd .standings-entry-actions{margin-left:auto;display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:12px;min-width:0;max-width:100%;text-align:right}
+.cbpd .standings-entry-actions>span{overflow-wrap:anywhere;min-width:0}
+.cbpd .standings-entry-actions>button{flex-shrink:0}
 .cbpd .standings-sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 @media(max-width:700px){.cbpd .standings-breakdown{grid-template-columns:repeat(2,minmax(0,1fr))}}
 

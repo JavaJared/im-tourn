@@ -2,7 +2,7 @@ import UsernameText from '../layout/UsernameText';
 import UserLink from '../layout/UserLink';
 import { S } from './poolStyles';
 
-const statusText = { clinched: 'Clinched', eliminated: 'Eliminated', alive: 'Alive', unknown: 'Undetermined' };
+const statusText = { clinched: 'Clinched', eliminated: 'Eliminated', alive: 'Alive', unknown: 'Alive' };
 export default function PoolStandings({ entries, currentUserId, nameMap, analysis, partial, stale, onView }) {
   let rank = 0;
   const scoreCounts = new Map();
@@ -32,9 +32,11 @@ export default function PoolStandings({ entries, currentUserId, nameMap, analysi
           <p>{e.correct} correct picks</p>
         </>}
         <div className="standings-entry-footer">
-          {status && <span>{statusText[status.status] || 'Undetermined'}{status.scenariosTruncated ? ' · winning paths incomplete' : ''}</span>}
-          {canView && e.champion != null && <span>Champion pick: {nameMap[e.champion] || e.champion}</span>}
-          {canView && <button style={S.ghost} onClick={() => onView(e)}>View picks<span className="standings-sr-only"> for <UsernameText userId={e.userId} /></span></button>}
+          <span>{statusText[status?.status] || 'Alive'}</span>
+          {canView && <div className="standings-entry-actions">
+          {e.champion != null && <span>Champion pick: {nameMap[e.champion] || e.champion}</span>}
+          <button style={S.ghost} onClick={() => onView(e)}>View picks<span className="standings-sr-only"> for <UsernameText userId={e.userId} /></span></button>
+          </div>}
         </div>
       </article>;
     })}

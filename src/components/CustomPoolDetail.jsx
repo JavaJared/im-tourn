@@ -23,7 +23,7 @@ function StatusBadge({ status }) {
   if (!status) return null;
   if (status === 'clinched') return <span style={{ ...S.badge, ...S.badgeClinch }}><Trophy size={10} /> Clinched</span>;
   if (status === 'eliminated') return <span style={{ ...S.badge, ...S.badgeOut }}>Out</span>;
-  return <span style={{ ...S.badge, ...S.badgeAlive }}>{status === 'unknown' ? 'Undetermined' : 'Alive'}</span>;
+  return <span style={{ ...S.badge, ...S.badgeAlive }}>Alive</span>;
 }
 
 const STATUS_LABEL = { open: 'Predictions open', locked: 'Locked', in_progress: 'In progress', completed: 'Completed' };
