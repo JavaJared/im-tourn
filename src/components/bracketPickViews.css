@@ -8,3 +8,25 @@
 .bracket-pick-summary summary { cursor:pointer; min-height:44px; display:list-item; }
 .bracket-pick-summary select { max-width:100%; }
 .engine-support { display:block; font-size:10px; color:#c6d0e2; font-weight:400; }
+
+/* Keep the selector, empty state and sharing feedback in distinct rows. */
+.bracket-pick-summary { display:flex; flex-direction:column; align-items:flex-start; gap:16px; padding:24px; }
+.bracket-pick-summary > p { margin:0; line-height:1.5; }
+.bracket-friend-selector { display:flex; align-items:center; flex-wrap:wrap; gap:12px; max-width:100%; }
+.bracket-friend-selector > span { font-weight:600; }
+.bracket-friend-selector select { min-width:180px; width:auto; }
+.bracket-friend-empty { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:20px 28px; width:100%; max-width:760px; padding:20px; box-sizing:border-box; border:1px solid #485163; border-radius:12px; background:var(--surface2, #1b202a); }
+.bracket-friend-empty > p { flex:1 1 220px; margin:0; line-height:1.5; }
+.bracket-share-action { display:flex; flex-direction:column; align-items:flex-start; gap:12px; min-width:0; max-width:100%; }
+.bracket-share-action > button { white-space:normal; }
+.bracket-share-action > [role] { max-width:32ch; margin:0; line-height:1.5; overflow-wrap:anywhere; }
+.bracket-share-action > button:disabled { cursor:default; }
+@media (max-width:600px) {
+  .bracket-pick-summary { padding:20px 16px; gap:20px; }
+  .bracket-friend-selector { width:100%; flex-direction:column; align-items:stretch; gap:8px; }
+  .bracket-friend-selector select { width:100%; min-width:0; }
+  .bracket-friend-empty { flex-direction:column; align-items:stretch; padding:18px; gap:18px; }
+  .bracket-friend-empty > p { flex:auto; }
+  .bracket-share-action { align-items:stretch; }
+  .bracket-share-action > button { width:100%; }
+}

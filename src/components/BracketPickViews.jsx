@@ -23,7 +23,7 @@ export default function BracketPickViews({type,bracketId,userId,view,onView,disa
     {view==='mine'?children:<>
       <div className="bracket-pick-summary">
         {view==='friends'&&(!userId?<p>Sign in to view friends’ picks.</p>:<>
-          <label>Friend <select value={friendId} onChange={event=>setFriendId(event.target.value)}><option value="">Choose a friend</option>{accepted.map(friend=><option key={friend.friendId} value={friend.friendId}><UsernameText userId={friend.friendId}/></option>)}</select></label>
+          <label className="bracket-friend-selector"><span>Friend</span><select value={friendId} onChange={event=>setFriendId(event.target.value)}><option value="">Choose a friend</option>{accepted.map(friend=><option key={friend.friendId} value={friend.friendId}><UsernameText userId={friend.friendId}/></option>)}</select></label>
           {friends.loading&&<p role="status">Loading friends…</p>}
           {friends.error&&<p role="alert">{friends.error} <button onClick={friends.loadMore}>Retry friends</button></p>}
           {friends.hasMore&&!friends.error&&<button disabled={friends.loading} onClick={friends.loadMore}>Load more friends</button>}
@@ -31,7 +31,7 @@ export default function BracketPickViews({type,bracketId,userId,view,onView,disa
         </>)}
         {error&&<p role="alert">{error} <button onClick={()=>setAttempt(n=>n+1)}>Retry picks</button></p>}
         {!error&&!result&&(view==='community'||(userId&&friendId))&&<p role="status">Loading picks…</p>}
-        {result&&view==='friends'&&!result.found&&<div><p>This friend hasn’t saved a completed bracket for the current version.</p><SendBracketButton key={`${userId}:${friendId}:${type}:${bracketId}`} friendId={friendId} type={type} bracketId={bracketId}/></div>}
+        {result&&view==='friends'&&!result.found&&<div className="bracket-friend-empty"><p>No completed picks for this version yet.</p><SendBracketButton key={`${userId}:${friendId}:${type}:${bracketId}`} friendId={friendId} type={type} bracketId={bracketId}/></div>}
         {result&&view==='community'&&<>
           <p>Based on {result.sampleSize} {result.sampleSize===1?'bracket':'brackets'}{result.partial?' · Partial consensus (latest 2,000 submissions)':''}</p>
           <details><summary>How consensus works</summary><p>Each person’s latest compatible completed bracket counts once. Percentages show support for advancing beyond each round, so opponents’ percentages may not add to 100%. Ties use support in the preceding round, then original bracket order. With no support for either entrant, the matchup stays unanswered. Pool predictions are excluded. Results may take up to a minute to refresh.</p></details>
