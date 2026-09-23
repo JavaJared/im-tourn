@@ -43,12 +43,14 @@ run('server transactions against the Firestore emulator', () => {
     await db.doc('weeklyBracket/current').set({ weekId: 'week', currentRound: 0, startDate: admin.Timestamp.fromDate(new Date(`${dateKeyET()}T00:00:00Z`)), matchups: JSON.stringify(matchups), votes: '{}' });
     return Object.fromEntries(matchups[0].map((m, i) => [`r0-m${i}`, 1]));
   }
+  // Emulator transaction contention includes retry backoff; retain every assertion
+  // while allowing more than the default five seconds on shared CI runners.
   test('weekly votes commit once and reject wrong weeks, rounds, and partial ballots', async () => {
     const votes = await weekly(), data = { weekId: 'week', roundIndex: 0, votes };
     await Promise.all([1, 2].map(() => api.castWeeklyVotes.run(req('alice', data))));
     const current = (await db.doc('weeklyBracket/current').get()).data(); expect(JSON.parse(current.votes)['r0-m0'].entry1).toBe(1);
     for (const change of [{ weekId: 'old' }, { roundIndex: 1 }, { votes: { 'r0-m0': 1 } }]) await expect(api.castWeeklyVotes.run(req('bob', { ...data, ...change }))).rejects.toBeTruthy();
-  });
+  }, 20000);
   test('a delayed old-week deletion cannot change current tallies', async () => {
     const votes = await weekly(); await api.castWeeklyVotes.run(req('alice', { weekId: 'week', roundIndex: 0, votes }));
     const missing = { data: () => undefined };

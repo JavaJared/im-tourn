@@ -6,6 +6,8 @@ const auth = { uid: 'deployment-index-probe-user', token: {} };
 async function verify() {
   const friends = require('../functions/friends').internal;
   const probes = [
+    () => api.getForYouFeed.run({ data: {} }),
+    () => api.getForYouFeed.run({ auth, data: {} }),
     ...['legacy','custom','ranking'].flatMap(type => ['created','filled'].map(mode => () => friends.activityQuery(type,mode,auth.uid).query.get())),
     () => api.listFriends.run({auth, data:{}}),
     ...Object.keys(require('../functions/activities').internal.sources).map(type => () => api.listMyActivities.run({ auth, data: { type } })),

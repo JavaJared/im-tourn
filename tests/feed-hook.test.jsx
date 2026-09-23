@@ -40,3 +40,13 @@ test('hide removes a card and an in-flight refresh cannot put it back',async()=>
  await act(async()=>{finish({items:[{id:'a',type:'legacy'}],nextCursor:null});await refresh;});
  expect(value.items).toEqual([]);
 });
+
+test('unavailable backend gives a useful message and a retry can load cards',async()=>{
+ call.mockRejectedValueOnce(Object.assign(Error('internal [0]'),{code:'functions/internal'}));
+ await act(async()=>{tree=create(<Harness uid="backend-down"/>);});
+ expect(value.error).toContain('temporarily unavailable');
+ expect(value.error).not.toContain('internal [0]');
+ call.mockResolvedValueOnce({items:[{id:'ready',type:'legacy'}],nextCursor:null});
+ await act(async()=>value.loadMore());
+ expect(value.error).toBe('');expect(value.items[0].id).toBe('ready');
+});

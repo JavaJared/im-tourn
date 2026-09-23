@@ -24,7 +24,7 @@ export default function useForYouFeed(uid) {
       Object.entries(data.usernames||{}).forEach(([id,name])=>rememberUsername(id,name));
       itemsRef.current=[...new Map([...(reset?[]:itemsRef.current),...data.items.filter(item=>item&&typeof item.id==='string'&&['legacy','custom','ranking'].includes(item.type)&&!hidden.current.has(`${item.type}:${item.id}`))].map(item=>[`${item.type}:${item.id}`,item])).values()];
       cursorRef.current=data.nextCursor;setItems(itemsRef.current);setCursor(data.nextCursor);setStarted(true);setUnavailable(!!data.personalizationUnavailable);remember();
-    }catch(reason){if(alive.current&&request===generation.current)setError(reason.message||'Could not load the feed.');}
+    }catch(reason){if(alive.current&&request===generation.current)setError(/internal|not-found|unavailable|failed to fetch|network/i.test(`${reason.code || ''} ${reason.message || ''}`) ? 'Your feed is temporarily unavailable. Please retry in a moment, or use Browse to find brackets and rankings.' : reason.message || 'Could not load the feed. Please retry.');}
     finally{if(request===generation.current){busy.current=false;if(alive.current)setLoading(false);}}
   },[scope]);
   useEffect(()=>{
