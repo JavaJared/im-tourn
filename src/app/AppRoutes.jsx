@@ -20,6 +20,7 @@ import {
   KristinTiersPage,
   KristinTiersDetailPage,
   HomePage,
+  ForYouPage,
   MyBracketsPage,
   MyActivitiesPage,
   PoolsPage,
@@ -43,7 +44,7 @@ export default function AppRoutes({
   currentBracket,
   currentUser,
 }) {
-  if (isHiddenView(view)) return <div className="home-container"><p>This feature is not publicly available.</p><button onClick={() => setView('home')}>Back to browse</button></div>;
+  if (isHiddenView(view)) return <div className="home-container"><p>This feature is not publicly available.</p><button onClick={() => setView('home')}>Back to For You</button></div>;
   return (
     <Suspense
       key={view + ':' + (currentUser?.uid || 'guest')}
@@ -53,8 +54,9 @@ export default function AppRoutes({
         </div>
       }
     >
-      {view === 'not-found' && <section className="home-container"><h1>Page not found</h1><p>This link does not match an available page.</p><button className="nav-btn" onClick={() => setView('home')}>Back to browse</button></section>}
-      {view === 'home' && <HomePage onFillOut={handleFillOut} onNavigate={setView} />}
+      {view === 'not-found' && <section className="home-container"><h1>Page not found</h1><p>This link does not match an available page.</p><button className="nav-btn" onClick={() => setView('home')}>Back to For You</button></section>}
+      {view === 'home' && <ForYouPage key={currentUser?.uid || 'guest'} onNavigate={setView} />}
+      {view === 'browse' && <HomePage onFillOut={handleFillOut} onNavigate={setView} />}
       {view === 'friends' && <FriendsPage key={currentUser?.uid || 'guest'} onNavigate={setView} />}
       {view === 'profile' && <ProfilePage onNavigate={setView} />}
       {view.startsWith('profile-') && <ProfilePage profileId={view.slice('profile-'.length)} onNavigate={setView} />}

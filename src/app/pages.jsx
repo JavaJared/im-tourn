@@ -41,7 +41,7 @@ export const KristinTiersPage = lazy(() =>
 export const KristinTiersDetailPage = lazy(() =>
   import('../pages/tiers/KristinTiersDetailPage').then((m) => ({ default: m.KristinTiersDetailPage })),
 );
-export { default as HomePage } from '../pages/brackets/HomePage.jsx';
+export const HomePage = lazy(() => import('../pages/brackets/HomePage.jsx'));
 export const MyBracketsPage = lazy(() => import('../pages/brackets/MyBracketsPage.jsx'));
 export const PoolsPage = lazy(() => import('../pages/pools/PoolsPage.jsx'));
 export const CreatePoolPage = lazy(() => import('../pages/pools/CreatePoolPage.jsx'));
@@ -64,3 +64,5 @@ export const MyActivitiesPage = lazy(() => import('../pages/activities/MyActivit
 
 export const FriendsPage = lazy(() => import('../pages/friends/FriendsPage'));
 export const ProfilePage = lazy(() => import('../pages/friends/ProfilePage'));
+
+export const ForYouPage = lazy(() => import('../pages/feed/ForYouPage'));

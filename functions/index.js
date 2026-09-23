@@ -124,3 +124,6 @@ exports.updateProfileDetails = require('./profile-details').updateProfileDetails
 exports.getPublicUsernames = require('./public-usernames').getPublicUsernames;
 exports.getBracketPickView = require('./bracket-pick-views').getBracketPickView;
 for (const [name, callable] of Object.entries(require('./notifications'))) exports[name] = callable;
+const feed = require('./feed');
+exports.getForYouFeed = feed.getForYouFeed;
+exports.recordFeedFeedback = feed.recordFeedFeedback;

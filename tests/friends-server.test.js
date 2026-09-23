@@ -16,7 +16,7 @@ run('accepted friends and shared activity', () => {
     const admin = require('../functions/node_modules/firebase-admin/lib/firestore'); db=admin.getFirestore(); Timestamp=admin.Timestamp;
     pairRef = require('../functions/friends').internal.pairRef;
   });
-  beforeEach(async () => {for (const name of ['notificationInboxes','bracketShareLimits','_bracketConsensus','accountProfiles','usernames','friendships','friendProfiles','friendCodes','friendRequestLimits','brackets','customBrackets','submissions','rankings','rankingVotes','rankingEntries','bracketPools','poolEntries']) await db.recursiveDelete(db.collection(name));});
+  beforeEach(async () => {for (const name of ['feedPreferences','notificationInboxes','bracketShareLimits','_bracketConsensus','accountProfiles','usernames','friendships','friendProfiles','friendCodes','friendRequestLimits','brackets','customBrackets','submissions','rankings','rankingVotes','rankingEntries','bracketPools','poolEntries']) await db.recursiveDelete(db.collection(name));});
   test('shared bracket notifications require friendship, deduplicate and remain recipient-only', async () => {
     const matchups = [[{entry1:{name:'A',seed:1},entry2:{name:'B',seed:2},winner:null}]];
     await db.doc('brackets/share').set({title:'Shared bracket',matchups:JSON.stringify(matchups)});
@@ -55,6 +55,29 @@ run('accepted friends and shared activity', () => {
     expect(await call('sendBracketNotification','alice',args)).toEqual({sent:true});
     const page=await call('listBracketNotifications','bob');
     expect(await call('readBracketNotification','bob',{notificationId:page.items[0].id,open:true})).toEqual({view:'custom-bracket-share'});
+  });
+  test('For You pages mix public types without duplicates and isolate hidden preferences', async () => {
+    const batch=db.batch();
+    for(let i=0;i<19;i++)batch.set(db.doc(`brackets/feed-${i}`),{title:`Feed ${i}`,category:'Movies',userId:'writer',createdAt:Timestamp.fromMillis(1000+i)});
+    batch.set(db.doc('customBrackets/feed-open'),{title:'Open',status:'published',createdAt:Timestamp.fromMillis(1000)});
+    batch.set(db.doc('customBrackets/feed-draft'),{title:'Secret',status:'draft',createdAt:Timestamp.fromMillis(1000)});
+    batch.set(db.doc('rankings/feed-ranking'),{title:'Ranking',status:'open',createdAt:Timestamp.fromMillis(1000)});
+    await batch.commit();
+    let page=await call('getForYouFeed',null),items=[...page.items];
+    expect(page.items.some(item=>item.type==='ranking')).toBe(true);
+    expect(page.items.some(item=>item.type==='custom')).toBe(true);
+    // Delete a boundary document: timestamp/id cursors must still advance.
+    const decoded=JSON.parse(Buffer.from(page.nextCursor,'base64url').toString());
+    await db.doc(`brackets/${decoded.positions.legacy.id}`).delete();
+    while(page.nextCursor){page=await call('getForYouFeed',null,{cursor:page.nextCursor});items.push(...page.items);}
+    expect(new Set(items.map(item=>`${item.type}:${item.id}`)).size).toBe(items.length);
+    expect(items).toHaveLength(21);expect(items.some(item=>item.id==='feed-draft')).toBe(false);
+    await expect(call('recordFeedFeedback',null,{type:'legacy',itemId:'feed-18',action:'hide'})).rejects.toMatchObject({code:'unauthenticated'});
+    await call('recordFeedFeedback','feed-user',{type:'legacy',itemId:'feed-18',action:'hide',userId:'other'});
+    expect((await call('getForYouFeed','feed-user')).items.some(item=>item.id==='feed-18')).toBe(false);
+    expect((await call('getForYouFeed','other')).items.some(item=>item.id==='feed-18')).toBe(true);
+    await expect(call('getForYouFeed',null,{cursor:'bad'})).rejects.toMatchObject({code:'invalid-argument'});
+    await expect(call('recordFeedFeedback','feed-user',{type:'custom',itemId:'feed-draft',action:'open'})).rejects.toMatchObject({code:'not-found'});
   });
   test('profile details edits are authenticated, owner-only, and preserve usernames', async () => {
     await expect(call('updateProfileDetails', null, {bio:'hello'})).rejects.toMatchObject({code:'unauthenticated'});

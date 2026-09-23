@@ -31,7 +31,7 @@ const Header = ({ onNavigate, currentView }) => {
             className={`nav-link ${currentView === 'home' ? 'active' : ''}`}
             view="home" onNavigate={onNavigate} currentView={currentView}
           >
-            Browse
+            For You
           </ViewLink>
           <ViewLink
             className={`nav-link weekly ${currentView === 'weekly' ? 'active' : ''}`}
@@ -85,7 +85,7 @@ const Header = ({ onNavigate, currentView }) => {
             </button>
           )}
 
-          {currentView !== 'home' &&
+          {currentView !== 'home' && currentView !== 'browse' &&
             currentView !== 'weekly' &&
             currentView !== 'champions' &&
             currentView !== 'pools' &&

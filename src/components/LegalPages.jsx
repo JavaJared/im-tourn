@@ -52,7 +52,7 @@ const LegalPageLayout = ({ title, effectiveDate, children }) => (
 
 export const PrivacyPolicyPage = () => {
   return (
-    <LegalPageLayout title="Privacy Policy" effectiveDate="September 15, 2026">
+    <LegalPageLayout title="Privacy Policy" effectiveDate="September 23, 2026">
       <p className="legal-intro">
         This Privacy Policy explains how I'm Tourn ("we," "us," or "our")
         collects, uses, and shares information when you use our website and
@@ -61,6 +61,7 @@ export const PrivacyPolicyPage = () => {
       </p>
 
       <h2>What we collect</h2>
+      <p><strong>Feed preferences.</strong> When signed in, we use your recent bracket and ranking activity, friendships, items opened from For You, and “Not interested” choices to personalize recommendations. Your interest signals are not shown to other users.</p>
 
       <p>
         <strong>Account information.</strong> When you sign up, we collect the
