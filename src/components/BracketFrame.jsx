@@ -1,10 +1,14 @@
 export function BracketFrame({ children, onExit }) {
-  return <div style={bracketFrameStyles.root} className="cbpr"><style>{CSS}</style>{onExit && <button style={bracketFrameStyles.exit} onClick={onExit} aria-label="Back">×</button>}{children}</div>;
+  return <div style={bracketFrameStyles.root} className="cbpr"><style>{CSS}</style>{onExit && <button type="button" className="bracket-close" style={bracketFrameStyles.exit} onClick={onExit} aria-label="Back" title="Back"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button>}{children}</div>;
 }
 
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&display=swap');
 .cbpr *{box-sizing:border-box}
+.cbpr .bracket-close{background:transparent;color:#c6cfdf;transition:background .15s,color .15s;box-shadow:none}
+.cbpr .bracket-close:hover{background:#252c39;color:#fff}
+.cbpr .bracket-close:focus-visible{outline:2px solid #2bd4c0;outline-offset:-4px}
+.cbpr .bracket-close svg{display:block;flex-shrink:0;pointer-events:none}
 .cbpr ::-webkit-scrollbar{width:11px;height:11px}
 .cbpr ::-webkit-scrollbar-thumb{background:#2a3040;border-radius:6px;border:3px solid transparent;background-clip:padding-box}
 .spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
@@ -12,10 +16,10 @@ const CSS = `
 `;
 export const bracketFrameStyles = {
   root: { '--bg': '#0c0e13', '--surface': '#14171f', '--surface2': '#1b1f2b', '--line': '#2a3040', '--text': '#eef1f7', '--muted': '#828ba1', '--orange': '#ff6a3d', '--teal': '#2bd4c0', position: 'relative', display: 'flex', flexDirection: 'column', height: '100%', minHeight: 560, background: 'var(--bg)', color: 'var(--text)', fontFamily: "'Outfit',system-ui,sans-serif", borderRadius: 14, overflow: 'hidden', border: '1px solid var(--line)' },
-  exit: { position: 'absolute', top: 10, right: 12, zIndex: 30, width: 44, height: 44, borderRadius: 8, border: '1px solid var(--line)', background: 'var(--surface2)', color: 'var(--muted)', fontSize: 18, lineHeight: 1, cursor: 'pointer' },
+  exit: { position: 'absolute', top: 10, right: 12, zIndex: 30, width: 44, height: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, borderRadius: '50%', border: 'none', lineHeight: 1, cursor: 'pointer' },
   center: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, color: 'var(--muted)', fontSize: 14 },
   linkBtn: { color: 'var(--teal)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 },
-  top: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 62px 12px 18px', flexWrap: 'wrap', gap: 12, borderBottom: '1px solid var(--line)', background: 'linear-gradient(180deg,#14171f,#101319)' },
+  top: { minHeight: 68, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 62px 12px 18px', flexWrap: 'wrap', gap: 12, borderBottom: '1px solid var(--line)', background: 'linear-gradient(180deg,#14171f,#101319)' },
   brand: { minWidth: 0, overflowWrap: 'anywhere', display: 'flex', flexDirection: 'column', lineHeight: 1.2 },
   title: { fontFamily: "'Bebas Neue',sans-serif", fontSize: 22, letterSpacing: 1, color: 'var(--text)' },
   sub: { fontSize: 12, color: 'var(--muted)', marginTop: 3 },
