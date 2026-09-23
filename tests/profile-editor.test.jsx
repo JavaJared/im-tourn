@@ -42,3 +42,15 @@ test('another user cannot see edit controls', async () => {
   expect(tree.root.findAllByProps({'aria-label':'Edit profile'})).toHaveLength(0);
   expect(JSON.stringify(tree.toJSON())).toContain('Add friend');
 });
+test('profile header is usable before stats finish and stats failure does not hide it', async () => {
+  let fail;
+  mocks.call.mockImplementation((_,data)=>data.section === 'header'
+    ? Promise.resolve({id:'alice',isSelf:true,username:'alice',bio:'Ready now',stats:{},statsPending:true,canViewPrivate:true})
+    : new Promise((resolve,reject)=>{fail=reject;}));
+  await act(async()=>{tree=create(<ProfilePage onNavigate={()=>{}}/>);});
+  expect(tree.root.findByType('h1').children.join('')).toBe('@alice');
+  expect(JSON.stringify(tree.toJSON())).toContain('Loading statistics');
+  await act(async()=>fail(Error('Offline')));
+  expect(tree.root.findByType('h1').children.join('')).toBe('@alice');
+  expect(JSON.stringify(tree.toJSON())).toContain('Retry statistics');
+});

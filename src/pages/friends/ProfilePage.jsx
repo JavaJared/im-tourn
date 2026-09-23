@@ -55,15 +55,23 @@ export default function ProfilePage({ profileId, onNavigate }) {
   const targetId = profileId || currentUser?.uid;
   const [editing, setEditing] = useState(false);
   const [profile, setProfile] = useState(null), [error, setError] = useState(''), [retry, setRetry] = useState(0);
+  const [statsError, setStatsError] = useState('');
   const [kind, setKind] = useState('brackets'), [mode, setMode] = useState('created'), [selected, setSelected] = useState(null);
 
   useEffect(() => {
     let active = true;
-    setProfile(null); setError(''); setSelected(null); setMode('created'); setEditing(false);
-    if (targetId && currentUser) callServer('getUserProfile', { profileId: targetId }).then(
-      value => { if (active) setProfile(value); },
-      reason => { if (active) setError(reason.message || 'This profile could not be loaded.'); },
-    );
+    setProfile(null); setError(''); setStatsError(''); setSelected(null); setMode('created'); setEditing(false);
+    if (targetId && currentUser) {
+      let full = null;
+      callServer('getUserProfile', { profileId:targetId, section:'header' }).then(
+        value => { if (active && !full) setProfile(value); },
+        reason => { if (active && !full) setError(reason.message || 'This profile could not be loaded.'); },
+      );
+      callServer('getUserProfile', { profileId:targetId }).then(
+        value => { full = value; if (active) { setError(''); setProfile(previous => ({...value, ...(previous ? {bio:previous.bio, photoURL:previous.photoURL} : {}), statsPending:false})); } },
+        reason => { if (active) setStatsError(reason.message || 'Statistics could not be loaded.'); },
+      );
+    }
     return () => { active = false; };
   }, [targetId, currentUser?.uid, retry]);
 
@@ -92,6 +100,8 @@ export default function ProfilePage({ profileId, onNavigate }) {
     <section className="profile-stats" aria-label="Profile statistics">
       {statLabels.filter(([key]) => key.startsWith('created') || profile.canViewPrivate).map(([key, label]) => <div className="profile-stat" key={key}><strong>{profile.stats[key] == null ? '—' : profile.stats[key]}</strong><span>{label}</span></div>)}
     </section>
+    {profile.statsPending && !statsError && <p role="status">Loading statistics…</p>}
+    {statsError && <p role="alert">Statistics unavailable. <button className="back-btn" onClick={() => setRetry(value => value + 1)}>Retry statistics</button></p>}
     {profile.statsIncomplete && <span role="status">Statistics incomplete</span>}
     <section className="friend-section">
       <div className="friend-filter profile-filters">

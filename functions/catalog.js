@@ -1,3 +1,4 @@
+const { internal: { resolveUsernames } } = require('./public-usernames');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getFirestore, FieldPath } = require('firebase-admin/firestore');
 const db = getFirestore();
@@ -38,7 +39,11 @@ exports.browseCatalog = onCall(async req => {
     query = query.startAfter(last);
   }
   const snap = await query.get(), page = snap.docs.slice(0, 24);
-  return { items: page.map(doc => summary(type, doc.id, doc.data())), nextCursor: snap.size > 24 ? page.at(-1).id : null };
+  const items = page.map(doc => summary(type, doc.id, doc.data()));
+  let usernames = {};
+  try { usernames = await resolveUsernames(items.map(item => item.userId || item.hostId)); }
+  catch (error) { console.error('Catalog username hydration failed', error); }
+  return { items, usernames, nextCursor: snap.size > 24 ? page.at(-1).id : null };
 });
 exports.internal = { summary };
 exports.listUserPools = onCall(async req => {

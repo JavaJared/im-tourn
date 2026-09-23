@@ -181,6 +181,8 @@ run('accepted friends and shared activity', () => {
     await db.doc('bracketPools/pool').set({ status: 'completed', winnerIds: ['alice'], winnerId: 'alice' });
     await db.doc('poolEntries/pool_bob').set({ userId: 'bob', poolId: 'pool', score: 7, submittedAt: Timestamp.now() });
     await db.doc('poolEntries/pool_alice').set({ userId: 'alice', poolId: 'pool', score: 9, submittedAt: Timestamp.now() });
+    const header = await call('getUserProfile', 'alice', { profileId: 'bob', section:'header' });
+    expect(header).toMatchObject({id:'bob', relationship:'accepted', canViewPrivate:true, statsPending:true, stats:{}});
     const profile = await call('getUserProfile', 'alice', { profileId: 'bob' });
     expect(profile).toMatchObject({ displayName: 'Bob', isSelf: false, stats: { createdBrackets: 2, createdRankings: 1, filledBrackets: 2, filledRankings: 1, poolsJoined: 1, completedPools: 1, averageFinalRank: 2, highestFinalRank: 2, poolsWon: 0 } });
     await call('respondToFriend', 'alice', { friendId: 'bob', action: 'remove' });

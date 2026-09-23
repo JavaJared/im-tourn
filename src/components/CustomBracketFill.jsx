@@ -19,7 +19,7 @@ function nameMapOf(state) { const m = {}; for (const id of Object.keys(state.box
  * (when signed in) save it as a submission. No scoring, no competition — that
  * lives on pools.
  * ==================================================================== */
-export default function CustomBracketFill({ bracketId, currentUserId, currentUserName, onExit, openSaved = false }) {
+export default function CustomBracketFill({ bracketId, currentUserId, currentUserName, onExit, openSaved = false, watchBracket = subscribeToBracket }) {
   const [bracket, setBracket] = useState(null);
   const [status, setStatus] = useState(null);
   const [pred, setPred] = useState(null);      // local prediction engine state
@@ -43,7 +43,12 @@ export default function CustomBracketFill({ bracketId, currentUserId, currentUse
     setLoading(true); setError(null); setPred(null); setSaved(false); setView('mine');
     if (!bracketId) { setError('No bracket specified.'); setLoading(false); return undefined; }
     let initialized = false, active = true;
-    const unsub = subscribeToBracket(bracketId, async (state, meta) => {
+    // Begin independent saved-pick work immediately; consume errors in the handler.
+    const ownRequest = (openSaved && currentUserId
+      ? getCustomFill(bracketId,currentUserId).then(saved => ({found:!!saved,picks:saved?.picks}))
+      : !openSaved && currentUserId ? callServer('getBracketPickView',{type:'custom',bracketId,mode:'mine'}) : Promise.resolve({found:false}))
+      .then(value => ({value}), error => ({error}));
+    const unsub = watchBracket(bracketId, async (state, meta) => {
       if (!active) return;
       if (!meta.exists || !state) { setError('This bracket could not be found.'); setLoading(false); return; }
       setBracket(state); setTitle(meta.raw.title || 'My bracket'); setStatus(meta.raw.status);
@@ -52,8 +57,9 @@ export default function CustomBracketFill({ bracketId, currentUserId, currentUse
       try {
         let resume=null;
         if(!openSaved) { try { resume=JSON.parse(localStorage.getItem(lsKey)); } catch { /* Start from account picks. */ } }
-        const savedActivity=openSaved&&currentUserId ? await getCustomFill(bracketId,currentUserId) : null;
-        const own=openSaved ? {found:!!savedActivity,picks:savedActivity?.picks} : currentUserId ? await callServer('getBracketPickView',{type:'custom',bracketId,mode:'mine'}) : {found:false};
+        const result = await ownRequest;
+        if (result.error) throw result.error;
+        const own = result.value;
         if(!active)return;
         if(openSaved&&!own.found)throw new Error('Your saved bracket could not be found.');
         const useDraft=resume&&!openSaved&&(!own.found||!resume.updatedAt||resume.updatedAt>own.savedAt);
@@ -65,7 +71,7 @@ export default function CustomBracketFill({ bracketId, currentUserId, currentUse
       finally { if(active)setLoading(false); }
     }, err => { if(active){setError(err?.message||'Connection error.');setLoading(false);} });
     return ()=>{active=false;unsub();};
-  }, [bracketId,currentUserId,lsKey,openSaved,retry]);
+  }, [bracketId,currentUserId,lsKey,openSaved,retry,watchBracket]);
 
   const nameMap = useMemo(() => (pred ? nameMapOf(pred) : {}), [pred]);
   const complete = useMemo(() => (pred ? isEntryComplete(pred) : false), [pred]);

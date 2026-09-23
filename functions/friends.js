@@ -192,15 +192,17 @@ exports.getUserProfile = onCall(async req => {
   const relationship = viewerId === profileId ? 'self' : friendship?.status === 'accepted' ? 'accepted'
     : friendship?.status === 'pending' ? (friendship.requester === viewerId ? 'outgoing' : 'incoming') : 'none';
   const privateAccess = relationship === 'self' || relationship === 'accepted';
+  const headerOnly = req.data?.section === 'header';
   const unavailable = [];
   async function safeProfileQuery(label, run, fallback) {
+    if (headerOnly && !['profile', 'username', 'friendCount'].includes(label)) return fallback;
     try { return await run(); }
     catch (error) { console.error(`getUserProfile ${label} failed`, error); unavailable.push(label); return fallback; }
   }
 
   const empty = { docs: [], size: 0 };
   const emptyProfile = { exists: false, data: () => ({}) };
-  const [profileSnap, legacyCreated, customCreated, rankingCreated, legacyFilled, customFilled, rankingFilled, joined] = await Promise.all([
+  const [profileSnap, legacyCreated, customCreated, rankingCreated, legacyFilled, customFilled, rankingFilled, joined, account, friendTotal] = await Promise.all([
     safeProfileQuery('profile', () => db.doc(`friendProfiles/${profileId}`).get(), emptyProfile),
     safeProfileQuery('legacyCreated', () => db.collection('brackets').where('userId', '==', profileId).select('title', 'userDisplayName').limit(201).get(), empty),
     safeProfileQuery('customCreated', () => db.collection('customBrackets').where('hostId', '==', profileId).select('title', 'status', 'hostDisplayName', 'hostName').limit(201).get(), empty),
@@ -209,10 +211,9 @@ exports.getUserProfile = onCall(async req => {
     privateAccess ? safeProfileQuery('customFilled', () => db.collectionGroup('submissions').where('userId', '==', profileId).select('createdAt').limit(201).get(), empty) : empty,
     privateAccess ? safeProfileQuery('rankingFilled', () => db.collection('rankingVotes').where('userId', '==', profileId).select('rankingId').limit(201).get(), empty) : empty,
     privateAccess ? safeProfileQuery('joined', () => db.collection('poolEntries').where('userId', '==', profileId).select('poolId', 'score', 'submittedAt').limit(201).get(), empty) : empty,
+    safeProfileQuery('username', () => db.doc(`accountProfiles/${profileId}`).get(), emptyProfile),
+    safeProfileQuery('friendCount', () => db.collection('friendships').where('members', 'array-contains', profileId).where('status', '==', 'accepted').count().get(), null),
   ]);
-
-  const account = await safeProfileQuery('username', () => db.doc(`accountProfiles/${profileId}`).get(), emptyProfile);
-  const friendTotal = await safeProfileQuery('friendCount', () => db.collection('friendships').where('members', 'array-contains', profileId).where('status', '==', 'accepted').count().get(), null);
   const profileData = profileSnap.data() || {};
   let displayName = name(profileData.displayName);
   if (displayName === 'I’m Tourn user') {
@@ -220,6 +221,14 @@ exports.getUserProfile = onCall(async req => {
     displayName = name(candidate);
   }
 
+  if (headerOnly) {
+    if (privateAccess) await canView(viewerId, profileId);
+    return { id:profileId, displayName, username:account.data()?.username || null,
+      bio:typeof account.data()?.bio === 'string' ? account.data().bio.slice(0,300) : '',
+      photoURL:account.data()?.photoURL || null, friendCount:friendTotal?.data().count ?? null,
+      isSelf:viewerId === profileId, relationship, canViewPrivate:privateAccess,
+      canSendFriendRequest:!privateAccess && relationship === 'none', stats:{}, statsPending:true };
+  }
   const joinedEntries = joined.docs.filter(doc => validId(doc.data().poolId));
   const poolIds = [...new Set(joinedEntries.map(doc => doc.data().poolId))].slice(0, 100);
   const poolRefs = poolIds.map(id => db.doc(`bracketPools/${id}`));
@@ -227,17 +236,21 @@ exports.getUserProfile = onCall(async req => {
   const completed = pools.filter(pool => pool.exists && pool.data().status === 'completed');
   const rankRows = [];
   let poolsWon = 0;
-  for (const pool of completed) {
+  async function rankPool(pool) {
     const poolData = pool.data();
     const mine = joinedEntries.find(entry => entry.data().poolId === pool.id);
-    if (!mine) continue;
+    if (!mine) return;
     const entries = await safeProfileQuery(`poolEntries:${pool.id}`, () => db.collection('poolEntries').where('poolId', '==', pool.id).select('userId', 'score').limit(201).get(), empty);
     const score = Number.isFinite(mine.data().score) ? mine.data().score : null;
-    if (entries.size >= 201) { unavailable.push('poolStandingsLimit'); continue; }
-    if (score == null || !entries.docs.length) continue;
+    if (entries.size >= 201) { unavailable.push('poolStandingsLimit'); return; }
+    if (score == null || !entries.docs.length) return;
     const rank = 1 + entries.docs.filter(entry => Number.isFinite(entry.data().score) && entry.data().score > score).length;
     rankRows.push(rank);
     if (poolData.winnerId === profileId || (Array.isArray(poolData.winnerIds) && poolData.winnerIds.includes(profileId))) poolsWon += 1;
+  }
+  // Bound concurrency to avoid flooding Firestore for large histories.
+  for (let offset = 0; offset < completed.length; offset += 5) {
+    await Promise.all(completed.slice(offset, offset + 5).map(rankPool));
   }
   const averageFinalRank = rankRows.length ? Math.round((rankRows.reduce((sum, rank) => sum + rank, 0) / rankRows.length) * 10) / 10 : null;
   if (privateAccess) await canView(viewerId, profileId);

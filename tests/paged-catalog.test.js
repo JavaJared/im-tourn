@@ -39,3 +39,26 @@ test('an old account response cannot populate the new account list', async () =>
   await act(async () => pending.forEach(resolve => resolve({ items: [{ id: 'alice-pool' }], nextCursor: null })));
   expect(state.items.every(item => item.id === 'bob-pool')).toBe(true);
 });
+test('fast source renders before a slow source finishes', async () => {
+  let finish;
+  call.mockImplementation((_, {type}) => type === 'legacy' ? Promise.resolve({items:[{id:'fast'}],nextCursor:null}) : new Promise(resolve => {finish=resolve;}));
+  await mount({});
+  expect(state.items.map(item=>item.id)).toEqual(['fast']);
+  expect(state.loading).toBe(true);
+  await act(async()=>finish({items:[{id:'slow'}],nextCursor:null}));
+  expect(state.items.map(item=>item.id)).toEqual(['fast','slow']);
+});
+test('public cached cards render during refresh; private endpoints never read them', async () => {
+  const storage = new Map();
+  vi.stubGlobal('sessionStorage',{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)});
+  try {
+    call.mockResolvedValue({items:[{id:'cached'}],nextCursor:null});
+    await mount({});
+    act(()=>tree.unmount());
+    call.mockImplementation(()=>new Promise(()=>{}));
+    await mount({});
+    expect(state.items).toHaveLength(2);
+    await act(async()=>tree.update(createElement(Harness,{endpoint:'listFriendActivities'})));
+    expect(state.items).toEqual([]);
+  } finally { vi.unstubAllGlobals(); }
+});
