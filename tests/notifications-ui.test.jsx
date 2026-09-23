@@ -1,0 +1,40 @@
+import React from 'react';
+import {act,create} from 'react-test-renderer';
+import {afterEach,beforeEach,expect,test,vi} from 'vitest';
+import NotificationBell from '../src/components/notifications/NotificationBell';
+import SendBracketButton from '../src/components/notifications/SendBracketButton';
+const call=vi.hoisted(()=>vi.fn());
+vi.mock('../src/services/server',()=>({callServer:(...args)=>call(...args)}));
+vi.mock('../src/lib/useDialog',()=>({useDialog:()=>({current:null})}));
+vi.mock('react-dom',()=>({createPortal:children=>children}));
+let tree;
+beforeEach(()=>{
+ vi.stubGlobal('document',{hidden:false,body:{},addEventListener:vi.fn(),removeEventListener:vi.fn()});
+ vi.stubGlobal('window',{addEventListener:vi.fn(),removeEventListener:vi.fn()});
+});
+afterEach(()=>{if(tree)act(()=>tree.unmount());call.mockReset();vi.unstubAllGlobals();});
+test('send failures can be retried and successful sends disable repeat submission',async()=>{
+ call.mockRejectedValueOnce(Error('Offline')).mockResolvedValueOnce({sent:true});
+ await act(async()=>{tree=create(<SendBracketButton friendId="bob" type="legacy" bracketId="b"/>);});
+ await act(async()=>tree.root.findByType('button').props.onClick());
+ expect(JSON.stringify(tree.toJSON())).toContain('Offline');
+ await act(async()=>tree.root.findByType('button').props.onClick());
+ expect(call).toHaveBeenLastCalledWith('sendBracketNotification',{friendId:'bob',type:'legacy',bracketId:'b'});
+ expect(tree.root.findByType('button').props.disabled).toBe(true);
+ expect(JSON.stringify(tree.toJSON())).toContain('Bracket sent');
+});
+test('bell indicates unread shares, opens an accessible inbox, and marks opened brackets read',async()=>{
+ const navigate=vi.fn();
+ call.mockImplementation(async(name,data)=>name==='readBracketNotification'?{view:'custom-bracket-b'}:data.countOnly?{unreadCount:1}:{unreadCount:1,items:[{id:'one',read:false,username:'alice',title:'Test bracket'}],nextCursor:null});
+ await act(async()=>{tree=create(<NotificationBell onNavigate={navigate}/>);});
+ const bell=()=>tree.root.findByProps({'aria-haspopup':'dialog'});
+ expect(bell().props['aria-label']).toBe('Notifications, 1 unread');
+ await act(async()=>bell().props.onClick());
+ expect(tree.root.findByProps({role:'dialog'}).props['aria-modal']).toBe('true');
+ expect(JSON.stringify(tree.toJSON())).toContain('@alice');
+ await act(async()=>tree.root.findAllByType('button').find(b=>b.children.includes('Open bracket')).props.onClick());
+ expect(call).toHaveBeenCalledWith('readBracketNotification',{notificationId:'one',open:true});
+ expect(navigate).toHaveBeenCalledWith('custom-bracket-b');
+ expect(bell().props['aria-label']).toBe('Notifications');
+ expect(tree.root.findAllByProps({role:'dialog'})).toHaveLength(0);
+});

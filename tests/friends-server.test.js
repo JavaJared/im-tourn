@@ -16,7 +16,46 @@ run('accepted friends and shared activity', () => {
     const admin = require('../functions/node_modules/firebase-admin/lib/firestore'); db=admin.getFirestore(); Timestamp=admin.Timestamp;
     pairRef = require('../functions/friends').internal.pairRef;
   });
-  beforeEach(async () => {for (const name of ['_bracketConsensus','accountProfiles','usernames','friendships','friendProfiles','friendCodes','friendRequestLimits','brackets','customBrackets','submissions','rankings','rankingVotes','rankingEntries','bracketPools','poolEntries']) await db.recursiveDelete(db.collection(name));});
+  beforeEach(async () => {for (const name of ['notificationInboxes','bracketShareLimits','_bracketConsensus','accountProfiles','usernames','friendships','friendProfiles','friendCodes','friendRequestLimits','brackets','customBrackets','submissions','rankings','rankingVotes','rankingEntries','bracketPools','poolEntries']) await db.recursiveDelete(db.collection(name));});
+  test('shared bracket notifications require friendship, deduplicate and remain recipient-only', async () => {
+    const matchups = [[{entry1:{name:'A',seed:1},entry2:{name:'B',seed:2},winner:null}]];
+    await db.doc('brackets/share').set({title:'Shared bracket',matchups:JSON.stringify(matchups)});
+    const args = {friendId:'bob',type:'legacy',bracketId:'share'};
+    await expect(call('sendBracketNotification',null,args)).rejects.toMatchObject({code:'unauthenticated'});
+    await expect(call('sendBracketNotification','alice',args)).rejects.toMatchObject({code:'permission-denied'});
+    await connect();
+    await db.doc('accountProfiles/alice').set({username:'alice_current'});
+    expect(await call('sendBracketNotification','alice',args)).toEqual({sent:true});
+    expect(await call('sendBracketNotification','alice',args)).toEqual({alreadySent:true});
+    const inbox = await call('listBracketNotifications','bob');
+    expect(inbox.unreadCount).toBe(1);expect(inbox.items).toHaveLength(1);
+    expect(inbox.items[0]).toMatchObject({username:'alice_current',title:'Shared bracket',read:false});
+    expect((await call('listBracketNotifications','eve',{userId:'bob'})).items).toEqual([]);
+    const notificationId = inbox.items[0].id;
+    await expect(call('readBracketNotification','eve',{notificationId})).rejects.toMatchObject({code:'not-found'});
+    expect(await call('readBracketNotification','bob',{notificationId,open:true})).toEqual({view:'fill-bracket-share'});
+    expect((await call('listBracketNotifications','bob',{countOnly:true})).unreadCount).toBe(0);
+    await db.doc('brackets/share').delete();
+    await expect(call('readBracketNotification','bob',{notificationId,open:true})).rejects.toMatchObject({code:'not-found'});
+  });
+  test('sharing rejects completed picks, unpublished brackets and excessive sends', async () => {
+    await connect();
+    const source={status:'published',title:'Custom',rounds:[{ids:['m1']}],boxes:{m1:{slotA:{type:'named',participantId:'a',name:'A'},slotB:{type:'named',participantId:'b',name:'B'}}}};
+    await db.doc('customBrackets/share').set(source);
+    const args={friendId:'bob',type:'custom',bracketId:'share'};
+    await db.doc('customBrackets/share/submissions/bob').set({userId:'bob',picks:{m1:'a'},createdAt:Timestamp.now()});
+    await expect(call('sendBracketNotification','alice',args)).rejects.toMatchObject({code:'failed-precondition'});
+    await db.doc('customBrackets/share/submissions/bob').delete();
+    await db.doc('customBrackets/share').update({status:'draft'});
+    await expect(call('sendBracketNotification','alice',args)).rejects.toMatchObject({code:'not-found'});
+    await db.doc('customBrackets/share').update({status:'published'});
+    await db.doc('bracketShareLimits/alice').set({hour:Math.floor(Date.now()/3600000),count:20});
+    await expect(call('sendBracketNotification','alice',args)).rejects.toMatchObject({code:'resource-exhausted'});
+    await db.doc('bracketShareLimits/alice').delete();
+    expect(await call('sendBracketNotification','alice',args)).toEqual({sent:true});
+    const page=await call('listBracketNotifications','bob');
+    expect(await call('readBracketNotification','bob',{notificationId:page.items[0].id,open:true})).toEqual({view:'custom-bracket-share'});
+  });
   test('profile details edits are authenticated, owner-only, and preserve usernames', async () => {
     await expect(call('updateProfileDetails', null, {bio:'hello'})).rejects.toMatchObject({code:'unauthenticated'});
     await db.doc('accountProfiles/alice').set({username:'alice_name'});

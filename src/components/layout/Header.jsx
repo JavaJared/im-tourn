@@ -1,3 +1,4 @@
+import NotificationBell from '../notifications/NotificationBell';
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { ADMIN_USER_IDS, FEATURES } from '../../config/app.js';
@@ -77,6 +78,7 @@ const Header = ({ onNavigate, currentView }) => {
         </nav>
 
         <div className="header-actions">
+          {currentUser && <NotificationBell key={currentUser.uid} onNavigate={onNavigate} />}
           {currentUser && currentView === 'home' && (
             <button className="nav-btn" onClick={() => onNavigate('create')}>
               + Create Bracket

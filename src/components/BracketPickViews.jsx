@@ -1,3 +1,4 @@
+import SendBracketButton from './notifications/SendBracketButton';
 import { useEffect, useState } from 'react';
 import { callServer } from '../services/server';
 import { usePagedCatalog } from '../lib/usePagedCatalog';
@@ -30,7 +31,7 @@ export default function BracketPickViews({type,bracketId,userId,view,onView,disa
         </>)}
         {error&&<p role="alert">{error} <button onClick={()=>setAttempt(n=>n+1)}>Retry picks</button></p>}
         {!error&&!result&&(view==='community'||(userId&&friendId))&&<p role="status">Loading picks…</p>}
-        {result&&view==='friends'&&!result.found&&<p>This friend hasn’t saved a completed bracket for the current version.</p>}
+        {result&&view==='friends'&&!result.found&&<div><p>This friend hasn’t saved a completed bracket for the current version.</p><SendBracketButton key={`${userId}:${friendId}:${type}:${bracketId}`} friendId={friendId} type={type} bracketId={bracketId}/></div>}
         {result&&view==='community'&&<>
           <p>Based on {result.sampleSize} {result.sampleSize===1?'bracket':'brackets'}{result.partial?' · Partial consensus (latest 2,000 submissions)':''}</p>
           <details><summary>How consensus works</summary><p>Each person’s latest compatible completed bracket counts once. Percentages show support for advancing beyond each round, so opponents’ percentages may not add to 100%. Ties use support in the preceding round, then original bracket order. With no support for either entrant, the matchup stays unanswered. Pool predictions are excluded. Results may take up to a minute to refresh.</p></details>
