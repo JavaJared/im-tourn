@@ -20,3 +20,10 @@ test('guests get deterministic recent discoveries and both content types',()=>{
  const candidates=[item('old'),item('new','Books','writer','ranking')];candidates[0].createdAtMs-=86400000*100;
  expect(rankFeed(candidates,{},now).map(x=>x.id)).toEqual(['new','old']);
 });
+
+test('friends public picks get a boost and hidden posts are omitted',()=>{
+ const candidates=[item('discover'),item('picks','Movies','bob','post'),item('hidden','Movies','bob','post')];
+ const result=rankFeed(candidates,{friends:new Set(['bob']),hidden:new Set(['post:hidden'])},now);
+ expect(result[0]).toMatchObject({id:'picks',type:'post',reason:'From a friend'});
+ expect(result).toHaveLength(2);
+});

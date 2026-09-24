@@ -66,3 +66,5 @@ export const FriendsPage = lazy(() => import('../pages/friends/FriendsPage'));
 export const ProfilePage = lazy(() => import('../pages/friends/ProfilePage'));
 
 export const ForYouPage = lazy(() => import('../pages/feed/ForYouPage'));
+
+export const BracketPostPage = lazy(() => import('../pages/feed/BracketPostPage'));

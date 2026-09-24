@@ -1,3 +1,4 @@
+import PostBracketButton from '../pages/feed/PostBracketButton';
 import BracketPickViews from './BracketPickViews';
 import { callServer } from '../services/server';
 import { BracketFrame as Shell, bracketFrameStyles as S } from './BracketFrame';
@@ -117,6 +118,7 @@ export default function CustomBracketFill({ bracketId, currentUserId, currentUse
           {openSaved && <span style={S.sub}>Read only</span>}
         </div>
         <div style={S.topRight}>
+          {currentUserId && saved && complete && view==='mine' && <PostBracketButton key={JSON.stringify(picksFromState(pred))} type="custom" bracketId={bracketId}/>}
           {view==='mine' && <DownloadBracketImage title={title} getState={()=>pred}/>}
           {!openSaved && view==='mine' && <DownloadBracketImage title={`${title} - blank`} label="Save blank PNG" getState={()=>blankPrediction(bracket)}/>}
           {!openSaved && view==='mine' && <button style={{ ...S.primary, ...(complete ? {} : S.primaryOff) }} disabled={!complete || !canEdit} onClick={save}>

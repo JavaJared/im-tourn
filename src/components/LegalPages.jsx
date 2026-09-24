@@ -61,6 +61,7 @@ export const PrivacyPolicyPage = () => {
       </p>
 
       <h2>What we collect</h2>
+      <p><strong>Public bracket posts.</strong> Choosing “Post publicly” shares a snapshot of your completed picks and optional caption with everyone, including people who are not your friends. Saving picks alone does not create a feed post. Posts can receive likes and public comments. You can remove your own post or comment, and post authors can remove comments on their posts. Removing a friendship does not hide a public post.</p>
       <p><strong>Feed preferences.</strong> When signed in, we use your recent bracket and ranking activity, friendships, items opened from For You, and “Not interested” choices to personalize recommendations. Your interest signals are not shown to other users.</p>
 
       <p>

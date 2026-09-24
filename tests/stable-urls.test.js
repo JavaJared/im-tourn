@@ -79,3 +79,5 @@ test('guest result bookmarks restore their own snapshot rather than the latest e
   expect(tree.root.findByType('article').props['data-id']).toBe('a');
   expect(mocks.server).not.toHaveBeenCalled();
 });
+
+test('public post links survive refresh', () => { expect(readView('?view=feed-post-public123')).toBe('feed-post-public123'); });

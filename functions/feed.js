@@ -2,10 +2,12 @@ const {onCall,HttpsError} = require('firebase-functions/v2/https');
 const {getFirestore,FieldPath,FieldValue,Timestamp} = require('firebase-admin/firestore');
 const {summary} = require('./catalog').internal;
 const {resolveUsernames} = require('./public-usernames').internal;
+const {summary:postSummary}=require('./social-posts').internal;
 const {rankFeed} = require('./feed-ranking.cjs');
 const db = getFirestore();
 const valid = id => typeof id === 'string' && /^[\w-]{1,200}$/.test(id);
 const sources = {
+  post:{collection:'bracketPosts',fields:['status','userId','title','category','caption','champion','bracketType','bracketId','createdAt','likeCount','commentCount'],status:'published'},
   legacy:{collection:'brackets',fields:['title','category','description','userId','size','createdAt']},
   custom:{collection:'customBrackets',fields:['title','category','description','hostId','participantCount','createdAt','status','type'],status:'published'},
   ranking:{collection:'rankings',fields:['title','category','description','hostId','entryCount','voteCount','createdAt','status'],status:'open'},
@@ -51,14 +53,17 @@ function decode(cursor) {
 exports.getForYouFeed=onCall(async req=>{
   const state=decode(req.data?.cursor);
   const profilePromise=preferences(req.auth?.uid).catch(error=>{console.error('Feed personalization unavailable',error);return null;});
+  let postsUnavailable=false;
   const pages=await Promise.all(Object.entries(sources).map(async([type,source])=>{
     if(state.positions[type]===null)return [];
     let query=db.collection(source.collection).where('createdAt','<=',Timestamp.fromMillis(state.asOf)).orderBy('createdAt','desc').orderBy(FieldPath.documentId(),'desc').select(...source.fields).limit(9);
     if(source.status)query=query.where('status','==',source.status);
     const after=state.positions[type];if(after)query=query.startAfter(new Timestamp(after.seconds,after.nanoseconds),after.id);
-    const snap=await query.get(),page=snap.docs.slice(0,8),last=page.at(-1);
+    const snap=await query.get().catch(error=>{if(type!=='post')throw error;console.error('Public posts unavailable',error);postsUnavailable=true;return null;});
+    if(!snap){state.positions[type]=null;return [];}
+    const page=snap.docs.slice(0,8),last=page.at(-1);
     state.positions[type]=snap.size>8?{id:last.id,seconds:last.data().createdAt.seconds,nanoseconds:last.data().createdAt.nanoseconds}:null;
-    return page.map(doc=>({...summary(type,doc.id,doc.data()),type}));
+    return page.map(doc=>({...(type==='post'?postSummary(doc.id,doc.data()):summary(type,doc.id,doc.data())),type}));
   }));
   const profile=await profilePromise;
   const candidates=pages.flat();
@@ -69,8 +74,9 @@ exports.getForYouFeed=onCall(async req=>{
     feedback.forEach((doc,index)=>{if(doc.data()?.action==='hide')hidden.add(`${candidates[index].type}:${candidates[index].id}`);});
   }
   const items=rankFeed(candidates,{...(profile||{}),hidden},state.asOf);
+  if(req.auth){const posts=items.filter(item=>item.type==='post');if(posts.length){const likes=await db.getAll(...posts.map(item=>db.doc(`bracketPosts/${item.id}/likes/${req.auth.uid}`)));posts.forEach((item,index)=>{item.liked=likes[index].exists;});}}
   let usernames={};try{usernames=await resolveUsernames(items.map(item=>item.userId||item.hostId));}catch{/* Existing username resolver can retry. */}
-  return {items,usernames,personalizationUnavailable:!!req.auth&&!profile,nextCursor:Object.values(state.positions).some(value=>value!==null)?Buffer.from(JSON.stringify(state)).toString('base64url'):null};
+  return {items,usernames,postsUnavailable,personalizationUnavailable:!!req.auth&&!profile,nextCursor:Object.values(state.positions).some(value=>value!==null)?Buffer.from(JSON.stringify(state)).toString('base64url'):null};
 });
 exports.recordFeedFeedback=onCall(async req=>{
   if(!req.auth)throw new HttpsError('unauthenticated','Sign in to personalize your feed.');

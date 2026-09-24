@@ -6,7 +6,8 @@ const auth = { uid: 'deployment-index-probe-user', token: {} };
 async function verify() {
   const friends = require('../functions/friends').internal;
   const probes = [
-    () => api.getForYouFeed.run({ data: {} }),
+    async () => { const page=await api.getForYouFeed.run({data:{}}); if(page.postsUnavailable)throw Object.assign(Error('Post indexes are not ready.'),{code:'failed-precondition'}); },
+    () => api.listUserBracketPosts.run({data:{userId:auth.uid}}),
     () => api.getForYouFeed.run({ auth, data: {} }),
     ...['legacy','custom','ranking'].flatMap(type => ['created','filled'].map(mode => () => friends.activityQuery(type,mode,auth.uid).query.get())),
     () => api.listFriends.run({auth, data:{}}),

@@ -50,3 +50,14 @@ test('unavailable backend gives a useful message and a retry can load cards',asy
  await act(async()=>value.loadMore());
  expect(value.error).toBe('');expect(value.items[0].id).toBe('ready');
 });
+
+test('public posts survive pagination and refresh after cache invalidation',async()=>{
+ const {invalidateFeed}=await import('../src/pages/feed/useForYouFeed');
+ call.mockResolvedValueOnce({items:[{id:'posted',type:'post',caption:'My picks'}],nextCursor:null});
+ await act(async()=>{tree=create(<Harness uid="posts"/>);});
+ expect(value.items[0]).toMatchObject({id:'posted',type:'post'});
+ act(()=>tree.unmount());tree=null;invalidateFeed();
+ call.mockResolvedValueOnce({items:[],nextCursor:null});
+ await act(async()=>{tree=create(<Harness uid="posts"/>);});
+ expect(value.items).toEqual([]);
+});

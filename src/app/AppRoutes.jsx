@@ -21,6 +21,7 @@ import {
   KristinTiersDetailPage,
   HomePage,
   ForYouPage,
+  BracketPostPage,
   MyBracketsPage,
   MyActivitiesPage,
   PoolsPage,
@@ -56,6 +57,7 @@ export default function AppRoutes({
     >
       {view === 'not-found' && <section className="home-container"><h1>Page not found</h1><p>This link does not match an available page.</p><button className="nav-btn" onClick={() => setView('home')}>Back to For You</button></section>}
       {view === 'home' && <ForYouPage key={currentUser?.uid || 'guest'} onNavigate={setView} />}
+      {view.startsWith('feed-post-') && <BracketPostPage key={view} postId={view.slice('feed-post-'.length)} onNavigate={setView} />}
       {view === 'browse' && <HomePage onFillOut={handleFillOut} onNavigate={setView} />}
       {view === 'friends' && <FriendsPage key={currentUser?.uid || 'guest'} onNavigate={setView} />}
       {view === 'profile' && <ProfilePage onNavigate={setView} />}

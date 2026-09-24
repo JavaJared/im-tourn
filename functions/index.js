@@ -127,3 +127,13 @@ for (const [name, callable] of Object.entries(require('./notifications'))) expor
 const feed = require('./feed');
 exports.getForYouFeed = feed.getForYouFeed;
 exports.recordFeedFeedback = feed.recordFeedFeedback;
+
+const socialPosts = require('./social-posts');
+exports.publishBracketPost = socialPosts.publishBracketPost;
+exports.getBracketPost = socialPosts.getBracketPost;
+exports.setBracketPostLike = socialPosts.setBracketPostLike;
+exports.listBracketPostComments = socialPosts.listBracketPostComments;
+exports.addBracketPostComment = socialPosts.addBracketPostComment;
+exports.deleteBracketPostComment = socialPosts.deleteBracketPostComment;
+exports.deleteBracketPost = socialPosts.deleteBracketPost;
+exports.listUserBracketPosts = socialPosts.listUserBracketPosts;

@@ -1,3 +1,4 @@
+import ProfilePosts from '../feed/ProfilePosts';
 import ProfileAvatar from './ProfileAvatar';
 import ProfileEditor from './ProfileEditor';
 import './profile.css';
@@ -105,10 +106,10 @@ export default function ProfilePage({ profileId, onNavigate }) {
     {profile.statsIncomplete && <span role="status">Statistics incomplete</span>}
     <section className="friend-section">
       <div className="friend-filter profile-filters">
-        <label>Activity type<select value={kind} onChange={event => { setKind(event.target.value); setSelected(null); }}><option value="brackets">Brackets</option><option value="rankings">Rankings</option></select></label>
-        <label>Participation<select value={mode} onChange={event => { setMode(event.target.value); setSelected(null); }}><option value="created">Created</option><option value="filled" disabled={!profile.canViewPrivate}>Filled out / voted in{!profile.canViewPrivate ? ' (friends only)' : ''}</option></select></label>
+        {mode!=='posted'&&<label>Activity type<select value={kind} onChange={event => { setKind(event.target.value); setSelected(null); }}><option value="brackets">Brackets</option><option value="rankings">Rankings</option></select></label>}
+        <label>Participation<select value={mode} onChange={event => { setMode(event.target.value); setSelected(null); }}><option value="posted">Posted to feed</option><option value="created">Created</option><option value="filled" disabled={!profile.canViewPrivate}>Filled out / voted in{!profile.canViewPrivate ? ' (friends only)' : ''}</option></select></label>
       </div>
-      <ActivityList key={`${targetId}:${kind}:${mode}`} profileId={targetId} kind={kind} mode={mode} canViewPrivate={profile.canViewPrivate} onNavigate={onNavigate} onSelect={setSelected} />
+      {mode==='posted'?<ProfilePosts key={targetId} userId={targetId} uid={currentUser.uid} onNavigate={onNavigate}/>:<ActivityList key={`${targetId}:${kind}:${mode}`} profileId={targetId} kind={kind} mode={mode} canViewPrivate={profile.canViewPrivate} onNavigate={onNavigate} onSelect={setSelected} />}
     </section>
     <FriendActivityDialog selection={selected} friendId={targetId} onClose={() => setSelected(null)} />
   </div>;

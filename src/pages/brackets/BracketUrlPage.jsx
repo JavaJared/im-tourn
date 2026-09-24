@@ -26,7 +26,7 @@ export default function BracketUrlPage({ id, mode, onSubmit, onBack, fallback })
         }
         if (!data) throw new Error(mode === 'local' ? 'This unsaved result is not available in this browser. Saved account brackets can be opened from My Activities.' : 'This bracket is no longer available.');
         const matchups = validateLegacyMatchups(typeof data.matchups === 'string' ? JSON.parse(data.matchups) : data.matchups);
-        if (active) setBracket({ ...data, id: data.id || id, matchups, title: typeof data.title === 'string' ? data.title : 'Saved bracket', category: typeof data.category === 'string' ? data.category : 'Other', size: Number.isFinite(data.size) ? data.size : matchups[0].length * 2, champion: typeof data.champion?.name === 'string' ? { name: data.champion.name } : null });
+        if (active) setBracket({ ...data, ...(mode==='saved'?{submissionId:id}:{}), id: data.id || id, matchups, title: typeof data.title === 'string' ? data.title : 'Saved bracket', category: typeof data.category === 'string' ? data.category : 'Other', size: Number.isFinite(data.size) ? data.size : matchups[0].length * 2, champion: typeof data.champion?.name === 'string' ? { name: data.champion.name } : null });
       } catch (e) { if (active) setError(e.message || 'Could not load this bracket. Please retry.'); }
     })();
     return () => { active = false; };
