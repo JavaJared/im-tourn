@@ -31,7 +31,7 @@ function resolveSlot(state, loc, nameMap, boxId, slot) {
   return { kind: 'player', pid, name: (nameMap && nameMap[pid]) || '—' };
 }
 
-export default function Board({ state, nameMap, editable, onPick, official, sc, highlight, scores, pickedState }) {
+export default function Board({ state, nameMap, editable, onPick, official, sc, highlight, scores, pickedState, onInspect }) {
   const loc = useMemo(() => locate(state), [state]);
   const layout = useMemo(() => computeLayout(state), [state]);
   const lite = (s) => (s && s.kind === 'player' ? { pid: s.pid, name: s.name } : null);
@@ -52,7 +52,7 @@ export default function Board({ state, nameMap, editable, onPick, official, sc, 
       {Object.keys(state.boxes).map((id) => (
         <Card key={id} id={id} pos={layout.positions[id]}
           a={resolveSlot(state, loc, nameMap, id, 'A')} b={resolveSlot(state, loc, nameMap, id, 'B')}
-          result={state.boxes[id].result} editable={editable} onPick={onPick}
+          result={state.boxes[id].result} editable={editable} onPick={onPick} onInspect={onInspect}
           official={official ? official[id] : null} sc={sc} hl={highlight ? highlight.has(id) : false}
           boxScores={scores ? scores[id] : null}
           picked={pickedState ? { a: lite(resolveSlot(pickedState, loc, nameMap, id, 'A')), b: lite(resolveSlot(pickedState, loc, nameMap, id, 'B')) } : null} />
@@ -60,7 +60,7 @@ export default function Board({ state, nameMap, editable, onPick, official, sc, 
     </div>
   );
 }
-function Card({ id, pos, a, b, result, editable, onPick, official, sc, hl, boxScores, picked }) {
+function Card({ id, pos, a, b, result, editable, onPick, official, sc, hl, boxScores, picked, onInspect }) {
   if (!pos) return null;
   const decidable = a.kind === 'player' && b.kind === 'player';
   const hasBye = a.kind === 'bye' || b.kind === 'bye';
@@ -81,7 +81,7 @@ function Card({ id, pos, a, b, result, editable, onPick, official, sc, hl, boxSc
     return (
       <div style={S.slotCol}>
         <div style={{ ...S.slot, ...winStyle }}>
-<PickControl editable={click} selected={isW} label={`Pick ${sl.name} in matchup ${id.toUpperCase()}`} onPick={() => onPick(id, sl.pid)}>
+<PickControl editable={click || (!editable && !!onInspect)} selected={click ? isW : undefined} label={click ? `Pick ${sl.name} in matchup ${id.toUpperCase()}` : `View pool predictions for ${sl.name}`} onPick={() => click ? onPick(id, sl.pid) : onInspect?.({pid:sl.pid,name:sl.name})}>
           {isW && (graded && !pickRight ? <X size={14} strokeWidth={3} /> : <Check size={14} strokeWidth={3} />)}<span style={S.name}>{sl.name}</span></PickControl>
           {editing
             ? <input aria-label={`Score for ${sl.name} in matchup ${id.toUpperCase()}`} className="cb-score" value={sc.get(id, side)} inputMode="numeric" placeholder="–" onClick={(e) => e.stopPropagation()} onChange={(e) => sc.change(id, side, e.target.value)} onBlur={(e) => sc.blur(id, side, e.target.value)} />

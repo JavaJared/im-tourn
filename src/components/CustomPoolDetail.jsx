@@ -1,3 +1,4 @@
+import EntryPredictionsDialog from './pools/EntryPredictionsDialog';
 import UserLink from './layout/UserLink';
 import { publicOrigin } from '../mobile/platform';
 import ConfirmDialog from './dialogs/ConfirmDialog';
@@ -53,6 +54,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
   const [draftSave, setDraftSave] = useState({ state: 'idle', message: '' });
   const [scoreSave, setScoreSave] = useState({ state: 'idle', message: '' });
   const [toast, setToast] = useState(null);
+  const [inspectedEntry,setInspectedEntry]=useState(null);
   const [viewingEntry, setViewingEntry] = useState(null);   // another participant's bracket being viewed
   const [editingDesc, setEditingDesc] = useState(false);
   const [descDraft, setDescDraft] = useState('');
@@ -71,7 +73,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
   // entry (predictions + scores). All viewers see results and standings update
   // in real time without reloading.
   useEffect(() => {
-    setPool(null); setEntries([]); setEntriesLoaded(false); setEntriesError(''); setViewingEntry(null); setLoading(true);
+    setPool(null); setEntries([]); setEntriesLoaded(false); setEntriesError(''); setViewingEntry(null); setInspectedEntry(null); setLoading(true);
     const unsubPool = subscribeToPool(poolId, (p) => {
       if (!p) { setError('Pool not found.'); setLoading(false); return; }
       setPool(p); setError(null); setLoading(false); entryWatch.current?.refresh();
@@ -380,7 +382,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
               </div>
             )}
             {viewingState
-              ? <Board state={viewingState} nameMap={nameMap} editable={false} onPick={() => {}} official={officialWinners} highlight={highlightBoxes} scores={scoresByBox} />
+              ? <Board onInspect={setInspectedEntry} state={viewingState} nameMap={nameMap} editable={false} onPick={() => {}} official={officialWinners} highlight={highlightBoxes} scores={scoresByBox} />
               : <div style={S.note}>This participant hasn’t submitted a bracket yet.</div>}
           </>
         ) : (
@@ -399,7 +401,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
               {canPredict && predState && !isEntryComplete(predState) && <div style={S.note}>Pick a winner in every matchup, then submit.{submitted ? ' Re-submitting replaces your entry.' : ''}</div>}
               {canPredict && <div style={S.actionBar}><button style={{ ...S.primary, ...(predState && isEntryComplete(predState) ? {} : S.primaryOff) }} disabled={busy || !(predState && isEntryComplete(predState))} onClick={submitPredictions}><Send size={14} /> {submitted ? 'Update prediction' : 'Submit prediction'}</button></div>}
               {!canPredict && submitted && <div style={S.note}>Your prediction is in.{status === 'open' ? '' : ' Predictions are locked.'}</div>}
-              {predState && <Board state={predState} nameMap={nameMap} editable={canPredict && !busy} onPick={pickPred} official={status === 'open' ? null : officialWinners} scores={scoresByBox} />}
+              {predState && <Board onInspect={!canPredict ? setInspectedEntry : undefined} state={predState} nameMap={nameMap} editable={canPredict && !busy} onPick={pickPred} official={status === 'open' ? null : officialWinners} scores={scoresByBox} />}
             </>
           )
         )}
@@ -407,7 +409,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
           <>
             {canRecord && <div style={S.note}>Editing official results. Tap a player to record the winner. Scores update automatically. <button style={S.ghost} onClick={() => setEditingResults(false)}>Finish editing</button></div>}
             {!canRecord && status !== 'in_progress' && status !== 'completed' && <div style={S.note}>Official results appear once the host starts the pool.</div>}
-            {resState && <Board state={resState} nameMap={nameMap} editable={canRecord && !busy} onPick={pickResult} sc={scoreUI} scores={scoresByBox} pickedState={submitted ? predState : null} />}
+            {resState && <Board onInspect={!canRecord ? setInspectedEntry : undefined} state={resState} nameMap={nameMap} editable={canRecord && !busy} onPick={pickResult} sc={scoreUI} scores={scoresByBox} pickedState={submitted ? predState : null} />}
           </>
         )}
         {tab === 'rules' && <PoolRules pool={pool} roundPoints={roundPoints} />}
@@ -421,6 +423,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
       {entriesError && <p role="alert">{entriesError} <button onClick={() => entryWatch.current?.refresh()}>Retry participants</button></p>}
         {entries.predictionsHidden && <p style={S.note}>Other participants’ picks stay private until predictions close. Invite codes are visible only to the host.</p>}
       {entries.nextCursor && <p style={S.note}>More participants are available. <button onClick={() => entryWatch.current?.loadMore()}>Load more participants</button></p>}
+      <EntryPredictionsDialog selection={inspectedEntry} onClose={()=>setInspectedEntry(null)} structure={pool.bracketMatchups} entries={entries} currentUserId={currentUserId} loaded={entriesLoaded} error={entriesError} onRetry={()=>entryWatch.current?.refresh()} onLoadMore={()=>entryWatch.current?.loadMore()}/>
       {toast && <div style={S.toast}>{toast}</div>}
     </Shell>
   );
