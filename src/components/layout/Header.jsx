@@ -81,6 +81,8 @@ const Header = ({ onNavigate, currentView }) => {
             currentView !== 'rankings' &&
             currentView !== 'my-rankings' &&
             currentView !== 'my-activities' &&
+            currentView !== 'profile' &&
+            !currentView.startsWith('profile-') &&
             currentView !== 'privacy' &&
             currentView !== 'terms' &&
             !currentView.startsWith('pool-') &&
