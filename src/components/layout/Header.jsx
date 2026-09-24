@@ -53,12 +53,6 @@ const Header = ({ onNavigate, currentView }) => {
               Predictions
             </ViewLink>
           )}
-          <ViewLink
-            className={`nav-link ${currentView === 'rankings' || currentView === 'create-ranking' || currentView.startsWith('ranking-') ? 'active' : ''}`}
-            view="rankings" onNavigate={onNavigate} currentView={currentView}
-          >
-            Rankings
-          </ViewLink>
           {FEATURES.drafts && (
             <ViewLink
               className={`nav-link ${currentView === 'drafts' || currentView === 'create-draft' || currentView.startsWith('draft-') ? 'active' : ''}`}
@@ -79,12 +73,6 @@ const Header = ({ onNavigate, currentView }) => {
 
         <div className="header-actions">
           {currentUser && <NotificationBell key={currentUser.uid} onNavigate={onNavigate} />}
-          {currentUser && currentView === 'home' && (
-            <button className="nav-btn" onClick={() => onNavigate('create')}>
-              + Create Bracket
-            </button>
-          )}
-
           {currentView !== 'home' && currentView !== 'browse' &&
             currentView !== 'weekly' &&
             currentView !== 'champions' &&
