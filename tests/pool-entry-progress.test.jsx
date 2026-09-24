@@ -46,7 +46,23 @@ test('dialog masks other members while predictions are private and offers pagina
  const entries=Object.assign([{userId:'alice',predictions:picksFromState(complete())},{userId:'bob',predictions:picksFromState(complete())}],{predictionsHidden:true,nextCursor:'more'}),more=vi.fn();
  try{
   act(()=>{tree=create(<Dialog selection={{pid:'p1',name:'A'}} structure={base()} entries={entries} currentUserId="alice" loaded onClose={()=>{}} onLoadMore={more}/>);});
-  const rows=tree.root.findAllByType('li');expect(rows[0].findAllByType('span').at(-1).children).toEqual(['Champion']);expect(rows[1].findAllByType('span').at(-1).children).toEqual(['Private until predictions close']);
+  const headings=tree.root.findAllByType('h4');expect(headings.map(h=>h.children[0])).toEqual(['Champion','Private until predictions close']);expect(tree.root.findAllByType('li').map(row=>row.findByType('span').children[0])).toEqual(['alice','bob']);
   await act(async()=>tree.root.findAllByType('button').find(button=>button.children.includes('Load more participants')).props.onClick());expect(more).toHaveBeenCalledOnce();
+ }finally{if(tree)act(()=>tree.unmount());vi.unstubAllGlobals();}
+});
+
+
+test('groups members by finish in round order, followed by runner-up and champion',async()=>{
+ const {default:Dialog}=await import('../src/components/pools/EntryPredictionsDialog');
+ const champion=complete();let runner=setResult(champion,champion.rounds[1][0],'p2');
+ let early=setResult(base(),base().rounds[0][0],'p4');early=setResult(early,early.rounds[0][1],'p2');early=setResult(early,early.rounds[1][0],'p2');
+ const entries=[{userId:'winner',predictions:picksFromState(champion)},{userId:'early-one',predictions:picksFromState(early)},{userId:'finalist',predictions:picksFromState(runner)},{userId:'early-two',predictions:picksFromState(early)}];
+ vi.stubGlobal('document',{body:{}});let tree;
+ try{
+  act(()=>{tree=create(<Dialog selection={{pid:'p1',name:'A'}} structure={base()} entries={entries} loaded onClose={()=>{}}/>);});
+  const groups=tree.root.findAllByProps({className:'entry-prediction-group'});
+  expect(groups.map(group=>group.findByType('h4').children[0])).toEqual(['Out in round 1','Runner-up (final)','Champion']);
+  expect(groups[0].findAllByType('li').map(row=>row.findByType('span').children[0])).toEqual(['early-one','early-two']);
+  expect(groups[0].findByType('h4').findByType('span').children).toEqual(['(', '2', ')']);
  }finally{if(tree)act(()=>tree.unmount());vi.unstubAllGlobals();}
 });
