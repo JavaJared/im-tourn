@@ -4,3 +4,5 @@
 .username-form input { width: 100%; box-sizing: border-box; min-height: 44px; }
 .username-form button { min-height: 44px; }
 .profile-username { overflow-wrap: anywhere; }
+
+.username-reminder{width:min(520px,100%);box-sizing:border-box;max-height:85dvh;overflow:auto}.username-reminder h2{margin-top:0}.username-reminder p{line-height:1.6;overflow-wrap:anywhere}.username-reminder .username-form{max-width:none}.username-reminder :is(button,input):focus-visible{outline:3px solid #ffad86;outline-offset:3px}

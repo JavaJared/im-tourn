@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 export default function UsernameForm({ username = '', onSave, setup = false }) {
+  const inputId=useId(),helpId=useId();
   const [value, setValue] = useState(username), [busy, setBusy] = useState(false);
   const [error, setError] = useState(''), [message, setMessage] = useState('');
   const active = useRef(true), pending = useRef(false);
@@ -18,11 +19,11 @@ export default function UsernameForm({ username = '', onSave, setup = false }) {
     } finally { pending.current = false; if (active.current) setBusy(false); }
   }
   return <form onSubmit={submit} className="username-form">
-    <label htmlFor="account-username">Username</label>
-    <p id="username-help">3–24 letters, numbers, or underscores; start with a letter.</p>
-    <input id="account-username" className="form-input" value={value} onChange={event => setValue(event.target.value)}
+    <label htmlFor={inputId}>Username</label>
+    <p id={helpId}>3–24 letters, numbers, or underscores; start with a letter.</p>
+    <input id={inputId} className="form-input" value={value} onChange={event => setValue(event.target.value)}
       required minLength={3} maxLength={24} pattern="[a-zA-Z][a-zA-Z0-9_]{2,23}" autoComplete="username" autoCapitalize="none" spellCheck={false}
-      aria-describedby="username-help" disabled={busy} />
+      aria-describedby={helpId} disabled={busy} />
     <button className="nav-btn" disabled={busy} type="submit">{busy ? 'Saving…' : setup ? 'Save username and continue' : 'Save username'}</button>
     {error && <p role="alert">{error}</p>}{message && <p role="status">{message}</p>}
   </form>;
