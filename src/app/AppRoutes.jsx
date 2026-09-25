@@ -1,3 +1,4 @@
+import BracketLoader from '../components/BracketLoader';
 import { isHiddenView } from '../config/app';
 import { Suspense } from 'react';
 import BracketUrlPage from '../pages/brackets/BracketUrlPage';
@@ -50,9 +51,7 @@ export default function AppRoutes({
     <Suspense
       key={view + ':' + (currentUser?.uid || 'guest')}
       fallback={
-        <div role="status" className="loading-state">
-          Loading page…
-        </div>
+        <BracketLoader/>
       }
     >
       {view === 'not-found' && <section className="home-container"><h1>Page not found</h1><p>This link does not match an available page.</p><button className="nav-btn" onClick={() => setView('home')}>Back to For You</button></section>}

@@ -1,3 +1,4 @@
+import BracketLoader from './BracketLoader';
 import PostBracketButton from '../pages/feed/PostBracketButton';
 import BracketPickViews from './BracketPickViews';
 import { callServer } from '../services/server';
@@ -103,7 +104,7 @@ export default function CustomBracketFill({ bracketId, currentUserId, currentUse
     setDraftSave({state:'idle',message:''});
   };
 
-  if (loading) return <Shell onExit={onExit}><div style={S.center} role="status"><Loader2 size={20} className="spin" /> Loading…</div></Shell>;
+  if (loading) return <Shell onExit={onExit}><BracketLoader label="Loading bracket…"/></Shell>;
   if (error) return <Shell onExit={onExit}><div style={S.center}><p role="alert"><AlertTriangle size={20} /> {error}</p><button style={S.ghost} onClick={() => setRetry(value => value + 1)}>Retry</button></div></Shell>;
   if (!pred) return null;
   if (status !== 'published' && !(openSaved && ['locked', 'complete'].includes(status))) {

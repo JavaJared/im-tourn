@@ -108,7 +108,7 @@ const S = {
   cardHl: { boxShadow: '0 0 0 2px var(--teal), 0 6px 18px rgba(43,212,192,.25)' },
   badge: { display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .5, padding: '2px 7px', borderRadius: 999, flexShrink: 0 },
   badgeClinch: { background: 'rgba(43,212,192,.16)', color: 'var(--teal)', border: '1px solid rgba(43,212,192,.4)' },
-  badgeAlive: { background: 'rgba(245,158,66,.14)', color: 'var(--orange)', border: '1px solid rgba(245,158,66,.35)' },
+  badgeAlive: { background: 'rgba(52,211,153,.12)', color: '#6ee7b7', border: '1px solid rgba(52,211,153,.4)' },
   badgeOut: { background: 'rgba(255,99,99,.12)', color: '#ff8a8a', border: '1px solid rgba(255,99,99,.35)' },
   pathPanel: { padding: '12px 18px', borderBottom: '1px solid var(--line)', background: '#101319', display: 'flex', flexDirection: 'column', gap: 10 },
   pathLine: { display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, color: 'var(--text)', fontWeight: 500 },

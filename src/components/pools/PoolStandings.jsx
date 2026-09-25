@@ -9,7 +9,7 @@ export default function PoolStandings({ entries, currentUserId, nameMap, analysi
   for (const entry of entries) if (entry.total != null) scoreCounts.set(entry.total, (scoreCounts.get(entry.total) || 0) + 1);
   return <section className="pool-standings" style={S.lb} aria-label="Standings">
     <h2>Standings</h2>
-    {(stale || partial || !analysis?.analysisComplete) && <span role="status">{stale ? 'Standings may be stale' : partial ? 'Partial standings' : analysis ? 'Analysis incomplete' : 'Analysis unavailable'}</span>}
+    {(stale || partial) && <span role="status">{stale ? 'Standings may be stale' : 'Partial standings'}</span>}
 
     {!entries.length && <p>No participants to display.</p>}
     {entries.map((e, index) => {
@@ -32,7 +32,7 @@ export default function PoolStandings({ entries, currentUserId, nameMap, analysi
           <p>{e.correct} correct picks</p>
         </>}
         <div className="standings-entry-footer">
-          <span>{statusText[status?.status] || 'Alive'}</span>
+          <span style={{...S.badge,...(status?.status==='eliminated'?S.badgeOut:status?.status==='clinched'?S.badgeClinch:S.badgeAlive)}}>{statusText[status?.status] || 'Alive'}</span>
           {canView && <div className="standings-entry-actions">
           {e.champion != null && <span>Champion pick: {nameMap[e.champion] || e.champion}</span>}
           <button style={S.ghost} onClick={() => onView(e)}>View picks<span className="standings-sr-only"> for <UsernameText userId={e.userId} /></span></button>

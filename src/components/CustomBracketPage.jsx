@@ -1,3 +1,4 @@
+import BracketLoader from './BracketLoader';
 import React, { lazy, Suspense, useEffect, useState, useRef, useCallback } from 'react';
 import { subscribeToBracket } from '../services/customBracketService';
 const CustomBracketBuilder = lazy(() => import('./CustomBracketBuilder'));
@@ -36,12 +37,12 @@ export default function CustomBracketPage({ bracketId, currentUserId, currentUse
 
   const back = () => onNavigate(openSaved ? 'my-activities' : 'my-brackets');
 
-  if (status === undefined) return <div className="create-container"><div className="empty-state"><p>Loading bracket…</p></div></div>;
+  if (status === undefined) return <div className="create-container"><BracketLoader label="Loading bracket…"/></div>;
   if (status === null) return <div className="create-container"><div className="empty-state"><p>This bracket could not be found.</p></div></div>;
 
   const isHost = currentUserId && currentUserId === hostId;
   if (status === 'draft' && isHost) {
-    return <Suspense fallback={<p role="status">Loading editor…</p>}><CustomBracketBuilder bracketId={bracketId} onExit={(reason) => { if (reason !== 'published') back(); }} /></Suspense>;
+    return <Suspense fallback={<BracketLoader label="Loading editor…"/>}><CustomBracketBuilder bracketId={bracketId} onExit={(reason) => { if (reason !== 'published') back(); }} /></Suspense>;
   }
 
   return (

@@ -1,3 +1,4 @@
+import BracketLoader from '../../components/BracketLoader';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getBracketById } from '../../services/bracketService';
@@ -33,6 +34,6 @@ export default function BracketUrlPage({ id, mode, onSubmit, onBack, fallback })
   }, [id, mode, currentUser?.uid, retry, fallback]);
   if (mode === 'saved' && !currentUser) return <div className="home-container"><p>Log in using the account menu to open your saved bracket.</p><button onClick={onBack}>Back to browse</button></div>;
   if (error) return <div className="home-container"><p role="alert">{error}</p><button onClick={() => setRetry(value => value + 1)}>Retry</button><button onClick={onBack}>Back to browse</button></div>;
-  if (!bracket) return <p role="status">Loading bracket…</p>;
+  if (!bracket) return <BracketLoader label="Loading bracket…"/>;
   return mode === 'fill' ? <FillPage bracket={bracket} onSubmit={onSubmit} onBack={onBack} /> : <PDFPage bracket={bracket} onBack={onBack} />;
 }

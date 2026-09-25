@@ -1,3 +1,4 @@
+import BracketLoader from './BracketLoader';
 import EntryPredictionsDialog from './pools/EntryPredictionsDialog';
 import UserLink from './layout/UserLink';
 import { publicOrigin } from '../mobile/platform';
@@ -23,7 +24,7 @@ import { startCustomPool, recordCustomPoolWinner, updateCustomPoolScores, recalc
 function StatusBadge({ status }) {
   if (!status) return null;
   if (status === 'clinched') return <span style={{ ...S.badge, ...S.badgeClinch }}><Trophy size={10} /> Clinched</span>;
-  if (status === 'eliminated') return <span style={{ ...S.badge, ...S.badgeOut }}>Out</span>;
+  if (status === 'eliminated') return <span style={{ ...S.badge, ...S.badgeOut }}>Eliminated</span>;
   return <span style={{ ...S.badge, ...S.badgeAlive }}>Alive</span>;
 }
 
@@ -288,7 +289,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
   // read-only via scoresByBox on whichever board they're looking at.
   const scoreUI = canRecord ? { editable: true, get: getScoreInputValue, change: handleScoreChange, blur: handleScoreBlur } : null;
 
-  if (loading) return <Shell onBack={() => onNavigate('pools')}><div style={S.center}><Loader2 size={20} className="spin" /> Loading pool…</div></Shell>;
+  if (loading) return <Shell onBack={() => onNavigate('pools')}><BracketLoader label="Loading pool…"/></Shell>;
   if (error) return <Shell onBack={() => onNavigate('pools')}><div style={S.center}><AlertTriangle size={20} /> {error}</div></Shell>;
 
   return (

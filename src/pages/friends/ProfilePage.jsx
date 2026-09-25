@@ -1,3 +1,4 @@
+import BracketLoader from '../../components/BracketLoader';
 import ProfilePosts from '../feed/ProfilePosts';
 import ProfileAvatar from './ProfileAvatar';
 import ProfileEditor from './ProfileEditor';
@@ -78,7 +79,7 @@ export default function ProfilePage({ profileId, onNavigate }) {
 
   if (!currentUser) return <div className="home-container"><h1>Profile</h1><p>Sign in to view profiles.</p></div>;
   if (error) return <div className="home-container"><h1>Profile unavailable</h1><p role="alert">{error}</p><button className="nav-btn" onClick={() => setRetry(value => value + 1)}>Retry loading profile</button></div>;
-  if (!profile) return <div className="home-container"><p role="status">Loading profile…</p></div>;
+  if (!profile) return <div className="home-container"><BracketLoader label="Loading profile…"/></div>;
 
   return <div className="home-container profile-page">
     <header className="profile-hero">

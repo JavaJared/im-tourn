@@ -108,3 +108,12 @@ test('score ties sort by remaining potential, with unknown values last', () => {
   ];
   expect(entries.sort(compareStandings).map(e=>e.id)).toEqual(['leader','high','low','zero','unknown','unranked']);
 });
+
+test('standings uses distinct status badges without incomplete-analysis clutter',()=>{
+ const entries=['alive','eliminated','clinched'].map(userId=>({id:userId,userId,total:0,breakdownUnavailable:'Not submitted'}));
+ const analysis={analysisComplete:false,byUserId:Object.fromEntries(entries.map(e=>[e.userId,{status:e.userId}]))};
+ const html=renderToStaticMarkup(<PoolStandings entries={entries} nameMap={{}} analysis={analysis}/>);
+ expect(html).not.toContain('Analysis incomplete');expect(html).not.toContain('Analysis unavailable');
+ expect(html).toContain('Alive');expect(html).toContain('Eliminated');expect(html).toContain('Clinched');
+ expect(html).toContain('#6ee7b7');expect(html).toContain('#ff8a8a');
+});
