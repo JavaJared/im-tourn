@@ -1,4 +1,5 @@
 import SaveNotice from './SaveNotice';
+import DefaultBracketSetup from './DefaultBracketSetup';
 import { createSaveBuffer } from '../lib/saveBuffer';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Plus, X, Lock, Trophy, AlertTriangle, Trash2, Check, Loader2 } from './customBracketIcons';
@@ -153,9 +154,9 @@ export default function CustomBracketBuilder({ bracketId, onExit }) {
       <div style={S.scroll}>
         {!hasBoxes ? (
           <div style={S.empty} onMouseDown={(e) => e.stopPropagation()}>
-            <p style={S.emptyTitle}>A blank canvas</p>
+            <DefaultBracketSetup disabled={publishing} onGenerate={next => apply(() => next, null)} />
 
-            <button style={S.bigAdd} onClick={onAddFirst}><Plus size={18} strokeWidth={2.5} /> Add the first matchup</button>
+            <button style={S.bigAdd} onClick={onAddFirst}><Plus size={18} strokeWidth={2.5} /> Start with a blank canvas</button>
           </div>
         ) : (
           <div style={{ position: 'relative', width: layout.width, height: layout.height }}>
@@ -236,7 +237,7 @@ function Slot({ id, slot, d, onName, onBye, onClear }) {
   const named = d.type === SLOT.NAMED;
   return (
     <div style={{ ...S.slot, ...(named ? S.slotNamed : S.slotOpen) }} onMouseDown={(e) => e.stopPropagation()}>
-      <input key={sig} defaultValue={named ? d.name : ''} placeholder="Add player" style={S.input}
+      <input key={sig} defaultValue={named ? d.name : ''} placeholder="Add player" aria-label={`Participant ${id.toUpperCase()} ${slot}`} style={S.input}
         onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
         onBlur={(e) => onName(id, slot, e.currentTarget.value)} />
       {named ? (
@@ -303,7 +304,7 @@ const S = {
   slotX: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, color: 'var(--muted)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 },
   byeBtn: { fontSize: 11, color: 'var(--muted)', background: 'transparent', border: '1px solid var(--line)', borderRadius: 6, padding: '2px 7px', cursor: 'pointer', flexShrink: 0 },
   handle: { position: 'absolute', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: '50%', background: 'var(--teal)', color: '#08221f', border: 'none', cursor: 'pointer', zIndex: 5, boxShadow: '0 4px 12px rgba(43,212,192,.3)' },
-  empty: { position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 24 },
+  empty: { minHeight: 400, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 24 },
   emptyTitle: { fontFamily: "'Bebas Neue',sans-serif", fontSize: 30, letterSpacing: 1.5, margin: 0 },
   emptyText: { color: 'var(--muted)', fontSize: 14, maxWidth: 400, margin: '8px 0 22px', lineHeight: 1.5 },
   bigAdd: { display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 600, color: '#0c0e13', background: 'var(--orange)', border: 'none', borderRadius: 11, padding: '12px 20px', cursor: 'pointer' },
