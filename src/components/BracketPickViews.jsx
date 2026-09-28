@@ -18,7 +18,7 @@ export default function BracketPickViews({type,bracketId,userId,view,onView,disa
   },[type,bracketId,userId,view,friendId,attempt]);
   return <>
     <nav className="bracket-pick-tabs" aria-label="Bracket picks">
-      {[['mine','My Picks'],['friends','Friends'],['community','Community']].map(([id,label])=><button key={id} type="button" aria-pressed={view===id} disabled={disabled} onClick={()=>onView(id)}>{label}</button>)}
+      {[['mine','My Picks'],['friends','Friends'],['community','Consensus']].map(([id,label])=><button key={id} type="button" aria-pressed={view===id} disabled={disabled} onClick={()=>onView(id)}>{label}</button>)}
     </nav>
     {view==='mine'?children:<>
       <div className="bracket-pick-summary">
