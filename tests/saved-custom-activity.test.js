@@ -26,6 +26,7 @@ test.each(['locked','complete'])('saved picks remain readable when the bracket i
  await act(async()=>{tree=create(createElement(CustomBracketFill,{bracketId:'b',currentUserId:'alice',openSaved:true}));});
  expect(tree.root.findByType('section').props['data-pick']).toBe('p1');
  expect(tree.root.findByType('section').props['data-editable']).toBe(false);
+ expect(tree.root.findAllByType('button').some(button=>button.children.includes('Edit my picks'))).toBe(false);
 });
 test('failed saved loads offer retry and back without exposing a local draft',async()=>{
  mocks.own.mockRejectedValueOnce(new Error('offline'));
@@ -70,4 +71,15 @@ test('normal fill defaults to account picks and preserves newer local drafts',as
  await act(async()=>{tree=create(createElement(CustomBracketFill,{bracketId:'b',currentUserId:'alice'}));});
  expect(tree.root.findByType('section').props['data-pick']).toBe('p2');
  expect(JSON.stringify(tree.toJSON())).toContain('Unsaved picks restored');
+});
+
+
+test('saved published brackets can explicitly reopen editing without replacing the saved picks',async()=>{
+ const box=mocks.state.rounds[0][0];mocks.own.mockResolvedValue({picks:{[box]:'p1'}});
+ await act(async()=>{tree=create(createElement(CustomBracketFill,{bracketId:'b',currentUserId:'alice',openSaved:true}));});
+ expect(tree.root.findByType('section').props['data-editable']).toBe(false);
+ act(()=>tree.root.findAllByType('button').find(button=>button.children.includes('Edit my picks')).props.onClick());
+ expect(tree.root.findByType('section').props['data-editable']).toBe(true);
+ expect(tree.root.findByType('section').props['data-pick']).toBe('p1');
+ expect(mocks.submit).not.toHaveBeenCalled();
 });

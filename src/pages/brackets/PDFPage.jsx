@@ -17,7 +17,7 @@ export default function PDFPage({bracket,onBack}) {
   return <BracketFrame onExit={onBack}>
     <header style={S.top}>
       <div style={S.brand}><h1 style={{...S.title,margin:0}}>{bracket.title}</h1><span style={S.sub}>Read only</span></div>
-      {view==='mine' && <div style={S.topRight}>{currentUser && sourceId && bracket.submissionId && <PostBracketButton type="legacy" bracketId={sourceId} submissionId={bracket.submissionId}/>}<DownloadBracketImage title={bracket.title} getState={()=>convertLegacyMatchups(bracket.matchups,{positionalIds:true}).state}/></div>}
+      {view==='mine' && <div style={S.topRight}>{sourceId && <a style={S.ghost} href={`/?view=fill-bracket-${encodeURIComponent(sourceId)}`}>Edit my picks</a>}{currentUser && sourceId && bracket.submissionId && <PostBracketButton type="legacy" bracketId={sourceId} submissionId={bracket.submissionId}/>}<DownloadBracketImage title={bracket.title} getState={()=>convertLegacyMatchups(bracket.matchups,{positionalIds:true}).state}/></div>}
     </header>
     <div style={S.scroll}>{sourceId?<BracketPickViews key={sourceId} type="legacy" bracketId={sourceId} userId={currentUser?.uid} view={view} onView={setView}>{board}</BracketPickViews>:board}</div>
     {view==='mine' && bracket.champion&&<div style={S.notice}>Champion: <strong>{bracket.champion.name}</strong></div>}

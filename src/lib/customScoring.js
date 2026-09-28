@@ -147,6 +147,12 @@ export function blankPrediction(bracketState) {
 /** Apply a { boxId: winnerPid } picks map onto a state, skipping stale picks. */
 export function applyPicks(state, picks) {
   let next = state;
-  for (const [boxId, winnerId] of Object.entries(picks || {})) { try { next = setResult(next, boxId, winnerId); } catch { /* stale pick, skip */ } }
+  // Firestore maps may arrive sorted by key (m1, m10, m2). Restore feeders
+  // before their winners; applying an earlier pick clears downstream results.
+  for (const round of state.rounds) for (const boxId of round) {
+    const winnerId = picks?.[boxId];
+    if (winnerId == null) continue;
+    try { next = setResult(next, boxId, winnerId); } catch { /* stale pick, skip */ }
+  }
   return next;
 }

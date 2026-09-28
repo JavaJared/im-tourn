@@ -25,6 +25,8 @@ export default function CustomBracketFill({ bracketId, currentUserId, currentUse
   const [bracket, setBracket] = useState(null);
   const [status, setStatus] = useState(null);
   const [pred, setPred] = useState(null);      // local prediction engine state
+  const [editingSaved,setEditingSaved]=useState(false);
+  const readOnly=openSaved&&!editingSaved;
   const [saved, setSaved] = useState(false);
   const [view,setView]=useState('mine');
   const [title, setTitle] = useState('My bracket');
@@ -42,7 +44,7 @@ export default function CustomBracketFill({ bracketId, currentUserId, currentUse
   const flash = useCallback((m) => { setToast(m); setTimeout(() => setToast(null), 2600); }, []);
 
   useEffect(() => {
-    setLoading(true); setError(null); setPred(null); setSaved(false); setView('mine');
+    setLoading(true); setError(null); setPred(null); setSaved(false); setEditingSaved(false); setView('mine');
     if (!bracketId) { setError('No bracket specified.'); setLoading(false); return undefined; }
     let initialized = false, active = true;
     // Begin independent saved-pick work immediately; consume errors in the handler.
@@ -77,7 +79,7 @@ export default function CustomBracketFill({ bracketId, currentUserId, currentUse
 
   const nameMap = useMemo(() => (pred ? nameMapOf(pred) : {}), [pred]);
   const complete = useMemo(() => (pred ? isEntryComplete(pred) : false), [pred]);
-  const canEdit = !openSaved && status === 'published' && view==='mine' && !sending;
+  const canEdit = !readOnly && status === 'published' && view==='mine' && !sending;
 
   const pick = (boxId, pid) => {
     if (!canEdit || sendingRef.current) return;
@@ -116,26 +118,27 @@ export default function CustomBracketFill({ bracketId, currentUserId, currentUse
       <header style={S.top}>
         <div style={S.brand}>
           <span style={S.title}>{title}</span>
-          {openSaved && <span style={S.sub}>Read only</span>}
+          {readOnly && <span style={S.sub}>Read only</span>}
         </div>
         <div style={S.topRight}>
+          {readOnly && status==='published' && <button style={S.ghost} onClick={()=>setEditingSaved(true)}>Edit my picks</button>}
           {currentUserId && saved && complete && view==='mine' && <PostBracketButton key={JSON.stringify(picksFromState(pred))} type="custom" bracketId={bracketId}/>}
           {view==='mine' && <DownloadBracketImage title={title} getState={()=>pred}/>}
-          {!openSaved && view==='mine' && <DownloadBracketImage title={`${title} - blank`} label="Save blank PNG" getState={()=>blankPrediction(bracket)}/>}
-          {!openSaved && view==='mine' && <button style={{ ...S.primary, ...(complete ? {} : S.primaryOff) }} disabled={!complete || !canEdit} onClick={save}>
+          {!readOnly && view==='mine' && <DownloadBracketImage title={`${title} - blank`} label="Save blank PNG" getState={()=>blankPrediction(bracket)}/>}
+          {!readOnly && view==='mine' && <button style={{ ...S.primary, ...(complete ? {} : S.primaryOff) }} disabled={!complete || !canEdit} onClick={save}>
             {saved ? <><Check size={14} strokeWidth={3} /> Saved</> : <><Send size={14} strokeWidth={2.5} /> {sending ? 'Saving…' : saveError ? 'Retry save' : 'Save my bracket'}</>}
           </button>}
         </div>
       </header>
 
-      {!openSaved && view==='mine' && <>
+      {!readOnly && view==='mine' && <>
         <SaveNotice {...draftSave} onRetry={() => saveDraft()} retryLabel="Retry draft save" />
         <SaveNotice state={saveError ? 'error' : sending ? 'saving' : 'saved'} message={saveError || (sending ? 'Saving your bracket. Please keep this page open.' : saved ? 'Bracket saved to your account.' : '')} onRetry={currentUserId && !sending ? save : undefined} />
       </>}
-      {view==='mine' && !complete && <div style={S.notice}>{openSaved ? 'Some saved picks are missing or no longer match this bracket.' : 'Pick a winner in every matchup to complete your bracket. Sign in to save it.'}</div>}
+      {view==='mine' && !complete && <div style={S.notice}>{readOnly ? 'Some saved picks are missing or no longer match this bracket.' : 'Pick a winner in every matchup to complete your bracket. Sign in to save it.'}</div>}
 
       <div style={S.scroll}>
-        {openSaved ? <BracketBoard state={pred} nameMap={nameMap} editable={false} /> :
+        {readOnly ? <BracketBoard state={pred} nameMap={nameMap} editable={false} /> :
           <BracketPickViews type="custom" bracketId={bracketId} userId={currentUserId} view={view} onView={setView} disabled={sending}>
             <BracketBoard state={pred} nameMap={nameMap} editable={canEdit} onPick={pick} />
           </BracketPickViews>}

@@ -288,7 +288,9 @@ function blankPrediction(bracketState) {
 }
 function applyPicks(state, picks) {
   let next = state;
-  for (const [boxId, winnerId] of Object.entries(picks || {})) {
+  for (const round of state.rounds) for (const boxId of round) {
+    const winnerId = picks?.[boxId];
+    if (winnerId == null) continue;
     try {
       next = setResult(next, boxId, winnerId);
     } catch {
