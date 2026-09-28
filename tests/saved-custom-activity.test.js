@@ -83,3 +83,28 @@ test('saved published brackets can explicitly reopen editing without replacing t
  expect(tree.root.findByType('section').props['data-pick']).toBe('p1');
  expect(mocks.submit).not.toHaveBeenCalled();
 });
+
+test.each(['published','locked','complete'])('saved %s brackets expose all pick tabs and preserve own picks when switching',async status=>{
+ mocks.status=status;
+ const box=mocks.state.rounds[0][0];
+ mocks.own.mockResolvedValue({picks:{[box]:'p1'}});
+ mocks.load.mockImplementation(async endpoint=>endpoint==='listFriends'
+   ? {items:[],nextCursor:null}
+   : {state:mocks.state,sampleSize:2});
+ await act(async()=>{tree=create(createElement(CustomBracketFill,{bracketId:'b',currentUserId:'alice',openSaved:true}));});
+ const tabs=()=>tree.root.findByProps({'aria-label':'Bracket picks'}).findAllByType('button');
+ expect(tabs().map(button=>button.children[0])).toEqual(['My Picks','Friends','Consensus']);
+ expect(tabs()[0].props['aria-pressed']).toBe(true);
+ expect(tree.root.findByType('section').props['data-pick']).toBe('p1');
+ await act(async()=>tabs()[1].props.onClick());
+ expect(tree.root.findAllByType('select')).toHaveLength(1);
+ expect(tree.root.findAllByType('section')).toHaveLength(0);
+ expect(tree.root.findAllByType('button').some(button=>button.children.includes('Edit my picks'))).toBe(false);
+ await act(async()=>tabs()[2].props.onClick());
+ expect(mocks.load).toHaveBeenCalledWith('getBracketPickView',{type:'custom',bracketId:'b',mode:'community'});
+ expect(tree.root.findByType('section').props['data-editable']).toBe(false);
+ await act(async()=>tabs()[0].props.onClick());
+ expect(tree.root.findByType('section').props['data-pick']).toBe('p1');
+ expect(tree.root.findByType('section').props['data-editable']).toBe(false);
+ expect(mocks.submit).not.toHaveBeenCalled();
+});

@@ -121,7 +121,7 @@ export default function CustomBracketFill({ bracketId, currentUserId, currentUse
           {readOnly && <span style={S.sub}>Read only</span>}
         </div>
         <div style={S.topRight}>
-          {readOnly && status==='published' && <button style={S.ghost} onClick={()=>setEditingSaved(true)}>Edit my picks</button>}
+          {readOnly && view==='mine' && status==='published' && <button style={S.ghost} onClick={()=>setEditingSaved(true)}>Edit my picks</button>}
           {currentUserId && saved && complete && view==='mine' && <PostBracketButton key={JSON.stringify(picksFromState(pred))} type="custom" bracketId={bracketId}/>}
           {view==='mine' && <DownloadBracketImage title={title} getState={()=>pred}/>}
           {!readOnly && view==='mine' && <DownloadBracketImage title={`${title} - blank`} label="Save blank PNG" getState={()=>blankPrediction(bracket)}/>}
@@ -138,10 +138,9 @@ export default function CustomBracketFill({ bracketId, currentUserId, currentUse
       {view==='mine' && !complete && <div style={S.notice}>{readOnly ? 'Some saved picks are missing or no longer match this bracket.' : 'Pick a winner in every matchup to complete your bracket. Sign in to save it.'}</div>}
 
       <div style={S.scroll}>
-        {readOnly ? <BracketBoard state={pred} nameMap={nameMap} editable={false} /> :
-          <BracketPickViews type="custom" bracketId={bracketId} userId={currentUserId} view={view} onView={setView} disabled={sending}>
+        <BracketPickViews type="custom" bracketId={bracketId} userId={currentUserId} view={view} onView={setView} disabled={sending}>
             <BracketBoard state={pred} nameMap={nameMap} editable={canEdit} onPick={pick} />
-          </BracketPickViews>}
+        </BracketPickViews>
       </div>
 
       {toast && <div style={S.toast}>{toast}</div>}
