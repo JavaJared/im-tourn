@@ -1,3 +1,4 @@
+import BracketLoader from './BracketLoader';
 import SaveNotice from './SaveNotice';
 import DefaultBracketSetup from './DefaultBracketSetup';
 import { builderSeedNumbers } from '../lib/builderSeedNumbers';
@@ -123,7 +124,7 @@ export default function CustomBracketBuilder({ bracketId, onExit }) {
   };
 
   if (loading) return (
-    <div style={S.root} className="cbb"><style>{CSS}</style><div style={S.center}><Loader2 size={20} className="spin" /> Loading bracket…</div></div>
+    <div style={S.root} className="cbb"><style>{CSS}</style><BracketLoader label="Loading bracket…" /></div>
   );
   if (error) return (
     <div style={S.root} className="cbb"><style>{CSS}</style><div style={S.center}><AlertTriangle size={20} /> {error}</div></div>

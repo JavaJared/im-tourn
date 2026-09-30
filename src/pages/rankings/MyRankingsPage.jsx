@@ -1,3 +1,4 @@
+import BracketLoader from '../../components/BracketLoader';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getUserCreatedRankings, getUserVotedRankings } from '../../services/rankingService';
@@ -69,7 +70,7 @@ export const MyRankingsPage = ({ onNavigate }) => {
       </div>
 
       {!selected ? (
-        <div className="loading-state" role="status">Loading your rankings...</div>
+        <BracketLoader label="Loading your rankings..." />
       ) : selected.error ? (
         <div className="empty-state" role="alert">
           <p>We couldn't load your {activeTab === 'created' ? 'created rankings' : 'ranking votes'}. Please try again.</p>

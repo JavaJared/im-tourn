@@ -1,3 +1,4 @@
+import BracketLoader from '../../components/BracketLoader';
 import FriendFilter from '../friends/FriendFilter';
 import FriendActivityDialog from '../friends/FriendActivityDialog';
 import { useState } from 'react';
@@ -161,10 +162,7 @@ const HomePage = ({ onFillOut, onNavigate }) => {
       )}
 
       {loading ? (
-        <div className="loading-state" role="status">
-          <div className="spinner"></div>
-          <p>Loading brackets...</p>
-        </div>
+        <BracketLoader label="Loading brackets..." />
       ) : brackets.length === 0 ? (
         <div className="empty-state">
           <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">

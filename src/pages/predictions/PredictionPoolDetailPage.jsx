@@ -1,3 +1,4 @@
+import BracketLoader from '../../components/BracketLoader';
 import UserLink from '../../components/layout/UserLink';
 import { publicOrigin } from '../../mobile/platform';
 import { useState, useEffect, useRef } from 'react';
@@ -174,10 +175,7 @@ const PredictionPoolDetailPage = ({ poolId, onNavigate }) => {
   if (loading) {
     return (
       <div className="home-container">
-        <div className="loading-state">
-          <div className="spinner"></div>
-          <p>Loading pool...</p>
-        </div>
+        <BracketLoader label="Loading pool..." />
       </div>
     );
   }

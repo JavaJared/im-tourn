@@ -1,3 +1,4 @@
+import BracketLoader from '../../components/BracketLoader';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getUserBrackets, deleteBracket } from '../../services/bracketService';
@@ -66,10 +67,7 @@ const MyBracketsPage = ({ onFillOut, onNavigate }) => {
       </div>
 
       {loading ? (
-        <div className="loading-state">
-          <div className="spinner"></div>
-          <p>Loading your brackets...</p>
-        </div>
+        <BracketLoader label="Loading your brackets..." />
       ) : brackets.length === 0 && customBrackets.length === 0 ? (
         <div className="empty-state">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">

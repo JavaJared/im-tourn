@@ -1,3 +1,4 @@
+import BracketLoader from '../../components/BracketLoader';
 import { usePagedCatalog } from '../../lib/usePagedCatalog';
 import CatalogControls from '../../components/CatalogControls';
 import { useState, useEffect } from 'react';
@@ -76,7 +77,7 @@ export const DraftsBrowsePage = ({ onNavigate }) => {
       )}
 
       {loading ? (
-        <div className="loading-state"><div className="spinner"></div><p>Loading drafts...</p></div>
+        <BracketLoader label="Loading drafts..." />
       ) : filtered.length === 0 ? (
         <div className="empty-state">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 6h16M4 12h16M4 18h7" /></svg>

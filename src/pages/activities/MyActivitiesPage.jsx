@@ -1,3 +1,4 @@
+import BracketLoader from '../../components/BracketLoader';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePagedCatalog } from '../../lib/usePagedCatalog';
@@ -42,11 +43,11 @@ export default function MyActivitiesPage({ onNavigate, onFillOut, onViewSaved })
     <div className="activities-shortcuts"><button onClick={() => onNavigate('weekly')}>Weekly bracket →</button><button onClick={() => onNavigate('create')}>Create a bracket →</button><button onClick={() => onNavigate('pools')}>Join a pool →</button></div>
     <div className="activities-controls"><div className="activities-filters" aria-label="Filter activities">{filters.map(([key,label]) => <button key={key} aria-pressed={filter === key} onClick={() => setFilter(key)}>{label}</button>)}</div><input type="search" aria-label="Search loaded activities" placeholder="Find an activity…" value={search} onChange={event => setSearch(event.target.value)} /></div>
     {(catalog.error || error) && <p role="alert" className="activities-error">{error || catalog.error}</p>}
-    {catalog.loading && !catalog.items.length ? <p role="status">Loading your activities…</p> : <>
+    {catalog.loading && !catalog.items.length ? <BracketLoader compact label="Loading your activities…" /> : <>
       <p className="activities-count" role="status">{visible.length} loaded {visible.length === 1 ? 'activity' : 'activities'}{catalog.hasMore ? ' · More available below' : ''}</p>
       {!visible.length && <div className="activities-empty"><h2>{catalog.error ? 'Some activities could not load' : catalog.items.length ? 'No matching activities' : 'Your next bracket starts here'}</h2><p>{catalog.error ? 'Retry below. Activities that loaded successfully remain available.' : catalog.items.length ? 'Try another filter or load more activities.' : 'Brackets you create, predictions you submit, and pools you join will appear here.'}</p>{!catalog.items.length && !catalog.error && <button className="nav-btn" onClick={() => onNavigate('home')}>Browse brackets</button>}</div>}
       <div className="activities-grid">{visible.map(item => <article className="activity-card" key={`${item.catalogType}:${item.id}`}><div className="activity-card-meta"><span>{item.label}</span>{item.needsAttention && <span className="activity-attention">Needs attention</span>}</div><h2>{item.title}</h2><p>{item.status?.replaceAll('_',' ') || 'Saved in your account'}</p>{item.createdAtMs > 0 && <time dateTime={new Date(item.createdAtMs).toISOString()}>{new Date(item.createdAtMs).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}</time>}<button className="back-btn" disabled={!!opening} onClick={() => open(item)}>{opening === `${item.catalogType}:${item.id}` ? 'Opening…' : item.action} <span aria-hidden="true">→</span></button></article>)}</div>
     </>}
-    {catalog.hasMore && <div className="activities-more"><p>Filters and search apply to activities loaded so far.</p><button className="nav-btn" disabled={catalog.loading} onClick={catalog.loadMore}>{catalog.loading ? 'Loading…' : catalog.error ? 'Retry loading activities' : 'Load more activities'}</button></div>}
+    {catalog.hasMore && <div className="activities-more"><p>Filters and search apply to activities loaded so far.</p><button className="nav-btn" disabled={catalog.loading} onClick={catalog.loadMore}>{catalog.loading ? <BracketLoader inline label="Loading…" /> : catalog.error ? 'Retry loading activities' : 'Load more activities'}</button></div>}
   </section>;
 }

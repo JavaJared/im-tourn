@@ -1,3 +1,4 @@
+import BracketLoader from '../../components/BracketLoader';
 import RankingBracketButton from './RankingBracketButton';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -84,10 +85,7 @@ export const RankingDetailPage = ({ rankingId, onNavigate }) => {
   if (loading) {
     return (
       <div className="home-container">
-        <div className="loading-state">
-          <div className="spinner"></div>
-          <p>Loading ranking...</p>
-        </div>
+        <BracketLoader label="Loading ranking..." />
       </div>
     );
   }

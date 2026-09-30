@@ -1,3 +1,4 @@
+import BracketLoader from './BracketLoader';
 import SaveNotice from './SaveNotice';
 import { createSaveBuffer } from '../lib/saveBuffer';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
@@ -104,7 +105,7 @@ export default function CustomBracketPlay({ bracketId, currentUserId, onExit }) 
     finally { busyRef.current = false; setBusy(false); }
   };
 
-  if (loading) return <Shell><div style={S.center}><Loader2 size={20} className="spin" /> Loading bracket…</div></Shell>;
+  if (loading) return <Shell><BracketLoader label="Loading bracket…" /></Shell>;
   if (error) return <Shell><div style={S.center}><AlertTriangle size={20} /> {error}</div></Shell>;
   if (!state || !meta) return null;
   if (status === 'draft') return <Shell><div style={S.center}><Lock size={20} /> This bracket hasn't been published yet.</div></Shell>;

@@ -1,3 +1,4 @@
+import BracketLoader from '../../components/BracketLoader';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { TIER_SHAPE, TOTAL_SLOTS, countFilled } from '../../lib/tierList';
@@ -64,10 +65,7 @@ export const KristinTiersPage = ({ onNavigate }) => {
   if (loading) {
     return (
       <div className="home-container">
-        <div className="loading-state">
-          <div className="spinner"></div>
-          <p>Loading tier lists...</p>
-        </div>
+        <BracketLoader label="Loading tier lists..." />
       </div>
     );
   }

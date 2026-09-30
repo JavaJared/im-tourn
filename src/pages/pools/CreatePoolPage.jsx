@@ -1,3 +1,4 @@
+import BracketLoader from '../../components/BracketLoader';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getAllBrackets, createBracketPool } from '../../services/bracketService';
@@ -92,10 +93,7 @@ const CreatePoolPage = ({ onNavigate }) => {
   if (loading) {
     return (
       <div className="home-container">
-        <div className="loading-state">
-          <div className="spinner"></div>
-          <p>Loading brackets...</p>
-        </div>
+        <BracketLoader label="Loading brackets..." />
       </div>
     );
   }

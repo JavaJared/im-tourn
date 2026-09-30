@@ -1,3 +1,4 @@
+import BracketLoader from '../../components/BracketLoader';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { subscribeToDraft } from '../../services/draftService';
@@ -21,7 +22,7 @@ export const DraftLobbyPage = ({ draftId, onNavigate }) => {
     return unsub;
   }, [draftId, currentUser?.uid, retry]);
 
-  if (loading) return <div className="home-container"><div className="loading-state"><div className="spinner"></div><p>Loading draft...</p></div></div>;
+  if (loading) return <div className="home-container"><BracketLoader label="Loading draft..." /></div>;
   if (error && !draft) return <div className="home-container"><div className="empty-state"><p role="alert">{error}</p><button onClick={() => setRetry(value => value + 1)}>Retry</button><button className="nav-btn" onClick={() => onNavigate('drafts')}>Back</button></div></div>;
   if (!draft) return <div className="home-container"><div className="empty-state"><p>Draft not found.</p><button className="nav-btn" onClick={() => onNavigate('drafts')}>Back</button></div></div>;
 

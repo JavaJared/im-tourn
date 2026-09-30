@@ -1,3 +1,4 @@
+import BracketLoader from '../../components/BracketLoader';
 import UserLink from '../../components/layout/UserLink';
 import { usePagedCatalog } from '../../lib/usePagedCatalog';
 import CatalogControls from '../../components/CatalogControls';
@@ -107,10 +108,7 @@ const PoolsPage = ({ onNavigate }) => {
   if (loading) {
     return (
       <div className="home-container">
-        <div className="loading-state">
-          <div className="spinner"></div>
-          <p>Loading pools...</p>
-        </div>
+        <BracketLoader label="Loading pools..." />
       </div>
     );
   }

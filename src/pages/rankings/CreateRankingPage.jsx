@@ -1,3 +1,4 @@
+import BracketLoader from '../../components/BracketLoader';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { createRanking, compressImage, MAX_RANKING_ENTRIES, MIN_RANKING_ENTRIES } from '../../services/rankingService';
@@ -202,7 +203,7 @@ export const CreateRankingPage = ({ onNavigate }) => {
                 <div className="ranking-entry-image-slot">
                   {compressingIndex === index ? (
                     <div className="ranking-entry-compressing">
-                      <div className="spinner-small"></div>
+                      <BracketLoader inline label="" />
                     </div>
                   ) : entry.imagePreviewUrl ? (
                     <div className="ranking-entry-thumb-wrap">
@@ -279,7 +280,7 @@ export const CreateRankingPage = ({ onNavigate }) => {
 
         {creating && createStatus && (
           <div className="ranking-creating-status">
-            <div className="spinner-small"></div>
+            <BracketLoader inline label="" />
             <span>{createStatus}</span>
           </div>
         )}

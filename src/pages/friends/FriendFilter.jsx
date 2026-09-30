@@ -1,3 +1,4 @@
+import BracketLoader from '../../components/BracketLoader';
 import UsernameText from '../../components/layout/UsernameText';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePagedCatalog } from '../../lib/usePagedCatalog';
@@ -18,7 +19,7 @@ export default function FriendFilter({ friendId, mode, onFriendChange, onModeCha
     {friendId && <label>Friend’s activity
       <select value={mode} onChange={e => onModeChange(e.target.value)}><option value="created">Created</option><option value="filled">Filled out / voted in</option></select>
     </label>}
-    {friends.loading && <span role="status">Loading friends…</span>}
+    {friends.loading && <BracketLoader compact label="Loading friends…" />}
     {friends.error && <p role="alert">Friends could not be loaded. <button onClick={friends.loadMore}>Retry friends</button></p>}
     {friends.hasMore && !friends.error && <button disabled={friends.loading} onClick={friends.loadMore}>Load more friends</button>}
     {!friends.loading && !friends.error && !accepted.length && <span>Accept a friend request in your profile’s Friends page to filter by their activity.</span>}

@@ -1,3 +1,4 @@
+import BracketLoader from '../BracketLoader';
 import {useEffect,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
 import {callServer} from '../../services/server';
@@ -59,7 +60,7 @@ export default function NotificationBell({onNavigate}) {
         <header><h2 id="notification-title">Notifications</h2><button className="back-btn" onClick={()=>setOpen(false)} aria-label="Close notifications">✕</button></header>
         <button className="back-btn" disabled={loading||!!busy} onClick={()=>load()}>Refresh</button>
         {error&&<p role="alert">{error} <button className="back-btn" disabled={loading||!!busy} onClick={()=>load()}>Retry</button></p>}
-        {loading&&<p role="status">Loading notifications…</p>}
+        {loading&&<BracketLoader compact label="Loading notifications…" />}
         {!loading&&!error&&!items.length&&<p>No shared brackets yet.</p>}
         <ul>{items.map(item=><li key={item.id} className={item.read?'':'notification-unread'}>
           <p>{!item.read&&<strong>New · </strong>}{item.username?`@${item.username}`:'A friend'} sent you a bracket</p>

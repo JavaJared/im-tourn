@@ -1,3 +1,4 @@
+import BracketLoader from './BracketLoader';
 import SendBracketButton from './notifications/SendBracketButton';
 import { useEffect, useState } from 'react';
 import { callServer } from '../services/server';
@@ -24,13 +25,13 @@ export default function BracketPickViews({type,bracketId,userId,view,onView,disa
       <div className="bracket-pick-summary">
         {view==='friends'&&(!userId?<p>Sign in to view friends’ picks.</p>:<>
           <label className="bracket-friend-selector"><span>Friend</span><select value={friendId} onChange={event=>setFriendId(event.target.value)}><option value="">Choose a friend</option>{accepted.map(friend=><option key={friend.friendId} value={friend.friendId}><UsernameText userId={friend.friendId}/></option>)}</select></label>
-          {friends.loading&&<p role="status">Loading friends…</p>}
+          {friends.loading&&<BracketLoader compact label="Loading friends…" />}
           {friends.error&&<p role="alert">{friends.error} <button onClick={friends.loadMore}>Retry friends</button></p>}
           {friends.hasMore&&!friends.error&&<button disabled={friends.loading} onClick={friends.loadMore}>Load more friends</button>}
           {!friends.loading&&!friends.error&&!accepted.length&&<p>No accepted friends on this page.</p>}
         </>)}
         {error&&<p role="alert">{error} <button onClick={()=>setAttempt(n=>n+1)}>Retry picks</button></p>}
-        {!error&&!result&&(view==='community'||(userId&&friendId))&&<p role="status">Loading picks…</p>}
+        {!error&&!result&&(view==='community'||(userId&&friendId))&&<BracketLoader compact label="Loading picks…" />}
         {result&&view==='friends'&&!result.found&&<div className="bracket-friend-empty"><p>No completed picks for this version yet.</p><SendBracketButton key={`${userId}:${friendId}:${type}:${bracketId}`} friendId={friendId} type={type} bracketId={bracketId}/></div>}
         {result&&view==='community'&&<>
           <p>Based on {result.sampleSize} {result.sampleSize===1?'bracket':'brackets'}{result.partial?' · Partial consensus (latest 2,000 submissions)':''}</p>

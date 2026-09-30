@@ -1,3 +1,4 @@
+import BracketLoader from '../../components/BracketLoader';
 import DownloadBracketImage from '../../components/DownloadBracketImage';
 import { convertLegacyMatchups } from '../../lib/standardBracket';
 import { blankPrediction } from '../../lib/customScoring';
@@ -135,7 +136,7 @@ const FillEditor = ({ bracket, onSubmit, onBack, currentUser, draftKey }) => {
       {!currentUser && <p style={S.notice}>Guest picks can be exported. Sign in to save to your account.</p>}
       <div style={S.scroll}>
         <BracketPickViews type="legacy" bracketId={bracket.id} userId={currentUser?.uid} view={view} onView={setView} disabled={submitting}>
-          {loadingSaved && <p role="status" style={S.notice}>Loading your saved picks…</p>}
+          {loadingSaved && <BracketLoader compact label="Loading your saved picks…" />}
           {loadError && <p role="alert" style={S.notice}>{loadError} <button style={S.ghost} onClick={()=>setLoadAttempt(n=>n+1)}>Retry saved picks</button></p>}
           <LegacyBracketBoard matchups={matchups} editable={!submitting&&!loadingSaved&&!loadError} onPick={handleSelectWinner} />
         </BracketPickViews>

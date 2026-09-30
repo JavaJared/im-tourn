@@ -1,3 +1,4 @@
+import BracketLoader from '../BracketLoader';
 import {useId,useMemo,useState} from 'react';
 import {createPortal} from 'react-dom';
 import {useDialog} from '../../lib/useDialog';
@@ -23,12 +24,12 @@ export default function EntryPredictionsDialog({selection,onClose,structure,entr
     <header><h2 id={titleId}>{selection.name}</h2><button type="button" className="back-btn" aria-label="Close entry predictions" onClick={onClose}>Close</button></header>
     <h3>Pool predictions</h3>
     {error&&<p role="alert">{error} <button type="button" className="back-btn" onClick={onRetry}>Retry participants</button></p>}
-    {!loaded&&<p role="status">Loading predictions…</p>}
+    {!loaded&&<BracketLoader compact label="Loading predictions…" />}
     {groups.map(([label,members],index)=><section className="entry-prediction-group" key={label} aria-labelledby={`${titleId}-group-${index}`}>
       <h4 id={`${titleId}-group-${index}`}>{label} <span>({members.length})</span></h4>
       <ul>{members.map(row=><li key={row.userId}><UserLink userId={row.userId}/></li>)}</ul>
     </section>)}
     {loaded&&!error&&!rows.length&&<p>No pool participants yet.</p>}
-    {entries.nextCursor&&<div><p>Showing {rows.length} participants.</p><button type="button" className="back-btn" disabled={loadingMore} onClick={more}>{loadingMore?'Loading…':'Load more participants'}</button></div>}
+    {entries.nextCursor&&<div><p>Showing {rows.length} participants.</p><button type="button" className="back-btn" disabled={loadingMore} onClick={more}>{loadingMore?<BracketLoader inline label="Loading…"/>:'Load more participants'}</button></div>}
   </section></div>,document.body);
 }

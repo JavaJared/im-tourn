@@ -1,3 +1,4 @@
+import BracketLoader from '../BracketLoader';
 import LegacyBracketBoard from '../LegacyBracketBoard';
 import { BracketFrame, bracketFrameStyles as S } from '../BracketFrame';
 import UserLink from '../layout/UserLink';
@@ -140,10 +141,7 @@ const SubmissionsModal = ({ isOpen, onClose, bracket }) => {
 
         {error && <p role="alert">{error} <button type="button" onClick={() => loadSubmissions()}>Retry</button></p>}
         {loading && !submissions.length ? (
-          <div className="loading-state">
-            <div className="spinner"></div>
-            <p>Loading submissions...</p>
-          </div>
+          <BracketLoader label="Loading submissions..." />
         ) : submissions.length === 0 ? (
           <div className="empty-state">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">

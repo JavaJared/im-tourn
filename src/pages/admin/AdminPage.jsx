@@ -1,3 +1,4 @@
+import BracketLoader from '../../components/BracketLoader';
 import UsernameText from '../../components/layout/UsernameText';
 import { useState, useEffect, lazy } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -149,10 +150,7 @@ const AdminPage = () => {
   if (loading) {
     return (
       <div className="home-container">
-        <div className="loading-state">
-          <div className="spinner"></div>
-          <p>Loading admin panel...</p>
-        </div>
+        <BracketLoader label="Loading admin panel..." />
       </div>
     );
   }

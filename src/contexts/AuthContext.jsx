@@ -1,3 +1,4 @@
+import BracketLoader from '../components/BracketLoader';
 import UsernameReminder from '../components/account/UsernameReminder';
 import useAccountUsername from './useAccountUsername';
 import UsernameSetup from '../components/account/UsernameSetup';
@@ -78,5 +79,5 @@ export function AuthProvider({ children }) {
     logout,
   };
 
-  return <AuthContext.Provider value={value}>{!loading && (!currentUser || account.username ? <>{children}{currentUser && <UsernameReminder key={currentUser.uid} userId={currentUser.uid} account={account} onSave={updateUsername}/>}</> : <UsernameSetup key={currentUser.uid} account={account} onSave={updateUsername} onRetry={retryUsername} onLogout={logout} />)}</AuthContext.Provider>;
+  return <AuthContext.Provider value={value}>{loading ? <BracketLoader label="Loading your account…" /> : (!currentUser || account.username ? <>{children}{currentUser && <UsernameReminder key={currentUser.uid} userId={currentUser.uid} account={account} onSave={updateUsername}/>}</> : <UsernameSetup key={currentUser.uid} account={account} onSave={updateUsername} onRetry={retryUsername} onLogout={logout} />)}</AuthContext.Provider>;
 }

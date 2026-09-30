@@ -1,3 +1,4 @@
+import BracketLoader from '../../components/BracketLoader';
 import UsernameText from '../../components/layout/UsernameText';
 import UserLink from '../../components/layout/UserLink';
 import { useEffect, useState, useRef } from 'react';
@@ -20,7 +21,7 @@ function FriendActivities({ friend, onNavigate }) {
       <label>Activity type<select value={kind} onChange={e => {setKind(e.target.value); setSelected(null);}}><option value="brackets">Brackets</option><option value="rankings">Rankings</option></select></label>
       <label>Participation<select value={mode} onChange={e => {setMode(e.target.value); setSelected(null);}}><option value="created">Created</option><option value="filled">Filled out / voted in</option></select></label>
     </div>
-    {catalog.loading && <p role="status">Loading activity…</p>}
+    {catalog.loading && <BracketLoader compact label="Loading activity…" />}
     {!catalog.loading && !catalog.error && !catalog.items.length && <p>No shared activity on this page. {catalog.hasMore ? 'Load more to continue.' : ''}</p>}
     <ul className="friend-list">{catalog.items.map(item => <li key={`${item.catalogType}:${item.id}`}><span>{item.title}</span><button className="back-btn" onClick={() => open(item)}>{mode === 'filled' ? 'View saved choices' : 'Open'}<span className="sr-only"> {item.title}</span></button></li>)}</ul>
     <CatalogControls catalog={catalog} />
@@ -55,14 +56,14 @@ export default function FriendsPage({ onNavigate }) {
     <h1>Friends</h1>
 
     <section className="friend-section"><h2>Add a friend</h2>
-      {profile ? <label>Your friend code<input readOnly value={profile.code} onFocus={e => e.target.select()} /></label> : profileError ? <p role="alert">{profileError} <button onClick={() => setProfileRetry(n => n + 1)}>Retry friend code</button></p> : <p role="status">Loading your friend code…</p>}
+      {profile ? <label>Your friend code<input readOnly value={profile.code} onFocus={e => e.target.select()} /></label> : profileError ? <p role="alert">{profileError} <button onClick={() => setProfileRetry(n => n + 1)}>Retry friend code</button></p> : <BracketLoader compact label="Loading your friend code…" />}
       <form onSubmit={e => { e.preventDefault(); perform('sendFriendRequest', (/^[A-Fa-f0-9]{24}$/.test(code.replace(/[\s-]/g, '')) ? {code} : {username:code}), 'Friend request sent.'); }}>
         <label>Friend’s username or code<input value={code} onChange={e => setCode(e.target.value)} required maxLength={48} autoCapitalize="none" autoComplete="off" spellCheck={false} /></label>
         <button className="nav-btn" disabled={busy || !code.trim()}>{busy ? 'Saving…' : 'Send friend request'}</button>
       </form>
     </section>
     {message && <p role="status">{message}</p>}{error && <p role="alert">{error}</p>}
-    {friends.loading && <p role="status">Loading friends and requests…</p>}
+    {friends.loading && <BracketLoader compact label="Loading friends and requests…" />}
     {[['Incoming requests',incoming],['Sent requests',outgoing],['Your friends',accepted]].map(([title, list]) => <section className="friend-section" key={title}>
       <h2>{title}</h2>
       {!friends.loading && !friends.error && !list.length && <p>None on this page.</p>}

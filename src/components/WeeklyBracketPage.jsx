@@ -1,3 +1,4 @@
+import BracketLoader from './BracketLoader';
 import { weeklyVotingOpen, weekKey } from '../lib/weeklyState';
 // src/components/WeeklyBracketPage.jsx
 //
@@ -346,7 +347,7 @@ const WeeklyBracketPage = () => {
   // ---- render ------------------------------------------------------------
   if (loading) {
     return (
-      <div className="home-container"><div className="loading-state"><div className="spinner"></div><p>Loading weekly bracket...</p></div></div>
+      <div className="home-container"><BracketLoader label="Loading weekly bracket..." /></div>
     );
   }
   if (loadError) return <div role="alert" className="home-container">{loadError}<button onClick={() => window.location.reload()}>Retry</button></div>;

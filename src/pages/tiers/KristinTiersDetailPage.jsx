@@ -1,3 +1,4 @@
+import BracketLoader from '../../components/BracketLoader';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { TIER_SHAPE, MAX_ITEMS, TOTAL_SLOTS, emptyPlacements, placeItem, unassignItem, clearTier, getUnassignedItems, countFilled, countFilledInTier, findSlotOfItem, itemById } from '../../lib/tierList';
@@ -191,10 +192,7 @@ export const KristinTiersDetailPage = ({ listId, onNavigate }) => {
   if (loading) {
     return (
       <div className="home-container">
-        <div className="loading-state">
-          <div className="spinner"></div>
-          <p>Loading tier list...</p>
-        </div>
+        <BracketLoader label="Loading tier list..." />
       </div>
     );
   }

@@ -41,7 +41,7 @@ function ActivityList({ profileId, kind, mode, onNavigate, onSelect, canViewPriv
     <h2>{mode === 'created' ? 'Created' : 'Filled out / voted in'} {kind}</h2>
     {mode === 'filled' && !canViewPrivate ? <p className="profile-private-note">Filled choices and pool results are visible after you become accepted friends.</p> : <>
     {catalog.error && <p role="alert">{catalog.error}</p>}
-    {catalog.loading && !catalog.items.length && <p role="status">Loading activity…</p>}
+    {catalog.loading && !catalog.items.length && <BracketLoader compact label="Loading activity…" />}
     {!catalog.loading && !catalog.error && !catalog.items.length && <p>No activity found.</p>}
     <ul className="friend-list">{catalog.items.map(item => <li key={`${item.catalogType}:${item.id}`}>
       <span>{item.title}</span>
@@ -102,7 +102,7 @@ export default function ProfilePage({ profileId, onNavigate }) {
     <section className="profile-stats" aria-label="Profile statistics">
       {statLabels.filter(([key]) => key.startsWith('created') || profile.canViewPrivate).map(([key, label]) => <div className="profile-stat" key={key}><strong>{profile.stats[key] == null ? '—' : profile.stats[key]}</strong><span>{label}</span></div>)}
     </section>
-    {profile.statsPending && !statsError && <p role="status">Loading statistics…</p>}
+    {profile.statsPending && !statsError && <BracketLoader compact label="Loading statistics…" />}
     {statsError && <p role="alert">Statistics unavailable. <button className="back-btn" onClick={() => setRetry(value => value + 1)}>Retry statistics</button></p>}
     {profile.statsIncomplete && <span role="status">Statistics incomplete</span>}
     <section className="friend-section">

@@ -1,3 +1,4 @@
+import BracketLoader from '../../components/BracketLoader';
 import { usePagedCatalog } from '../../lib/usePagedCatalog';
 import CatalogControls from '../../components/CatalogControls';
 import { useState, useEffect } from 'react';
@@ -15,7 +16,7 @@ export const MyDraftsPage = ({ onNavigate }) => {
   const loading = catalog.loading && !catalog.items.length;
 
   if (!currentUser) return <div className="home-container"><div className="page-header"><h1>My Drafts</h1></div><div className="empty-state"><p>Log in to see your drafts</p></div></div>;
-  if (loading) return <div className="home-container"><div className="loading-state"><div className="spinner"></div><p>Loading...</p></div></div>;
+  if (loading) return <div className="home-container"><BracketLoader label="Loading..." /></div>;
 
   const list = activeTab === 'created' ? created : joined;
   return (

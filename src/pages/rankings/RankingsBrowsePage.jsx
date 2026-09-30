@@ -1,3 +1,4 @@
+import BracketLoader from '../../components/BracketLoader';
 import FriendFilter from '../friends/FriendFilter';
 import FriendActivityDialog from '../friends/FriendActivityDialog';
 import { usePagedCatalog } from '../../lib/usePagedCatalog';
@@ -130,10 +131,7 @@ export const RankingsBrowsePage = ({ onNavigate }) => {
       )}
 
       {loading ? (
-        <div className="loading-state">
-          <div className="spinner"></div>
-          <p>Loading rankings...</p>
-        </div>
+        <BracketLoader label="Loading rankings..." />
       ) : filtered.length === 0 ? (
         <div className="empty-state">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">

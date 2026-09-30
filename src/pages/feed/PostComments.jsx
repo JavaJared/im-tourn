@@ -1,3 +1,4 @@
+import BracketLoader from '../../components/BracketLoader';
 import {useEffect,useId,useRef,useState} from 'react';
 import {callServer} from '../../services/server';
 import {rememberUsername} from '../../services/publicUsernames';
@@ -27,7 +28,7 @@ export default function PostComments({postId,ownerId,uid,onNavigate}){
     {error&&<p role="alert">{error}</p>}
     <ul>{items.map(item=><li key={item.id}><div className="social-actions"><UserLink userId={item.userId} onNavigate={onNavigate}/><time dateTime={new Date(item.createdAtMs).toISOString()}>{new Date(item.createdAtMs).toLocaleDateString()}</time>{uid&&(uid===item.userId||uid===ownerId)&&<button className="social-button" disabled={busy} aria-label="Remove comment" onClick={()=>remove(item.id)}>Remove</button>}</div><p>{item.body}</p></li>)}</ul>
     {loadError&&<p role="alert">{loadError} <button className="social-button" disabled={loading} onClick={()=>load(!loaded)}>Retry comments</button></p>}
-    {loading&&<p role="status">Loading comments…</p>}
+    {loading&&<BracketLoader compact label="Loading comments…" />}
     {loaded&&!loading&&!items.length&&!loadError&&<p>No comments yet.</p>}
     {cursor&&!loadError&&<button className="social-button" disabled={loading||busy} onClick={()=>load()}>More comments</button>}
   </section>;
