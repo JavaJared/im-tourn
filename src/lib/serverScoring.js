@@ -7,3 +7,6 @@ export { validateLegacyMatchups, validateStructure } from './recordValidation';
 
 export { pickSource, compatiblePickState, consensusBracket } from './bracketConsensus';
 export { structureFromState } from './standardBracket';
+
+export { generateSeededBracket } from './standardBracket';
+export { serialize } from './customBracketCodec';

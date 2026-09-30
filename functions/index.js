@@ -137,3 +137,5 @@ exports.addBracketPostComment = socialPosts.addBracketPostComment;
 exports.deleteBracketPostComment = socialPosts.deleteBracketPostComment;
 exports.deleteBracketPost = socialPosts.deleteBracketPost;
 exports.listUserBracketPosts = socialPosts.listUserBracketPosts;
+
+exports.createBracketFromRanking = require('./ranking-brackets').createBracketFromRanking;

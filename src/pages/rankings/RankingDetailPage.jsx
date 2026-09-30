@@ -1,3 +1,4 @@
+import RankingBracketButton from './RankingBracketButton';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import UserLink from '../../components/layout/UserLink';
@@ -29,6 +30,7 @@ export const RankingDetailPage = ({ rankingId, onNavigate }) => {
       setRanking(r);
       setDraftDescription(r.description || '');
 
+      setUserVote(null);
       if (currentUser) {
         const vote = await getUserRankingVote(rankingId, currentUser.uid);
         setUserVote(vote);
@@ -222,6 +224,7 @@ export const RankingDetailPage = ({ rankingId, onNavigate }) => {
       {activeTab === 'personal' && userVote && (
         <div className="ranking-results">
           <h2>Your Ranking</h2>
+          {currentUser && <RankingBracketButton key={`${rankingId}:${currentUser.uid}:personal`} rankingId={rankingId} mode="personal" onNavigate={onNavigate} />}
           <ol className="ranking-results-list">
             {userVote.ranking.map((entryId, idx) => {
               const entry = entryMap.get(entryId);
@@ -269,6 +272,7 @@ export const RankingDetailPage = ({ rankingId, onNavigate }) => {
       {isHost && (
         <div className="ranking-host-controls">
           <h3>Creator Controls</h3>
+          {consensus.length > 0 && <RankingBracketButton key={`${rankingId}:${currentUser.uid}:consensus`} rankingId={rankingId} mode="consensus" onNavigate={onNavigate} />}
           <div className="ranking-host-buttons">
             {!isClosed ? (
               <button className="btn-secondary" onClick={handleClose}>Close Ranking</button>

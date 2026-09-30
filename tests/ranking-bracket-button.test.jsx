@@ -1,0 +1,32 @@
+import React from 'react';
+import { act, create } from 'react-test-renderer';
+import { afterEach, expect, test, vi } from 'vitest';
+import RankingBracketButton from '../src/pages/rankings/RankingBracketButton';
+const mocks=vi.hoisted(()=>({call:vi.fn()}));
+vi.mock('../src/services/server',()=>({callServer:(...args)=>mocks.call(...args)}));
+let tree;
+afterEach(()=>{if(tree)act(()=>tree.unmount());vi.clearAllMocks();vi.unstubAllGlobals();});
+test('failed conversion retries the same request and opens the draft',async()=>{
+ vi.stubGlobal('crypto',{randomUUID:()=> 'operation-1'});
+ mocks.call.mockRejectedValueOnce(new Error('Offline')).mockResolvedValueOnce({bracketId:'draft'});
+ const navigate=vi.fn();
+ act(()=>{tree=create(<RankingBracketButton rankingId="r" mode="personal" onNavigate={navigate}/>);});
+ await act(async()=>tree.root.findByType('button').props.onClick());
+ expect(tree.root.findByProps({role:'alert'}).children).toContain('Offline');
+ expect(navigate).not.toHaveBeenCalled();
+ await act(async()=>tree.root.findByType('button').props.onClick());
+ expect(mocks.call.mock.calls[0]).toEqual(mocks.call.mock.calls[1]);
+ expect(mocks.call).toHaveBeenCalledWith('createBracketFromRanking',{rankingId:'r',mode:'personal',requestId:'operation-1'});
+ expect(navigate).toHaveBeenCalledWith('custom-bracket-draft');
+});
+test('consensus conversion blocks duplicate clicks while waiting',async()=>{
+ vi.stubGlobal('crypto',{randomUUID:()=> 'operation-2'});
+ let finish;mocks.call.mockImplementation(()=>new Promise(resolve=>{finish=resolve;}));
+ act(()=>{tree=create(<RankingBracketButton rankingId="r" mode="consensus" onNavigate={()=>{}}/>);});
+ expect(tree.root.findByType('button').children).toContain('Create consensus bracket');
+ let pending;
+ act(()=>{pending=tree.root.findByType('button').props.onClick();tree.root.findByType('button').props.onClick();});
+ expect(tree.root.findByType('button').props.disabled).toBe(true);
+ expect(mocks.call).toHaveBeenCalledTimes(1);
+ await act(async()=>{finish({bracketId:'draft'});await pending;});
+});
