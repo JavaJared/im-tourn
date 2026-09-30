@@ -1,5 +1,6 @@
 import SaveNotice from './SaveNotice';
 import DefaultBracketSetup from './DefaultBracketSetup';
+import { builderSeedNumbers } from '../lib/builderSeedNumbers';
 import { createSaveBuffer } from '../lib/saveBuffer';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Plus, X, Lock, Trophy, AlertTriangle, Trash2, Check, Loader2 } from './customBracketIcons';
@@ -52,6 +53,7 @@ export default function CustomBracketBuilder({ bracketId, onExit }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
+  const [showSeeds, setShowSeeds] = useState(false);
   const [save, setSave] = useState('idle');
   const writer = useMemo(() => createSaveBuffer((before, next) => persistStructure(bracketId, next), state => setSave(state)), [bracketId]); // idle | saving | saved | error
   const [toast, setToast] = useState(null);
@@ -78,6 +80,7 @@ export default function CustomBracketBuilder({ bracketId, onExit }) {
     return unsub;
   }, [bracketId]);
 
+  const seeds = useMemo(() => builderSeedNumbers(state), [state]);
   const loc = useMemo(() => (state ? locate(state) : {}), [state]);
   const layout = useMemo(() => (state ? computeLayout(state) : null), [state]);
   const validation = useMemo(() => (state ? validateForPublish(state) : { valid: false, errors: [] }), [state]);
@@ -149,6 +152,14 @@ export default function CustomBracketBuilder({ bracketId, onExit }) {
         </div>
       </header>
 
+      <div style={{ padding: '8px 18px', borderBottom: '1px solid var(--line)' }}>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 44, cursor: 'pointer', fontSize: 14 }}>
+          <input type="checkbox" checked={showSeeds} onChange={event => setShowSeeds(event.target.checked)}
+            style={{ width: 18, height: 18, accentColor: 'var(--teal)' }} />
+          Show seed numbers
+        </label>
+      </div>
+
       <SaveNotice state={save} message={save === 'error' ? 'Your changes were not saved. Keep this page open and retry.' : save === 'saving' ? 'Saving bracket changes…' : save === 'saved' ? 'Bracket changes saved.' : ''} onRetry={() => writer.retry()} />
       <SaveNotice state={publishError ? "error" : "saving"} message={publishError || (publishing ? "Publishing bracket…" : "")} onRetry={onPublish} retryLabel="Retry publish" />
       <div style={S.scroll}>
@@ -179,6 +190,7 @@ export default function CustomBracketBuilder({ bracketId, onExit }) {
 
             {Object.keys(boxes).map((id) => (
               <MatchCard key={id} id={id}
+                seedA={showSeeds ? seeds[id + ':A'] : null} seedB={showSeeds ? seeds[id + ':B'] : null}
                 dispA={slotDisplay(state, loc, id, 'A')} dispB={slotDisplay(state, loc, id, 'B')}
                 pos={layout.positions[id]} selected={selectedId === id}
                 onSelect={setSelectedId} onName={onName} onBye={onBye} onClear={onClear} onRemove={onRemove} />
@@ -212,21 +224,21 @@ export default function CustomBracketBuilder({ bracketId, onExit }) {
   );
 }
 
-function MatchCard({ id, dispA, dispB, pos, selected, onSelect, onName, onBye, onClear, onRemove }) {
+function MatchCard({ id, dispA, dispB, seedA, seedB, pos, selected, onSelect, onName, onBye, onClear, onRemove }) {
   if (!pos) return null;
   return (
     <div style={{ ...S.card, left: pos.x, top: pos.y, width: CARDW, ...(selected ? S.cardSel : {}) }} onMouseDown={(e) => { e.stopPropagation(); onSelect(id); }}>
       <div style={S.tag}>{id.toUpperCase()}{selected && (
         <button style={S.del} title="Remove this matchup" onMouseDown={(e) => { e.stopPropagation(); onRemove(id); }}><Trash2 size={12} /></button>
       )}</div>
-      <Slot id={id} slot="A" d={dispA} onName={onName} onBye={onBye} onClear={onClear} />
+      <Slot id={id} slot="A" d={dispA} seed={seedA} onName={onName} onBye={onBye} onClear={onClear} />
       <div style={S.vs}>vs</div>
-      <Slot id={id} slot="B" d={dispB} onName={onName} onBye={onBye} onClear={onClear} />
+      <Slot id={id} slot="B" d={dispB} seed={seedB} onName={onName} onBye={onBye} onClear={onClear} />
     </div>
   );
 }
 
-function Slot({ id, slot, d, onName, onBye, onClear }) {
+function Slot({ id, slot, d, seed, onName, onBye, onClear }) {
   const sig = `${d.type}:${d.participantId || ''}:${d.name || ''}:${d.sourceBoxId || ''}`;
   if (d.type === SLOT.FEED) return <div style={{ ...S.slot, ...S.slotFeed }}><Lock size={12} /> <span style={S.feedTxt}>Winner of {d.sourceBoxId.toUpperCase()}</span></div>;
   if (d.type === SLOT.BYE) return (
@@ -237,7 +249,8 @@ function Slot({ id, slot, d, onName, onBye, onClear }) {
   const named = d.type === SLOT.NAMED;
   return (
     <div style={{ ...S.slot, ...(named ? S.slotNamed : S.slotOpen) }} onMouseDown={(e) => e.stopPropagation()}>
-      <input key={sig} defaultValue={named ? d.name : ''} placeholder="Add player" aria-label={`Participant ${id.toUpperCase()} ${slot}`} style={S.input}
+      {seed != null && <span aria-hidden="true" style={{ flexShrink: 0, color: 'var(--teal)', fontSize: 12, fontWeight: 700 }}>#{seed}</span>}
+      <input key={sig} defaultValue={named ? d.name : ''} placeholder="Add player" aria-label={seed != null ? `Seed ${seed} participant` : `Participant ${id.toUpperCase()} ${slot}`} style={S.input}
         onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
         onBlur={(e) => onName(id, slot, e.currentTarget.value)} />
       {named ? (

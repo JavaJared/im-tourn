@@ -50,7 +50,7 @@ test('builder generates and autosaves an unnamed layout, then saves participant 
  expect(JSON.stringify(tree.toJSON())).toContain('3 rounds · 3 automatic byes');
  await act(async()=>tree.root.findByType('form').props.onSubmit({preventDefault(){}}));
  expect(mocks.persist).toHaveBeenLastCalledWith('draft',generateDefaultBracketLayout(5));
- const names=tree.root.findAllByType('input');
+ const names=tree.root.findAllByType('input').filter(input=>input.props.type!=='checkbox');
  expect(names).toHaveLength(5);
  expect(names.every(input=>input.props.defaultValue==='')).toBe(true);
  await act(async()=>names[0].props.onBlur({currentTarget:{value:'First player'}}));
@@ -63,6 +63,24 @@ test('manual blank-canvas creation remains available',async()=>{
  await act(async()=>{tree=create(<CustomBracketBuilder bracketId="draft"/>);});
  const manual=tree.root.findAllByType('button').find(b=>b.children.some(child=>typeof child==='string'&&child.includes('Start with a blank canvas')));
  await act(async()=>manual.props.onClick());
- expect(tree.root.findAllByType('input')).toHaveLength(2);
+ expect(tree.root.findAllByType('input').filter(input=>input.props.type!=='checkbox')).toHaveLength(2);
  expect(mocks.persist.mock.calls.at(-1)[1].rounds[0]).toHaveLength(1);
+});
+
+test('seed toggle labels ranked slots without changing or saving participants',async()=>{
+ await act(async()=>{tree=create(<CustomBracketBuilder bracketId="draft"/>);});
+ act(()=>tree.root.findByProps({type:'number'}).props.onChange({target:{value:'8'}}));
+ await act(async()=>tree.root.findByType('form').props.onSubmit({preventDefault(){}}));
+ const fields=()=>tree.root.findAllByType('input').filter(input=>input.props.type!=='checkbox');
+ await act(async()=>fields()[0].props.onBlur({currentTarget:{value:'Top ranked'}}));
+ const writes=mocks.persist.mock.calls.length;
+ const before=mocks.persist.mock.calls.at(-1)[1];
+ act(()=>tree.root.findByProps({type:'checkbox'}).props.onChange({target:{checked:true}}));
+ expect(fields().map(input=>input.props['aria-label'])).toEqual([1,8,4,5,2,7,3,6].map(seed=>`Seed ${seed} participant`));
+ expect(fields()[0].props.defaultValue).toBe('Top ranked');
+ act(()=>tree.root.findByProps({type:'checkbox'}).props.onChange({target:{checked:false}}));
+ expect(fields()[0].props['aria-label']).toMatch(/^Participant /);
+ expect(fields()[0].props.defaultValue).toBe('Top ranked');
+ expect(mocks.persist).toHaveBeenCalledTimes(writes);
+ expect(mocks.persist.mock.calls.at(-1)[1]).toBe(before);
 });
