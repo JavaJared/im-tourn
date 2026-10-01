@@ -1,3 +1,6 @@
+import ShareBracketButton from './ShareBracketButton';
+import GuestBracketSave from './GuestBracketSave';
+import { adoptGuestBracketDraft } from '../lib/guestBracketDraft';
 import BracketLoader from './BracketLoader';
 import PostBracketButton from '../pages/feed/PostBracketButton';
 import BracketPickViews from './BracketPickViews';
@@ -64,6 +67,9 @@ export default function CustomBracketFill({ bracketId, currentUserId, currentUse
         const result = await ownRequest;
         if (result.error) throw result.error;
         const own = result.value;
+        if(!openSaved && currentUserId && adoptGuestBracketDraft(`cbp:pred:${bracketId}:anon`,lsKey,own.found)) {
+          try { resume=JSON.parse(localStorage.getItem(lsKey)); } catch {}
+        }
         if(!active)return;
         if(openSaved&&!own.found)throw new Error('Your saved bracket could not be found.');
         const useDraft=resume&&!openSaved&&(!own.found||!resume.updatedAt||resume.updatedAt>own.savedAt);
@@ -121,16 +127,19 @@ export default function CustomBracketFill({ bracketId, currentUserId, currentUse
           {readOnly && <span style={S.sub}>Read only</span>}
         </div>
         <div style={S.topRight}>
+          {status==='published' && <ShareBracketButton type="custom" bracketId={bracketId} title={title}/>}
+          {view==='mine' && <DownloadBracketImage format="pdf" title={title} getState={()=>pred}/>}
           {readOnly && view==='mine' && status==='published' && <button style={S.ghost} onClick={()=>setEditingSaved(true)}>Edit my picks</button>}
           {currentUserId && saved && complete && view==='mine' && <PostBracketButton key={JSON.stringify(picksFromState(pred))} type="custom" bracketId={bracketId}/>}
           {view==='mine' && <DownloadBracketImage title={title} getState={()=>pred}/>}
           {!readOnly && view==='mine' && <DownloadBracketImage title={`${title} - blank`} label="Save blank PNG" getState={()=>blankPrediction(bracket)}/>}
-          {!readOnly && view==='mine' && <button style={{ ...S.primary, ...(complete ? {} : S.primaryOff) }} disabled={!complete || !canEdit} onClick={save}>
+          {currentUserId && !readOnly && view==='mine' && <button style={{ ...S.primary, ...(complete ? {} : S.primaryOff) }} disabled={!complete || !canEdit} onClick={save}>
             {saved ? <><Check size={14} strokeWidth={3} /> Saved</> : <><Send size={14} strokeWidth={2.5} /> {sending ? 'Saving…' : saveError ? 'Retry save' : 'Save my bracket'}</>}
           </button>}
         </div>
       </header>
 
+      {!currentUserId && <GuestBracketSave guestKey={lsKey}/>}
       {!readOnly && view==='mine' && <>
         <SaveNotice {...draftSave} onRetry={() => saveDraft()} retryLabel="Retry draft save" />
         <SaveNotice state={saveError ? 'error' : sending ? 'saving' : 'saved'} message={saveError || (sending ? 'Saving your bracket. Please keep this page open.' : saved ? 'Bracket saved to your account.' : '')} onRetry={currentUserId && !sending ? save : undefined} />

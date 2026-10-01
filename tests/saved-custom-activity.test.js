@@ -108,3 +108,13 @@ test.each(['published','locked','complete'])('saved %s brackets expose all pick 
  expect(tree.root.findByType('section').props['data-editable']).toBe(false);
  expect(mocks.submit).not.toHaveBeenCalled();
 });
+
+test('guests can pick and export without reading or submitting account results',async()=>{
+ vi.stubGlobal('localStorage',{getItem:()=>null,setItem:vi.fn()});
+ await act(async()=>{tree=create(createElement(CustomBracketFill,{bracketId:'b'}));});
+ const board=tree.root.findByType('section');expect(board.props['data-editable']).toBe(true);
+ const labels=tree.root.findAllByType('button').map(button=>button.children.join(' '));
+ expect(labels).toContain('Save PDF');expect(labels).toContain('Share bracket');
+ expect(labels.some(label=>label.includes('Save my bracket'))).toBe(false);
+ expect(mocks.own).not.toHaveBeenCalled();expect(mocks.load).not.toHaveBeenCalled();expect(mocks.submit).not.toHaveBeenCalled();
+});

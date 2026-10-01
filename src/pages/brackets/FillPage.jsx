@@ -1,3 +1,6 @@
+import ShareBracketButton from '../../components/ShareBracketButton';
+import GuestBracketSave from '../../components/GuestBracketSave';
+import { adoptGuestBracketDraft } from '../../lib/guestBracketDraft';
 import BracketLoader from '../../components/BracketLoader';
 import DownloadBracketImage from '../../components/DownloadBracketImage';
 import { convertLegacyMatchups } from '../../lib/standardBracket';
@@ -44,6 +47,10 @@ const FillEditor = ({ bracket, onSubmit, onBack, currentUser, draftKey }) => {
       if(!active)return;
       if(result.found&&(!draft.restored||(draft.updatedAt!=null&&draft.updatedAt<=result.savedAt))){setMatchups(result.matchups);setDraftStatus('Saved picks loaded.');}
       else if(draft.restored)setDraftStatus('Unsaved picks restored from this device.');
+      else if(adoptGuestBracketDraft(fillDraftKey(bracket.id),draftKey,result.found)) {
+        const imported=readFillDraft(draftKey,bracket.matchups);
+        if(imported.restored){setMatchups(imported.matchups);setDraftStatus('Guest picks restored. Save my bracket to keep them in your account.');}
+      }
     },error=>{if(active)setLoadError(error.message||'Saved picks could not be loaded.');}).finally(()=>{if(active)setLoadingSaved(false);});
     return ()=>{active=false;};
   },[bracket.id,currentUser?.uid,loadAttempt]);
@@ -111,7 +118,7 @@ const FillEditor = ({ bracket, onSubmit, onBack, currentUser, draftKey }) => {
       setSubmitting(false);
       return;
     }
-    clearFillDraft(draftKey);
+    if (currentUser) clearFillDraft(draftKey);
     if (mounted.current) onSubmit(filledBracket);
   };
 
@@ -123,6 +130,8 @@ const FillEditor = ({ bracket, onSubmit, onBack, currentUser, draftKey }) => {
           <span style={S.sub}>Created by <UserLink userId={bracket.userId} /></span>
         </div>
         <div style={S.topRight}>
+          <ShareBracketButton type="legacy" bracketId={bracket.id} title={bracket.title}/>
+          {view==='mine' && <DownloadBracketImage format="pdf" title={bracket.title} getState={()=>convertLegacyMatchups(matchups,{positionalIds:true}).state}/>}
           <DownloadBracketImage title={`${bracket.title} - blank`} label="Save blank PNG" getState={()=>blankPrediction(convertLegacyMatchups(bracket.matchups,{positionalIds:true}).state)}/>
           {view==='mine' && <button className="legacy-submit" style={{ ...S.primary, ...(!isComplete() || submitting ? S.primaryOff : {}) }}
             disabled={!isComplete() || submitting || loadingSaved || !!loadError} onClick={handleSubmit}>
@@ -133,7 +142,7 @@ const FillEditor = ({ bracket, onSubmit, onBack, currentUser, draftKey }) => {
       {view==='mine' && <p style={S.notice} role={draftFailed ? 'alert' : 'status'}>{draftStatus} {draftFailed && <button type="button" style={S.ghost} onClick={() => persistDraft(matchups)}>Retry draft save</button>}</p>}
       {submitError && <p style={S.notice} role="alert">{submitError}</p>}
       {submitting && <p style={S.notice} role="status">Saving your bracket. Please keep this page open.</p>}
-      {!currentUser && <p style={S.notice}>Guest picks can be exported. Sign in to save to your account.</p>}
+      {!currentUser && <GuestBracketSave guestKey={draftKey}/>}
       <div style={S.scroll}>
         <BracketPickViews type="legacy" bracketId={bracket.id} userId={currentUser?.uid} view={view} onView={setView} disabled={submitting}>
           {loadingSaved && <BracketLoader compact label="Loading your saved picks…" />}

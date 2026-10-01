@@ -8,7 +8,7 @@ import { structureFromState } from './standardBracket';
 import { getChampion } from './customBracket';
 import { bracketImageLayout, imagePixelRatio, bracketImageFilename } from './bracketImageLayout';
 
-export async function exportBracketPng(state, title = 'My bracket') {
+export async function renderBracketImage(state, title = 'My bracket') {
   if(!state?.rounds?.length || !Object.keys(state.boxes||{}).length) throw new Error('There is no bracket to export.');
   const layout=bracketImageLayout(state), {nameMap,seedMap}=structureFromState(state);
   const champion=getChampion(state);
@@ -27,9 +27,27 @@ export async function exportBracketPng(state, title = 'My bracket') {
     const width=Math.ceil(node.getBoundingClientRect().width),height=Math.ceil(node.getBoundingClientRect().height);
     const blob=await toBlob(node,{backgroundColor:'#0c0e13',width,height,pixelRatio:imagePixelRatio(width,height),preferredFontFormat:'woff2'});
     if(!blob || blob.size===0) throw new Error('The image could not be created. Please retry.');
-    const url=URL.createObjectURL(blob),link=document.createElement('a');
-    link.download=bracketImageFilename(title);link.href=url;document.body.appendChild(link);link.click();link.remove();
-    // Give the browser time to consume the object URL, especially on mobile.
-    setTimeout(()=>URL.revokeObjectURL(url),60000);
+    return blob;
   } finally { root.unmount();host.remove(); }
+}
+
+export function downloadBlob(blob,filename){
+  const url=URL.createObjectURL(blob),link=document.createElement('a');
+  link.download=filename;link.href=url;document.body.appendChild(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
+export async function exportBracketPng(state,title='My bracket'){
+  downloadBlob(await renderBracketImage(state,title),bracketImageFilename(title));
+}
+export async function exportBracketPdf(state,title='My bracket'){
+  const blob=await renderBracketImage(state,title),url=URL.createObjectURL(blob);
+  try{
+    const img=new Image();
+    await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(new Error('Could not prepare PDF.'));img.src=url;});
+    const canvas=document.createElement('canvas');canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;
+    canvas.getContext('2d').drawImage(img,0,0);
+    const jpeg=await new Promise((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(new Error('Could not prepare PDF.')),'image/jpeg',0.95));
+    const {bracketPdf}=await import('./bracketPdf');
+    downloadBlob(bracketPdf(new Uint8Array(await jpeg.arrayBuffer()),canvas.width,canvas.height),bracketImageFilename(title).replace(/\.png$/i,'.pdf'));
+  }finally{URL.revokeObjectURL(url);}
 }
