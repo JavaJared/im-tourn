@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 import {createRequire} from 'node:module';
 import {expect,test,vi} from 'vitest';
-import {ThumbnailDrawing} from '../src/pages/feed/BracketThumbnail';
+import {ThumbnailDrawing,thumbnailLayout} from '../src/pages/feed/BracketThumbnail';
 const require=createRequire(import.meta.url),S=require('../functions/generated/scoring.cjs');
 vi.mock('../src/services/server',()=>({callServer:vi.fn()}));
 const matchups=[[{entry1:{name:'A',seed:1},entry2:{name:'B',seed:2},winner:1},{entry1:{name:'C',seed:3},entry2:{name:'D',seed:4},winner:2}],[{entry1:{name:'A',seed:1},entry2:{name:'D',seed:4},winner:1}]];
@@ -56,4 +56,16 @@ test('guest profile requests do not read private submissions, pool entries or fr
   expect(reads.some(path=>/submissions|poolEntries|rankingVotes|friendships\//.test(path))).toBe(false);
   await expect(api.listFriendActivities({data:{friendId:'bob',type:'custom',mode:'filled'}})).rejects.toMatchObject({code:'unauthenticated'});
   await expect(api.getFriendActivity({data:{friendId:'bob'}})).rejects.toMatchObject({code:'unauthenticated'});
+});
+
+test('large thumbnail divides every round between two sides meeting at a centered final',()=>{
+  const state=S.generateSeededBracket(Array.from({length:64},(_,i)=>({name:`Entry ${i+1}`,seed:i+1})));
+  const layout=thumbnailLayout(state),final=layout.positions[state.rounds.at(-1)[0]];
+  expect(layout.twoSided).toBe(true);
+  expect(Object.keys(layout.positions)).toHaveLength(63);
+  const opening=state.rounds[0].map(id=>layout.positions[id]);
+  expect(opening.filter(p=>p.x<final.x)).toHaveLength(16);
+  expect(opening.filter(p=>p.x>final.x)).toHaveLength(16);
+  expect(final.x+90).toBeCloseTo(layout.width/2);
+  expect(layout.height).toBeLessThan(layout.width);
 });

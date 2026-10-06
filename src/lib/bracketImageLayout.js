@@ -1,9 +1,9 @@
 import { computeLayout, COLW, ROWH, CARDW, CARDH, PADX, PADTOP, PADBOT } from '../components/BracketBoard';
 import { feederId } from './customBracket';
 
-export function bracketImageLayout(state) {
+export function bracketImageLayout(state, { forceTwoSided = false } = {}) {
   const normal = computeLayout(state), last = state.rounds.length - 1;
-  if (normal.height <= 1600 || last < 2 || state.rounds[last].length !== 1) return {...normal, twoSided:false};
+  if ((!forceTwoSided && normal.height <= 1600) || last < 2 || state.rounds[last].length !== 1) return {...normal, twoSided:false};
   // Trace each branch to one of the final's two feeders. Disconnected custom
   // layouts stay in their original shape rather than inventing new matchups.
   const sides = {};
