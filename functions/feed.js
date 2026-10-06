@@ -73,7 +73,8 @@ exports.getForYouFeed=onCall(async req=>{
     const feedback=await db.getAll(...candidates.map(item=>db.doc(`feedPreferences/${req.auth.uid}/items/${item.type}-${item.id}`)),{fieldMask:['action']});
     feedback.forEach((doc,index)=>{if(doc.data()?.action==='hide')hidden.add(`${candidates[index].type}:${candidates[index].id}`);});
   }
-  const items=rankFeed(candidates,{...(profile||{}),hidden},state.asOf);
+  const recentlyShown=new Set(Array.isArray(req.data?.recentlyShown)?req.data.recentlyShown.slice(0,8).filter(key=>typeof key==='string'&&/^(legacy|custom|ranking|post):[\w-]{1,200}$/.test(key)):[]);
+  const items=rankFeed(candidates,{...(profile||{}),hidden,recentlyShown,varietySeed:`${req.auth?.uid||'guest'}:${state.asOf}`},state.asOf);
   if(req.auth){const posts=items.filter(item=>item.type==='post');if(posts.length){const likes=await db.getAll(...posts.map(item=>db.doc(`bracketPosts/${item.id}/likes/${req.auth.uid}`)));posts.forEach((item,index)=>{item.liked=likes[index].exists;});}}
   let usernames={};try{const authors=await resolveFeedAuthors(items.map(item=>item.userId||item.hostId),!!req.auth);usernames=authors.usernames;items.forEach(item=>{item.photoURL=authors.photos[item.userId||item.hostId]||null;});}catch{/* Existing username resolver can retry. */}
   return {items,usernames,postsUnavailable,personalizationUnavailable:!!req.auth&&!profile,nextCursor:Object.values(state.positions).some(value=>value!==null)?Buffer.from(JSON.stringify(state)).toString('base64url'):null};

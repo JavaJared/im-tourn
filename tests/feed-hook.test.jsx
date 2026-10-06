@@ -61,3 +61,27 @@ test('public posts survive pagination and refresh after cache invalidation',asyn
  await act(async()=>{tree=create(<Harness uid="posts"/>);});
  expect(value.items).toEqual([]);
 });
+
+test('returning to the feed requests a fresh first page and deprioritizes previous leading cards',async()=>{
+ call.mockResolvedValueOnce({items:[{id:'old',type:'legacy'}],nextCursor:'old-page'});
+ await act(async()=>{tree=create(<Harness uid="revisit"/>);});
+ act(()=>tree.unmount());tree=null;
+ call.mockResolvedValueOnce({items:[{id:'fresh',type:'custom'}],nextCursor:'new-page'});
+ await act(async()=>{tree=create(<Harness uid="revisit"/>);});
+ expect(call).toHaveBeenLastCalledWith('getForYouFeed',{cursor:null,recentlyShown:['legacy:old']});
+ expect(value.items.map(x=>x.id)).toEqual(['fresh']);
+});
+
+test('clicking For You again refreshes and a failed refresh retries the first page',async()=>{
+ const events=new EventTarget();vi.stubGlobal('window',events);
+ try {
+  call.mockResolvedValueOnce({items:[{id:'a',type:'legacy'}],nextCursor:'old-page'});
+  await act(async()=>{tree=create(<Harness uid="nav-refresh"/>);});
+  call.mockRejectedValueOnce(Error('Offline'));
+  await act(async()=>events.dispatchEvent(new Event('imtourn:refresh-feed')));
+  call.mockResolvedValueOnce({items:[{id:'new',type:'post'}],nextCursor:null});
+  await act(async()=>value.loadMore());
+  expect(call).toHaveBeenLastCalledWith('getForYouFeed',{cursor:null,recentlyShown:['legacy:a']});
+  expect(value.items.map(x=>x.id)).toEqual(['new']);
+ }finally{if(tree)act(()=>tree.unmount());tree=null;vi.unstubAllGlobals();}
+});

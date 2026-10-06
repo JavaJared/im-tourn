@@ -6,21 +6,10 @@ import ViewLink from '../../components/layout/ViewLink';
 import useForYouFeed from './useForYouFeed';
 import './feed.css';
 import FeedCard from './FeedCard';
-let lastPosition = null;
+
 export default function ForYouPage({onNavigate}) {
   const {currentUser}=useAuth();
   const feed=useForYouFeed(currentUser?.uid),sentinel=useRef(null);
-  const restored=useRef(false),position=useRef(0),scope=currentUser?.uid||'guest';
-  useEffect(()=>{
-    const track=()=>{position.current=window.scrollY;};
-    window.addEventListener('scroll',track,{passive:true});
-    return()=>{window.removeEventListener('scroll',track);lastPosition={scope,y:position.current};};
-  },[scope]);
-  useEffect(()=>{
-    if(restored.current||!feed.items.length)return;
-    restored.current=true;
-    if(lastPosition?.scope===scope){position.current=lastPosition.y;window.scrollTo({top:lastPosition.y,behavior:'instant'});}
-  },[scope,feed.items.length]);
   useEffect(()=>{
     if(!feed.hasMore||feed.loading||feed.error||!sentinel.current||typeof IntersectionObserver==='undefined')return;
     const observer=new IntersectionObserver(entries=>{if(entries.some(entry=>entry.isIntersecting))feed.loadMore();},{rootMargin:'500px'});

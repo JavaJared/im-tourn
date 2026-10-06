@@ -13,9 +13,11 @@ const returnDestinations = /^(home|browse|rankings|weekly|pools|my-activities|my
 export function useViewNavigation() {
   const [view, update] = useState(() => readView(window.location.search));
   const navigate = useCallback((next, { replace = false } = {}) => {
+    const refreshHome=next==='home'&&readView(window.location.search)==='home';
     const url = new URL(window.location.href); url.searchParams.delete('pool'); url.pathname = '/';
     if (next === 'home') url.searchParams.delete('view'); else url.searchParams.set('view', next);
     if (url.href !== window.location.href) window.history[replace ? 'replaceState' : 'pushState']({returnTo:returnDestinations.test(readView(window.location.search))?readView(window.location.search):returnView()}, '', url);
+    if(refreshHome)window.dispatchEvent(new Event('imtourn:refresh-feed'));
     update(next); window.scrollTo({ top: 0 });
   }, []);
   useEffect(() => { const pop = () => update(readView(window.location.search)); window.addEventListener('popstate', pop); return () => window.removeEventListener('popstate', pop); }, []);

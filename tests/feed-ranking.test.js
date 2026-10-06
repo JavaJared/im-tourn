@@ -27,3 +27,13 @@ test('friends public picks get a boost and hidden posts are omitted',()=>{
  expect(result[0]).toMatchObject({id:'picks',type:'post',reason:'From a friend'});
  expect(result).toHaveLength(2);
 });
+
+test('new visit seeds vary recommendations while a session stays stable',()=>{
+ const candidates=Array.from({length:12},(_,i)=>item(String(i)));
+ const first=rankFeed(candidates,{varietySeed:'visit-1'},now);
+ expect(rankFeed(candidates,{varietySeed:'visit-1'},now)).toEqual(first);
+ expect(rankFeed(candidates,{varietySeed:'visit-2'},now).map(x=>x.id)).not.toEqual(first.map(x=>x.id));
+ const recent=new Set(first.slice(0,8).map(x=>`${x.type}:${x.id}`));
+ const fresh=rankFeed(candidates,{varietySeed:'visit-2',recentlyShown:recent},now);
+ expect(fresh.slice(0,4).every(x=>!recent.has(`${x.type}:${x.id}`))).toBe(true);
+});
