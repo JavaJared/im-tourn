@@ -26,7 +26,6 @@ const Header = ({ onNavigate, currentView }) => {
         </ViewLink>
 
         <nav className="header-nav" aria-label="Primary">
-          {currentUser && <ViewLink className={`nav-link ${currentView === 'my-activities' ? 'active' : ''}`} view="my-activities" onNavigate={onNavigate} currentView={currentView}>My Activities</ViewLink>}
           <ViewLink
             className={`nav-link ${currentView === 'home' ? 'active' : ''}`}
             view="home" onNavigate={onNavigate} currentView={currentView}
@@ -34,16 +33,16 @@ const Header = ({ onNavigate, currentView }) => {
             For You
           </ViewLink>
           <ViewLink
-            className={`nav-link weekly ${currentView === 'weekly' ? 'active' : ''}`}
-            view="weekly" onNavigate={onNavigate} currentView={currentView}
+            className={`nav-link ${['browse','rankings','weekly'].includes(currentView) ? 'active' : ''}`}
+            view="browse" onNavigate={onNavigate} currentView={['browse','rankings','weekly'].includes(currentView)?'browse':currentView}
           >
-            Weekly Bracket
+            Explore
           </ViewLink>
           <ViewLink
             className={`nav-link ${currentView === 'pools' || currentView === 'create-pool' || currentView.startsWith('pool-') ? 'active' : ''}`}
             view="pools" onNavigate={onNavigate} currentView={currentView}
           >
-            Bracket Pools
+            Pools
           </ViewLink>
           {FEATURES.predictions && (
             <ViewLink
@@ -73,29 +72,6 @@ const Header = ({ onNavigate, currentView }) => {
 
         <div className="header-actions">
           {currentUser && <NotificationBell key={currentUser.uid} onNavigate={onNavigate} />}
-          {currentView !== 'home' && currentView !== 'browse' &&
-            currentView !== 'weekly' &&
-            currentView !== 'champions' &&
-            currentView !== 'pools' &&
-            currentView !== 'prediction-pools' &&
-            currentView !== 'rankings' &&
-            currentView !== 'my-rankings' &&
-            currentView !== 'my-activities' &&
-            currentView !== 'profile' &&
-            !currentView.startsWith('profile-') &&
-            currentView !== 'privacy' &&
-            currentView !== 'terms' &&
-            !currentView.startsWith('pool-') &&
-            !currentView.startsWith('prediction-pool-') &&
-            !currentView.startsWith('ranking-') &&
-            currentView !== 'drafts' &&
-            currentView !== 'my-drafts' &&
-            !currentView.startsWith('draft-') && (
-              <button className="back-btn" onClick={() => onNavigate('home')}>
-                ← Back
-              </button>
-            )}
-
           {currentUser ? (
             <div className="user-menu-container" onKeyDown={(event) => {
               if (event.key === 'Escape') {
@@ -116,6 +92,7 @@ const Header = ({ onNavigate, currentView }) => {
               {showUserMenu && (
                 <div className="user-dropdown" id="account-links">
                   <button onClick={() => { onNavigate('profile'); setShowUserMenu(false); }}>Profile</button>
+                  <button onClick={() => { onNavigate('my-activities'); setShowUserMenu(false); }}>My Activities</button>
                   <button onClick={() => { onNavigate('friends'); setShowUserMenu(false); }}>Friends</button>
                   {isAdmin && (
                     <button

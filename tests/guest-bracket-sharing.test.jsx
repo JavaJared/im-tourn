@@ -4,6 +4,7 @@ import {afterEach,expect,test,vi} from 'vitest';
 import ShareBracketButton from '../src/components/ShareBracketButton';
 import {adoptGuestBracketDraft} from '../src/lib/guestBracketDraft';
 import {bracketPdf} from '../src/lib/bracketPdf';
+vi.mock('../src/components/ActionDialog',()=>({default:({title,children})=><section role="dialog" aria-label={title}>{children}</section>}));
 let tree;
 afterEach(()=>{if(tree)act(()=>tree.unmount());vi.unstubAllGlobals();});
 test('shares the public bracket route, never the current saved-result URL',async()=>{

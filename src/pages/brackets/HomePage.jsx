@@ -1,3 +1,4 @@
+import ExploreHeader from '../../components/layout/ExploreHeader';
 import BracketLoader from '../../components/BracketLoader';
 import FriendFilter from '../friends/FriendFilter';
 import FriendActivityDialog from '../friends/FriendActivityDialog';
@@ -76,16 +77,7 @@ const HomePage = ({ onFillOut, onNavigate }) => {
 
   return (
     <div className="home-container">
-      <div className="hero">
-        <h1>
-          CREATE YOUR <span>ULTIMATE</span> BRACKET
-        </h1>
-
-        <button className="nav-btn hero-cta" onClick={() => onNavigate('create')}>Create your bracket</button>
-      </div>
-
-      <h2 className="section-title">BROWSE BRACKETS</h2>
-
+      <ExploreHeader currentView="browse" onNavigate={onNavigate}/>
       <FriendFilter friendId={activeFriend} mode={friendMode} onFriendChange={id => {setFriendId(id); setFriendSelection(null);}} onModeChange={mode => {setFriendMode(mode); setFriendSelection(null);}} />
       {/* Search and Filter Bar */}
       <div className="filter-bar">

@@ -1,3 +1,4 @@
+import BracketDownloads from './BracketDownloads';
 import ShareBracketButton from './ShareBracketButton';
 import GuestBracketSave from './GuestBracketSave';
 import { adoptGuestBracketDraft } from '../lib/guestBracketDraft';
@@ -7,7 +8,6 @@ import BracketPickViews from './BracketPickViews';
 import { callServer } from '../services/server';
 import { BracketFrame as Shell, bracketFrameStyles as S } from './BracketFrame';
 import SaveNotice from './SaveNotice';
-import DownloadBracketImage from './DownloadBracketImage';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Check, Clock, Loader2, AlertTriangle, Send } from './customBracketIcons';
 import { SLOT, setResult, getChampion } from '../lib/customBracket';
@@ -96,7 +96,7 @@ export default function CustomBracketFill({ bracketId, currentUserId, currentUse
 
   const saveDraft = (next = draftRef.current) => {
     if (!next) return;
-    try { localStorage.setItem(lsKey, JSON.stringify({picks:picksFromState(next),updatedAt:Date.now()})); setDraftSave({ state: 'saved', message: 'Draft saved on this device. Save my bracket saves it to your account.' }); }
+    try { localStorage.setItem(lsKey, JSON.stringify({picks:picksFromState(next),updatedAt:Date.now()})); setDraftSave({ state: 'saved', message: 'Saved on this device.' }); }
     catch { setDraftSave({ state: 'error', message: 'This browser could not save your draft. Keep this page open; your picks are still here.' }); }
   };
   const save = async () => {
@@ -123,28 +123,26 @@ export default function CustomBracketFill({ bracketId, currentUserId, currentUse
     <Shell onExit={onExit}>
       <header style={S.top}>
         <div style={S.brand}>
-          <span style={S.title}>{title}</span>
+          <h1 style={{...S.title,margin:0}}>{title}</h1>
           {readOnly && <span style={S.sub}>Read only</span>}
         </div>
         <div style={S.topRight}>
           {status==='published' && <ShareBracketButton type="custom" bracketId={bracketId} title={title}/>}
-          {view==='mine' && <DownloadBracketImage format="pdf" title={title} getState={()=>pred}/>}
+          {view==='mine' && <BracketDownloads title={title} getState={()=>pred} getBlankState={()=>blankPrediction(bracket)}/>}
           {readOnly && view==='mine' && status==='published' && <button style={S.ghost} onClick={()=>setEditingSaved(true)}>Edit my picks</button>}
-          {currentUserId && saved && complete && view==='mine' && <PostBracketButton key={JSON.stringify(picksFromState(pred))} type="custom" bracketId={bracketId}/>}
-          {view==='mine' && <DownloadBracketImage title={title} getState={()=>pred}/>}
-          {!readOnly && view==='mine' && <DownloadBracketImage title={`${title} - blank`} label="Save blank PNG" getState={()=>blankPrediction(bracket)}/>}
           {currentUserId && !readOnly && view==='mine' && <button style={{ ...S.primary, ...(complete ? {} : S.primaryOff) }} disabled={!complete || !canEdit} onClick={save}>
             {saved ? <><Check size={14} strokeWidth={3} /> Saved</> : <><Send size={14} strokeWidth={2.5} /> {sending ? 'Saving…' : saveError ? 'Retry save' : 'Save my bracket'}</>}
           </button>}
         </div>
       </header>
+      <div className="completion-action">{currentUserId && saved && complete && view==='mine' && <PostBracketButton key={JSON.stringify(picksFromState(pred))} type="custom" bracketId={bracketId}/>}</div>
 
       {!currentUserId && <GuestBracketSave guestKey={lsKey}/>}
       {!readOnly && view==='mine' && <>
-        <SaveNotice {...draftSave} onRetry={() => saveDraft()} retryLabel="Retry draft save" />
+        <SaveNotice {...(saveError || sending || saved ? {state:'idle',message:''} : draftSave)} onRetry={() => saveDraft()} retryLabel="Retry draft save" />
         <SaveNotice state={saveError ? 'error' : sending ? 'saving' : 'saved'} message={saveError || (sending ? 'Saving your bracket. Please keep this page open.' : saved ? 'Bracket saved to your account.' : '')} onRetry={currentUserId && !sending ? save : undefined} />
       </>}
-      {view==='mine' && !complete && <div style={S.notice}>{readOnly ? 'Some saved picks are missing or no longer match this bracket.' : 'Pick a winner in every matchup to complete your bracket. Sign in to save it.'}</div>}
+      {view==='mine' && !complete && <div style={S.notice}>{readOnly ? 'Some saved picks are missing or no longer match this bracket.' : 'Complete the remaining matchups to save your picks.'}</div>}
 
       <div style={S.scroll}>
         <BracketPickViews type="custom" bracketId={bracketId} userId={currentUserId} view={view} onView={setView} disabled={sending}>

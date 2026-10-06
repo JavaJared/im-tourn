@@ -109,7 +109,7 @@ function Card({ id, pos, a, b, result, editable, onPick, official, sc, hl, match
 <PickControl editable={click} selected={isW} label={`Pick ${sl.name} in matchup ${id.toUpperCase()}`} onPick={() => onPick(id, sl.pid)}>
         {isW && (graded && !pickRight ? <X size={14} strokeWidth={3} /> : <Check size={14} strokeWidth={3} />)}
         {sl.seed != null && <span style={BS.seed}>{sl.seed}</span>}
-        <span className="engine-name" style={BS.name}>{sl.name}{support && <small className="engine-support">{support.sampleSize ? Math.round(100*(support.counts[sl.pid]||0)/support.sampleSize) : 0}% advance ({support.counts[sl.pid]||0}/{support.sampleSize})</small>}</span></PickControl>
+        <span className="engine-name" title={sl.name} style={BS.name}>{sl.name}{support && <small className="engine-support">{support.sampleSize ? Math.round(100*(support.counts[sl.pid]||0)/support.sampleSize) : 0}% advance ({support.counts[sl.pid]||0}/{support.sampleSize})</small>}</span></PickControl>
         {showScore && (sc.editable
           ? <input aria-label={`Score for ${sl.name} in matchup ${id.toUpperCase()}`} className="cb-score" value={scoreVal} inputMode="numeric" placeholder="–" onClick={(e) => e.stopPropagation()} onChange={(e) => sc.change(id, side, e.target.value)} onBlur={(e) => sc.blur(id, side, e.target.value)} />
           : (scoreVal !== '' && <span style={BS.scoreText}>{scoreVal}</span>))}
@@ -136,7 +136,7 @@ const BS = {
   slotLose: { background: 'transparent', border: '1px solid var(--line)', color: 'var(--muted)', opacity: .6 },
   slotPending: { background: 'rgba(130,139,161,.07)', border: '1px solid var(--line)', color: 'var(--muted)' },
   slotMuted: { background: 'var(--surface2)', color: 'var(--muted)' },
-  name: { flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  name: { flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'normal', overflowWrap: 'anywhere', lineHeight: '14px', maxHeight: 28 },
   seed: { flex: 'none', minWidth: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10.5, fontWeight: 700, color: 'var(--muted)', background: 'var(--surface2)', border: '1px solid var(--line)', borderRadius: 5, padding: '0 3px' },
   scoreText: { marginLeft: 4, fontSize: 12, fontWeight: 700, color: 'var(--text)', minWidth: 18, textAlign: 'right', flex: 'none' },
   pend: { fontSize: 12 }, byeTxt: { fontStyle: 'italic' },

@@ -53,7 +53,8 @@ export function useDialog(isOpen, onClose) {
         if (record && --record.count === 0) { element.inert = record.inert; inertBranches.delete(element); }
       }
       if (!dialogs.length) document.body.style.overflow = previousOverflow;
-      if (wasTop && previous?.isConnected) previous.focus({ preventScroll: true });
+      const returnTarget = previous?.closest?.('details:not([open])')?.querySelector('summary') || previous;
+      if (wasTop && returnTarget?.isConnected) returnTarget.focus({ preventScroll: true });
     };
   }, [isOpen]);
   return ref;

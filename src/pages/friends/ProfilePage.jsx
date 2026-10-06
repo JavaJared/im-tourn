@@ -99,18 +99,19 @@ export default function ProfilePage({ profileId, onNavigate }) {
       </div>
     </header>
     {editing && profile.isSelf && <ProfileEditor key={targetId} profile={profile} username={username} updateUsername={updateUsername} onClose={() => setEditing(false)} onSaved={details => setProfile(previous => ({ ...previous, ...details }))} />}
-    <section className="profile-stats" aria-label="Profile statistics">
-      {statLabels.filter(([key]) => key.startsWith('created') || profile.canViewPrivate).map(([key, label]) => <div className="profile-stat" key={key}><strong>{profile.stats[key] == null ? '—' : profile.stats[key]}</strong><span>{label}</span></div>)}
+    <section className="profile-stats profile-primary-stats" aria-label="Profile statistics">
+      {statLabels.filter(([key]) => ['createdBrackets','createdRankings',...(profile.canViewPrivate?['poolsWon']:[])].includes(key)).map(([key,label])=><div className="profile-stat" key={key}><strong>{profile.stats?.[key]??'—'}</strong><span>{label}</span></div>)}
     </section>
+    {profile.canViewPrivate&&<details className="profile-more-stats"><summary>More stats</summary><div className="profile-stats">{statLabels.filter(([key])=>!['createdBrackets','createdRankings','poolsWon'].includes(key)).map(([key,label])=><div className="profile-stat" key={key}><strong>{profile.stats?.[key]??'—'}</strong><span>{label}</span></div>)}</div></details>}
     {profile.statsPending && !statsError && <BracketLoader compact label="Loading statistics…" />}
     {statsError && <p role="alert">Statistics unavailable. <button className="back-btn" onClick={() => setRetry(value => value + 1)}>Retry statistics</button></p>}
     {profile.statsIncomplete && <span role="status">Statistics incomplete</span>}
     <section className="friend-section">
-      <div className="friend-filter profile-filters">
-        {mode!=='posted'&&<label>Activity type<select value={kind} onChange={event => { setKind(event.target.value); setSelected(null); }}><option value="brackets">Brackets</option><option value="rankings">Rankings</option></select></label>}
-        <label>Participation<select value={mode} onChange={event => { setMode(event.target.value); setSelected(null); }}><option value="posted">Posted to feed</option><option value="created">Created</option><option value="filled" disabled={!profile.canViewPrivate}>Filled out / voted in{!profile.canViewPrivate ? ' (friends only)' : ''}</option></select></label>
+      <div className="section-switcher" role="group" aria-label="Profile content">
+        {[['posted','Posts'],['created','Created'],['filled','Picks']].map(([value,label])=><button key={value} className="back-btn" aria-pressed={mode===value} onClick={()=>{setMode(value);setSelected(null);}}>{label}</button>)}
       </div>
-      {mode==='posted'?<ProfilePosts key={targetId} userId={targetId} uid={currentUser.uid} onNavigate={onNavigate}/>:<ActivityList key={`${targetId}:${kind}:${mode}`} profileId={targetId} kind={kind} mode={mode} canViewPrivate={profile.canViewPrivate} onNavigate={onNavigate} onSelect={setSelected} />}
+      {mode!=='posted'&&<div className="section-switcher compact-switcher" role="group" aria-label="Content type">{['brackets','rankings'].map(value=><button className="quiet-button" key={value} aria-pressed={kind===value} onClick={()=>{setKind(value);setSelected(null);}}>{value==='brackets'?'Brackets':'Rankings'}</button>)}</div>}
+      {mode==='posted'?<ProfilePosts key={targetId} userId={targetId} photoURL={profile.photoURL} uid={currentUser.uid} onNavigate={onNavigate}/>:<ActivityList key={`${targetId}:${kind}:${mode}`} profileId={targetId} kind={kind} mode={mode} canViewPrivate={profile.canViewPrivate} onNavigate={onNavigate} onSelect={setSelected} />}
     </section>
     <FriendActivityDialog selection={selected} friendId={targetId} onClose={() => setSelected(null)} />
   </div>;

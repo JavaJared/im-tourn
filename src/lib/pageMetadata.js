@@ -1,6 +1,6 @@
 export const publicPages = {
   home: ['For You — Brackets and Rankings', 'Create brackets for movies, shows, sports, and more. Make your picks, share with friends, and crown a champion.'],
-  browse: ['Browse Brackets', 'Explore community brackets by category, title, or creator.'],
+  browse: ['Explore Brackets', 'Explore community brackets by category, title, or creator.'],
   pools: ['Bracket Pools', 'Compete with friends in bracket pools, submit predictions, and follow official results and standings.'],
   rankings: ['Community Rankings', 'Compare entries head to head and explore community rankings.'],
   weekly: ['Weekly Brackets', 'Vote in the weekly tournament and help decide the champion.'],

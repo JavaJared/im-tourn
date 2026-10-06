@@ -81,3 +81,12 @@ test('guest result bookmarks restore their own snapshot rather than the latest e
 });
 
 test('public post links survive refresh', () => { expect(readView('?view=feed-post-public123')).toBe('feed-post-public123'); });
+
+test('return context survives bracket and result navigation',async()=>{
+ const {returnView}=await import('../src/lib/useViewNavigation');let nav;
+ const win={location:new URL('https://imtourn.com/?view=browse'),scrollTo:vi.fn(),addEventListener:vi.fn(),removeEventListener:vi.fn(),history:{state:null}};
+ win.history.pushState=(state,_title,url)=>{win.history.state=state;win.location=new URL(url);};vi.stubGlobal('window',win);
+ const Probe=()=>{[,nav]=useViewNavigation();return null;};act(()=>{tree=create(createElement(Probe));});
+ act(()=>nav('fill-bracket-a'));expect(returnView()).toBe('browse');act(()=>nav('saved-bracket-s'));expect(returnView()).toBe('browse');
+ win.history.state={returnTo:'bad-value'};expect(returnView()).toBe('home');
+});

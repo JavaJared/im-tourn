@@ -18,3 +18,19 @@ exports.getPublicUsernames = onCall(async req => {
   return { usernames: await resolveUsernames(ids) };
 });
 exports.internal = { resolveUsernames };
+
+// Feed avatars use the same signed-in visibility as profile headers. Keep the
+// response bounded to the requested authors and never include private fields.
+async function resolveFeedAuthors(ids, signedIn) {
+  const unique = [...new Set(ids.filter(validId))].slice(0, 50);
+  if (!unique.length) return { usernames: {}, photos: {} };
+  const accounts = await getFirestore().getAll(...unique.map(id => getFirestore().doc(`accountProfiles/${id}`)), { fieldMask: signedIn ? ['username', 'photoURL'] : ['username'] });
+  const usernames = {}, photos = {};
+  for (const account of accounts) {
+    const data = account.data() || {};
+    usernames[account.id] = typeof data.username === 'string' && /^[a-z][a-z0-9_]{2,23}$/.test(data.username) ? data.username : null;
+    if (signedIn && typeof data.photoURL === 'string' && data.photoURL.startsWith('https://firebasestorage.googleapis.com/')) photos[account.id] = data.photoURL;
+  }
+  return { usernames, photos };
+}
+exports.internal.resolveFeedAuthors = resolveFeedAuthors;

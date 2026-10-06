@@ -1,8 +1,8 @@
+import BracketDownloads from '../../components/BracketDownloads';
 import ShareBracketButton from '../../components/ShareBracketButton';
 import GuestBracketSave from '../../components/GuestBracketSave';
 import { adoptGuestBracketDraft } from '../../lib/guestBracketDraft';
 import BracketLoader from '../../components/BracketLoader';
-import DownloadBracketImage from '../../components/DownloadBracketImage';
 import { convertLegacyMatchups } from '../../lib/standardBracket';
 import { blankPrediction } from '../../lib/customScoring';
 import BracketPickViews from '../../components/BracketPickViews';
@@ -131,11 +131,10 @@ const FillEditor = ({ bracket, onSubmit, onBack, currentUser, draftKey }) => {
         </div>
         <div style={S.topRight}>
           <ShareBracketButton type="legacy" bracketId={bracket.id} title={bracket.title}/>
-          {view==='mine' && <DownloadBracketImage format="pdf" title={bracket.title} getState={()=>convertLegacyMatchups(matchups,{positionalIds:true}).state}/>}
-          <DownloadBracketImage title={`${bracket.title} - blank`} label="Save blank PNG" getState={()=>blankPrediction(convertLegacyMatchups(bracket.matchups,{positionalIds:true}).state)}/>
+          <BracketDownloads title={bracket.title} getState={view==='mine'?()=>convertLegacyMatchups(matchups,{positionalIds:true}).state:undefined} getBlankState={()=>blankPrediction(convertLegacyMatchups(bracket.matchups,{positionalIds:true}).state)}/>
           {view==='mine' && <button className="legacy-submit" style={{ ...S.primary, ...(!isComplete() || submitting ? S.primaryOff : {}) }}
             disabled={!isComplete() || submitting || loadingSaved || !!loadError} onClick={handleSubmit}>
-            {submitting ? 'Saving…' : submitError ? 'Retry save' : currentUser ? 'Save my bracket' : 'Export my bracket'}
+            {submitting ? 'Saving…' : submitError ? 'Retry save' : currentUser ? 'Save my bracket' : 'View completed bracket'}
           </button>}
         </div>
       </header>

@@ -1,3 +1,4 @@
+import BracketLoader from './BracketLoader';
 import { useRef, useState } from 'react';
 import { bracketFrameStyles as S } from './BracketFrame';
 
@@ -16,7 +17,7 @@ export default function DownloadBracketImage({ getState, title, label, format = 
     finally {pending.current=false;setBusy(false);}
   }
   return <div>
-    <button style={S.ghost} disabled={busy} onClick={download}>{busy?`Creating ${kind}…`:error?`Retry ${kind}`:label||`Save ${kind}`}</button>
+    <button style={S.ghost} disabled={busy} onClick={download}>{busy?<BracketLoader inline label={`Creating ${kind}…`}/>:error?`Retry ${kind}`:label||`Save ${kind}`}</button>
     {busy&&<span className="sr-only" role="status">Creating your bracket image.</span>}
     {error&&<p role="alert" style={{maxWidth:300,overflowWrap:'anywhere'}}>{error}</p>}
   </div>;

@@ -178,7 +178,7 @@ export const RankingDetailPage = ({ rankingId, onNavigate }) => {
           disabled={!hasVoted}
           title={!hasVoted ? 'Submit your ranking to see this' : ''}
         >
-          Consensus {!hasVoted && '🔒'}
+          Consensus {!hasVoted && '— rank entries to unlock'}
         </button>
       </div>
 

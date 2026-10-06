@@ -1,3 +1,4 @@
+import ActionDisclosure from './ActionDisclosure';
 import BracketLoader from './BracketLoader';
 import EntryPredictionsDialog from './pools/EntryPredictionsDialog';
 import UserLink from './layout/UserLink';
@@ -309,10 +310,9 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
           {isHost && status === 'open' && <button style={S.primary} disabled={busy} onClick={() => run(() => lockPool(poolId, currentUserId), 'Predictions locked')}><Lock size={14} /> Lock predictions</button>}
           {isHost && status === 'locked' && <button style={S.primary} disabled={busy} onClick={() => run(() => startCustomPool(poolId, currentUserId), 'Pool started')}><Trophy size={14} /> Start &amp; record results</button>}
           {isHost && status === 'in_progress' && <>
-            <button style={S.ghost} disabled={busy} onClick={() => run(() => recalculateCustomPoolScoresManual(poolId, currentUserId), 'Scores recalculated')}><RotateCcw size={14} /> Recalc</button>
             <button style={S.primary} disabled={busy} onClick={() => run(() => completePool(poolId, currentUserId), 'Pool completed')}><Check size={14} strokeWidth={3} /> Complete</button>
           </>}
-          {isHost && <button style={S.danger} disabled={busy} onClick={() => { setOperation({ state: 'idle', message: '' }); setConfirmDelete(true); }}><Trash2 size={14} /> Delete</button>}
+          <ActionDisclosure label="Advanced">{status==='in_progress'&&<button style={S.ghost} disabled={busy} onClick={() => run(() => recalculateCustomPoolScoresManual(poolId, currentUserId), 'Scores recalculated')}><RotateCcw size={14} /> Recalculate scores</button>}<button style={S.danger} disabled={busy} onClick={() => { setOperation({ state: 'idle', message: '' }); setConfirmDelete(true); }}><Trash2 size={14} /> Delete pool</button></ActionDisclosure>
         </div>
           {status === 'in_progress' && <button style={S.ghost} disabled={busy} aria-pressed={editingResults} onClick={() => { setTab('results'); setViewingEntry(null); setEditingResults(!editingResults); }}>{editingResults ? 'Finish editing results' : 'Edit official results'}</button>}
       {isHost && (
@@ -400,7 +400,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
             <>
               {canPredict && <SaveNotice {...draftSave} onRetry={saveLocalDraft} retryLabel="Retry draft save" />}
               {canPredict && predState && !isEntryComplete(predState) && <div style={S.note}>Pick a winner in every matchup, then submit.{submitted ? ' Re-submitting replaces your entry.' : ''}</div>}
-              {canPredict && <div style={S.actionBar}><button style={{ ...S.primary, ...(predState && isEntryComplete(predState) ? {} : S.primaryOff) }} disabled={busy || !(predState && isEntryComplete(predState))} onClick={submitPredictions}><Send size={14} /> {submitted ? 'Update prediction' : 'Submit prediction'}</button></div>}
+              {canPredict && <div style={S.actionBar}><button style={{ ...S.primary, ...(predState && isEntryComplete(predState) ? {} : S.primaryOff) }} disabled={busy || !(predState && isEntryComplete(predState))} onClick={submitPredictions}><Send size={14} /> {submitted ? 'Update picks' : 'Submit picks'}</button></div>}
               {!canPredict && submitted && <div style={S.note}>Your prediction is in.{status === 'open' ? '' : ' Predictions are locked.'}</div>}
               {predState && <Board onInspect={!canPredict ? setInspectedEntry : undefined} state={predState} nameMap={nameMap} editable={canPredict && !busy} onPick={pickPred} official={status === 'open' ? null : officialWinners} scores={scoresByBox} />}
             </>

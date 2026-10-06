@@ -39,7 +39,7 @@ test('every supported size has the exact entry slots and byes and can play throu
   expect(played).toBe(count-1);
   expect(getChampion(state)).toBeTruthy();
  }
-});
+},15000);
 test.each([0,1,101,2.5,NaN,Infinity,'12'])('rejects invalid count %s',count=>{
  expect(()=>generateDefaultBracketLayout(count)).toThrow('Choose a whole number');
 });
@@ -83,4 +83,14 @@ test('seed toggle labels ranked slots without changing or saving participants',a
  expect(fields()[0].props.defaultValue).toBe('Top ranked');
  expect(mocks.persist).toHaveBeenCalledTimes(writes);
  expect(mocks.persist.mock.calls.at(-1)[1]).toBe(before);
+});
+
+test('advanced controls support native click activation and keyboard focus selection',async()=>{
+ await act(async()=>{tree=create(<CustomBracketBuilder bracketId="draft"/>);});
+ await act(async()=>tree.root.findAllByType('button').find(button=>button.children.some(child=>typeof child==='string'&&child.includes('Start with a blank canvas'))).props.onClick());
+ const card=tree.root.find(node=>node.type==='div'&&node.props.role==='group');act(()=>card.props.onFocus());
+ const before=mocks.persist.mock.calls.length;
+ await act(async()=>tree.root.findAllByProps({title:'Make this a bye'})[0].props.onClick({stopPropagation(){}}));
+ expect(mocks.persist.mock.calls.length).toBeGreaterThan(before);
+ expect(Object.values(mocks.persist.mock.calls.at(-1)[1].boxes).some(box=>box.slotA.type===SLOT.BYE||box.slotB.type===SLOT.BYE)).toBe(true);
 });

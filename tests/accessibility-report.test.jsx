@@ -36,7 +36,7 @@ test('browse search is named, filters work, and category badges stay noninteract
  expect(input.props['aria-label']).toBe('Search brackets');
  expect(root.findAllByType('select').every(s => s.props['aria-label'])).toBe(true);
  expect(root.findByProps({className:'bracket-category'}).props.onClick).toBeUndefined();
- expect(root.findByType('h2').children).toContain('BROWSE BRACKETS');
+ expect(root.findByType('h1').children).toContain('Explore');
  for (const svg of root.findAllByType('svg')) expect(svg.props['aria-hidden']).toBe('true');
  act(() => input.props.onChange({target:{value:'missing'}}));
  expect(root.findAllByProps({className:'bracket-card'})).toHaveLength(0);

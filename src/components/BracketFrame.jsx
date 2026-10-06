@@ -1,5 +1,5 @@
 export function BracketFrame({ children, onExit }) {
-  return <div style={bracketFrameStyles.root} className="cbpr"><style>{CSS}</style>{onExit && <button type="button" className="bracket-close" style={bracketFrameStyles.exit} onClick={onExit} aria-label="Back" title="Back"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button>}{children}</div>;
+  return <div style={bracketFrameStyles.root} className="cbpr"><style>{CSS}</style>{onExit && <button type="button" className="bracket-close" style={bracketFrameStyles.exit} onClick={onExit} aria-label="Close bracket" title="Close bracket"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button>}{children}</div>;
 }
 
 const CSS = `
@@ -25,7 +25,7 @@ export const bracketFrameStyles = {
   sub: { fontSize: 12, color: 'var(--muted)', marginTop: 3 },
   topRight: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 },
   ghost: { minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: 'var(--text)', background: 'var(--surface2)', border: '1px solid var(--line)', borderRadius: 9, padding: '8px 12px', cursor: 'pointer' },
-  primary: { minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#0c0e13', background: 'var(--teal)', border: '1px solid var(--teal)', borderRadius: 9, padding: '8px 14px', cursor: 'pointer' },
+  primary: { minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#0c0e13', background: 'var(--orange)', border: '1px solid var(--orange)', borderRadius: 9, padding: '8px 14px', cursor: 'pointer' },
   primaryOff: { background: 'var(--surface2)', color: 'var(--muted)', border: '1px solid var(--line)', cursor: 'not-allowed' },
   locked: { display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: 'var(--teal)' },
   notice: { padding: '9px 18px', fontSize: 13, color: 'var(--muted)', background: 'rgba(43,212,192,.05)', borderBottom: '1px solid var(--line)' },

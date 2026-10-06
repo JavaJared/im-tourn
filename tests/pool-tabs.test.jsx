@@ -41,7 +41,7 @@ test('participants have all four sections and never see host controls or invite 
 test('host explicitly enables results editing and switching sections ends editing', () => {
   mount('host');
   const controls = tree.root.findByType('details');
-  expect(JSON.stringify(controls.findByType('summary').children)).toContain('Host controls');
+  expect(JSON.stringify(controls.findAllByType('summary')[0].children)).toContain('Host controls');
   select('results');
   expect(tree.root.findByType(Board).props.editable).toBe(false);
   const edit = controls.findAllByType('button').find(b => b.children.includes('Edit official results'));

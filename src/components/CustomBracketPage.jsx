@@ -1,3 +1,4 @@
+import { returnView } from '../lib/useViewNavigation';
 import BracketLoader from './BracketLoader';
 import React, { lazy, Suspense, useEffect, useState, useRef, useCallback } from 'react';
 import { subscribeToBracket } from '../services/customBracketService';
@@ -35,7 +36,7 @@ export default function CustomBracketPage({ bracketId, currentUserId, currentUse
     return unsub;
   }, [bracketId]);
 
-  const back = () => onNavigate(openSaved ? 'my-activities' : 'my-brackets');
+  const back = () => onNavigate(returnView(openSaved ? 'my-activities' : 'home'));
 
   if (status === undefined) return <div className="create-container"><BracketLoader label="Loading bracket…"/></div>;
   if (status === null) return <div className="create-container"><div className="empty-state"><p>This bracket could not be found.</p></div></div>;

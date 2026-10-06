@@ -18,6 +18,7 @@
 @import './styles/pool-analysis.css';
 @import './styles/weekly-theme.css';
 @import './styles/tiers.css';
+@import './styles/design-system.css';
 @import './styles/accessibility.css';
 
 /* Names remain recognizable as links on cards and standings. */

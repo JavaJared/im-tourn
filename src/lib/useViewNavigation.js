@@ -4,12 +4,18 @@ export function readView(search) {
   const value = new URLSearchParams(search).get('view') || 'home';
   return pages.has(value) || /^(feed-post-|pool-|prediction-pool-|ranking-|ranking-vote-|draft-|kristin-tiers-|custom-bracket-|saved-custom-bracket-|fill-bracket-|saved-bracket-|local-bracket-|profile-)[\w-]+$/.test(value) ? value : 'not-found';
 }
+export function returnView(fallback = 'home') {
+  if (typeof window === 'undefined') return fallback;
+  const value = window.history?.state?.returnTo;
+  return typeof value === 'string' && readView('?view='+encodeURIComponent(value)) !== 'not-found' ? value : fallback;
+}
+const returnDestinations = /^(home|browse|rankings|weekly|pools|my-activities|my-brackets|profile(?:-[\w-]+)?|pool-[\w-]+)$/;
 export function useViewNavigation() {
   const [view, update] = useState(() => readView(window.location.search));
   const navigate = useCallback((next, { replace = false } = {}) => {
     const url = new URL(window.location.href); url.searchParams.delete('pool'); url.pathname = '/';
     if (next === 'home') url.searchParams.delete('view'); else url.searchParams.set('view', next);
-    if (url.href !== window.location.href) window.history[replace ? 'replaceState' : 'pushState']({}, '', url);
+    if (url.href !== window.location.href) window.history[replace ? 'replaceState' : 'pushState']({returnTo:returnDestinations.test(readView(window.location.search))?readView(window.location.search):returnView()}, '', url);
     update(next); window.scrollTo({ top: 0 });
   }, []);
   useEffect(() => { const pop = () => update(readView(window.location.search)); window.addEventListener('popstate', pop); return () => window.removeEventListener('popstate', pop); }, []);

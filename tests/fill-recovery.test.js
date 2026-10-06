@@ -70,7 +70,7 @@ function complete(tree) {
 }
 
 describe('legacy fill recovery', () => {
-  it('restores a complete bracket after remount and clears it after guest export', async () => {
+  it('restores a complete bracket after remount and retains it after guest export for account handoff', async () => {
     const first = await mount();
     complete(first);
     act(() => first.unmount());
@@ -81,7 +81,7 @@ describe('legacy fill recovery', () => {
     await act(() => submit(restored).props.onClick());
     expect(onSubmit.mock.calls[0][0].champion.name).toBe('A');
     expect(mocks.submit).not.toHaveBeenCalled();
-    expect(localStorage.getItem(fillDraftKey('bracket-one'))).toBeNull();
+    expect(localStorage.getItem(fillDraftKey('bracket-one'))).not.toBeNull();
   });
 
   it('preserves picks on failed save, prevents duplicate requests, and allows retry', async () => {

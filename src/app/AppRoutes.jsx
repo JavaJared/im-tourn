@@ -1,3 +1,4 @@
+import { returnView } from '../lib/useViewNavigation';
 import BracketLoader from '../components/BracketLoader';
 import { isHiddenView } from '../config/app';
 import { Suspense } from 'react';
@@ -64,18 +65,18 @@ export default function AppRoutes({
       {view === 'my-activities' && <MyActivitiesPage key={currentUser?.uid || 'guest'} onNavigate={setView} onFillOut={handleFillOut} onViewSaved={handleSubmitFilled} />}
       {view === 'my-brackets' && <MyBracketsPage onFillOut={handleFillOut} onNavigate={setView} />}
       {view === 'create' && <CreatePage onNavigate={setView} />}
-      {view.startsWith('fill-bracket-') && <BracketUrlPage id={view.slice('fill-bracket-'.length)} mode="fill" onSubmit={handleSubmitFilled} onBack={() => setView('home')} />}
-      {view.startsWith('saved-bracket-') && <BracketUrlPage id={view.slice('saved-bracket-'.length)} mode="saved" onBack={() => setView('home')} />}
-      {view.startsWith('local-bracket-') && <BracketUrlPage id={view.slice('local-bracket-'.length)} mode="local" fallback={currentBracket} onBack={() => setView('home')} />}
+      {view.startsWith('fill-bracket-') && <BracketUrlPage id={view.slice('fill-bracket-'.length)} mode="fill" onSubmit={handleSubmitFilled} onBack={() => setView(returnView())} />}
+      {view.startsWith('saved-bracket-') && <BracketUrlPage id={view.slice('saved-bracket-'.length)} mode="saved" onBack={() => setView(returnView())} />}
+      {view.startsWith('local-bracket-') && <BracketUrlPage id={view.slice('local-bracket-'.length)} mode="local" fallback={currentBracket} onBack={() => setView(returnView())} />}
       {view === 'fill' && fillingBracket && (
         <FillPage
           bracket={fillingBracket}
           onSubmit={handleSubmitFilled}
-          onBack={() => setView('home')}
+          onBack={() => setView(returnView())}
         />
       )}
       {view === 'pdf' && currentBracket && (
-        <PDFPage bracket={currentBracket} onBack={() => setView('home')} />
+        <PDFPage bracket={currentBracket} onBack={() => setView(returnView())} />
       )}
       {view === 'weekly' && <WeeklyBracketPage />}
       {view === 'pools' && <PoolsPage onNavigate={setView} />}

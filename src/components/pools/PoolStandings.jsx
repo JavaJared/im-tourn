@@ -23,21 +23,18 @@ export default function PoolStandings({ entries, currentUserId, nameMap, analysi
           <h3><UserLink userId={e.userId} />{e.userId === currentUserId ? ' (you)' : ''}</h3>
           <strong>{e.total ?? '—'} pts{stale ? ' · may be stale' : e.breakdownUnavailable && e.total != null ? ' · saved score' : ''}</strong>
         </div>
-        {e.breakdownUnavailable ? <p>{e.breakdownUnavailable}</p> : <>
-          <dl className="standings-breakdown">
-            <div><dt>Base points</dt><dd>{e.basePoints}</dd></div>
-            <div><dt>Remaining possible</dt><dd>{e.remainingPossible === 0 ? '0' : `Up to ${e.remainingPossible}`}</dd></div>
-            <div><dt>Final total ceiling</dt><dd>{e.maxPossibleScore}</dd></div>
-          </dl>
-          <p>{e.correct} correct picks</p>
-        </>}
+        <div className="standings-remaining"><span>Remaining possible</span><strong>{e.breakdownUnavailable?'—':e.remainingPossible===0?'0':`Up to ${e.remainingPossible}`}</strong></div>
         <div className="standings-entry-footer">
           <span style={{...S.badge,...(status?.status==='eliminated'?S.badgeOut:status?.status==='clinched'?S.badgeClinch:S.badgeAlive)}}>{statusText[status?.status] || 'Alive'}</span>
           {canView && <div className="standings-entry-actions">
-          {e.champion != null && <span>Champion pick: {nameMap[e.champion] || e.champion}</span>}
           <button style={S.ghost} onClick={() => onView(e)}>View picks<span className="standings-sr-only"> for <UsernameText userId={e.userId} /></span></button>
           </div>}
         </div>
+        <details className="standings-details"><summary>Details<span className="sr-only"> for <UsernameText userId={e.userId}/></span></summary>
+          {e.breakdownUnavailable?<p>{e.breakdownUnavailable}</p>:<dl className="standings-breakdown"><div><dt>Base points</dt><dd>{e.basePoints}</dd></div><div><dt>Final total ceiling</dt><dd>{e.maxPossibleScore}</dd></div><div><dt>Correct picks</dt><dd>{e.correct}</dd></div></dl>}
+          {canView&&e.champion!=null&&<p>Champion pick: {nameMap[e.champion]||e.champion}</p>}
+          {(!status||status.status==='unknown')&&<p>Alive is provisional until winning paths can be determined.</p>}
+        </details>
       </article>;
     })}
   </section>;

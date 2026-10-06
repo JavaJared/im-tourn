@@ -29,6 +29,7 @@ __export(serverScoring_exports, {
   consensusBracket: () => consensusBracket,
   dateKeyET: () => dateKeyET,
   defaultRoundPoints: () => defaultRoundPoints,
+  generateSeededBracket: () => generateSeededBracket,
   getChampion: () => getChampion,
   gradeSleepers: () => gradeSleepers,
   hydrateState: () => hydrateState,
@@ -42,6 +43,7 @@ __export(serverScoring_exports, {
   picksFromState: () => picksFromState,
   predictedLosers: () => predictedLosers,
   scoreEntry: () => scoreEntry,
+  serialize: () => serialize,
   setResult: () => setResult,
   standardWeeklyMatchups: () => standardWeeklyMatchups,
   structureFromState: () => structureFromState,
@@ -54,6 +56,7 @@ module.exports = __toCommonJS(serverScoring_exports);
 
 // src/lib/customBracket.js
 var SLOT = Object.freeze({ OPEN: "open", NAMED: "named", BYE: "bye", FEED: "feed" });
+var MAX_PARTICIPANTS = 100;
 var clone = (s) => typeof structuredClone === "function" ? structuredClone(s) : JSON.parse(JSON.stringify(s));
 var storedSlot = (box, slot) => slot === "A" ? box.slotA : box.slotB;
 function newId(s) {
@@ -151,6 +154,31 @@ function setResult(state, boxId, winnerId) {
   else box.result = { winnerId };
   clearResultsDownstream(next, loc, boxId);
   return next;
+}
+function countNamed(state) {
+  const loc = locate(state);
+  let n = 0;
+  for (const id of Object.keys(state.boxes)) for (const slot of ["A", "B"]) if (slotDisplay(state, loc, id, slot).type === SLOT.NAMED) n += 1;
+  return n;
+}
+function validateForPublish(state) {
+  const errors = [];
+  const rounds = state.rounds;
+  if (!rounds.length || !Object.keys(state.boxes).length) return { valid: false, errors: ["Add at least one matchup to get started"] };
+  const last = rounds.length - 1;
+  if (rounds[last].length !== 1) errors.push("The final round must have exactly one matchup");
+  for (let r = 1; r < rounds.length; r += 1) {
+    const need = Math.ceil(rounds[r - 1].length / 2);
+    if (rounds[r].length < need) errors.push(`Round ${r + 1} needs at least ${need} matchup${need > 1 ? "s" : ""} to fit everything advancing from Round ${r}`);
+  }
+  const loc = locate(state);
+  for (const id of Object.keys(state.boxes)) for (const slot of ["A", "B"]) {
+    if (slotDisplay(state, loc, id, slot).type === SLOT.OPEN) errors.push(`A matchup in Round ${loc[id].r + 1} has an empty slot`);
+  }
+  const n = countNamed(state);
+  if (n < 2) errors.push("Add at least 2 players");
+  if (n > MAX_PARTICIPANTS) errors.push(`Exceeds the ${MAX_PARTICIPANTS} player cap`);
+  return { valid: errors.length === 0, errors: [...new Set(errors)] };
 }
 function getChampion(state) {
   if (!state.rounds.length) return null;
@@ -300,6 +328,66 @@ function applyPicks(state, picks) {
 }
 
 // src/lib/standardBracket.js
+function buildEmptyRounds(numRounds, matchesInFirstRound) {
+  let state = createBracket();
+  let matches = matchesInFirstRound;
+  for (let r = 0; r < numRounds; r += 1) {
+    for (let m = 0; m < matches; m += 1) {
+      if (r === 0) state = addFirst(state);
+      else if (m === 0) state = after(state, state.rounds[r - 1][0]);
+      else state = beside(state, state.rounds[r][state.rounds[r].length - 1]);
+    }
+    matches /= 2;
+  }
+  return state;
+}
+function getSeedOrder(n) {
+  if (n === 2) return [0, 1];
+  const half = getSeedOrder(n / 2);
+  return half.flatMap((seed) => [seed, n - 1 - seed]);
+}
+var nextPowerOfTwo = (n) => 2 ** Math.ceil(Math.log2(n));
+function generateSeededBracket(entries) {
+  if (!Array.isArray(entries) || entries.length < 2) {
+    throw new Error("At least 2 entries are required");
+  }
+  if (entries.length > MAX_PARTICIPANTS) {
+    throw new Error(`Exceeds the ${MAX_PARTICIPANTS} player cap`);
+  }
+  const names = entries.map((e, i) => {
+    const name = typeof e === "string" ? e : e && e.name;
+    if (!name || !String(name).trim()) throw new Error(`Entry ${i + 1} is missing a name`);
+    return String(name).trim();
+  });
+  const padded = nextPowerOfTwo(names.length);
+  const numRounds = Math.log2(padded);
+  const seedOrder = getSeedOrder(padded);
+  const state = buildEmptyRounds(numRounds, padded / 2);
+  const firstRound = state.rounds[0];
+  for (let m = 0; m < firstRound.length; m += 1) {
+    const box = state.boxes[firstRound[m]];
+    for (const [which, key] of [[0, "slotA"], [1, "slotB"]]) {
+      const seedIdx = seedOrder[m * 2 + which];
+      if (seedIdx < names.length) {
+        box[key] = {
+          type: SLOT.NAMED,
+          participantId: `p${seedIdx + 1}`,
+          name: names[seedIdx],
+          seed: seedIdx + 1
+        };
+      } else {
+        box[key] = { type: SLOT.BYE };
+      }
+    }
+  }
+  const { valid, errors } = validateForPublish(state);
+  if (!valid) {
+    const err = new Error("Generated bracket failed validation");
+    err.errors = errors;
+    throw err;
+  }
+  return state;
+}
 function convertLegacyMatchups(matchups, { positionalIds = false } = {}) {
   if (!Array.isArray(matchups) || matchups.length === 0) {
     throw new Error("matchups must be a non-empty array of rounds");
@@ -446,10 +534,35 @@ function timestampMillis(value) {
 }
 
 // src/lib/customBracketCodec.js
+var DOC_VERSION = 2;
 var matchNumber = (id) => {
   const m = /^m(\d+)$/.exec(id);
   return m ? parseInt(m[1], 10) : 0;
 };
+function serialize(state) {
+  const boxes = {}, results = {}, scores = {}, participants = {};
+  const loc = locate(state);
+  for (const id of Object.keys(state.boxes)) {
+    const b = state.boxes[id];
+    boxes[id] = { slotA: b.slotA, slotB: b.slotB };
+    if (b.result && b.result.winnerId != null) results[id] = b.result.winnerId;
+    if (b.score && b.score.a != null && b.score.b != null) scores[id] = { a: b.score.a, b: b.score.b };
+    for (const slot of ["A", "B"]) {
+      const d = slotDisplay(state, loc, id, slot);
+      if (d.type === SLOT.NAMED) participants[d.participantId] = { name: d.name ?? "" };
+    }
+  }
+  return {
+    version: DOC_VERSION,
+    rounds: state.rounds.map((r) => ({ ids: [...r] })),
+    boxes,
+    results,
+    scores,
+    participants,
+    participantCount: countNamed(state),
+    roundCount: state.rounds.length
+  };
+}
 function deserialize(data) {
   const boxesIn = data.boxes || {}, results = data.results || {}, scores = data.scores || {};
   const boxes = {};
@@ -616,6 +729,7 @@ function consensusBracket(base, states) {
   consensusBracket,
   dateKeyET,
   defaultRoundPoints,
+  generateSeededBracket,
   getChampion,
   gradeSleepers,
   hydrateState,
@@ -629,6 +743,7 @@ function consensusBracket(base, states) {
   picksFromState,
   predictedLosers,
   scoreEntry,
+  serialize,
   setResult,
   standardWeeklyMatchups,
   structureFromState,

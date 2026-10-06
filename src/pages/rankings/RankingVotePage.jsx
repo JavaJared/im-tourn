@@ -284,12 +284,12 @@ export const RankingVotePage = ({ rankingId, onNavigate }) => {
         >
           ← Undo
         </button>
-        <span className="ranking-hint">Use ← → to pick · ⌘Z to undo</span>
+        <span className="ranking-hint">Use ← → to pick · Ctrl/Cmd+Z to undo</span>
         <button
           className="btn-secondary"
           onClick={() => onNavigate(`ranking-${rankingId}`)}
         >
-          Save & Exit
+          Continue later
         </button>
       </div>
     </div>

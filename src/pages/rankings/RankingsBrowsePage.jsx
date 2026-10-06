@@ -1,3 +1,4 @@
+import ExploreHeader from '../../components/layout/ExploreHeader';
 import BracketLoader from '../../components/BracketLoader';
 import FriendFilter from '../friends/FriendFilter';
 import FriendActivityDialog from '../friends/FriendActivityDialog';
@@ -50,13 +51,7 @@ export const RankingsBrowsePage = ({ onNavigate }) => {
 
   return (
     <div className="home-container">
-      <div className="hero">
-        <h1>RANK <span>ANYTHING</span></h1>
-
-        {!currentUser && (
-          <p className="hero-cta">Sign up to create and vote on rankings!</p>
-        )}
-      </div>
+      <ExploreHeader currentView="rankings" onNavigate={onNavigate}/>
 
       {!activeFriend && !loading && featured && (
         <>

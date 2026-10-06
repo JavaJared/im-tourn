@@ -156,7 +156,7 @@ export default function CustomBracketBuilder({ bracketId, onExit }) {
       <div style={{ padding: '8px 18px', borderBottom: '1px solid var(--line)' }}>
         <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 44, cursor: 'pointer', fontSize: 14 }}>
           <input type="checkbox" checked={showSeeds} onChange={event => setShowSeeds(event.target.checked)}
-            style={{ width: 18, height: 18, accentColor: 'var(--teal)' }} />
+            style={{ width: 24, height: 24, accentColor: 'var(--teal)' }} />
           Show seed numbers
         </label>
       </div>
@@ -228,9 +228,9 @@ export default function CustomBracketBuilder({ bracketId, onExit }) {
 function MatchCard({ id, dispA, dispB, seedA, seedB, pos, selected, onSelect, onName, onBye, onClear, onRemove }) {
   if (!pos) return null;
   return (
-    <div style={{ ...S.card, left: pos.x, top: pos.y, width: CARDW, ...(selected ? S.cardSel : {}) }} onMouseDown={(e) => { e.stopPropagation(); onSelect(id); }}>
+    <div role="group" tabIndex={0} aria-label={`Edit matchup ${id.toUpperCase()}`} onFocus={() => onSelect(id)} style={{ ...S.card, left: pos.x, top: pos.y, width: CARDW, ...(selected ? S.cardSel : {}) }} onMouseDown={(e) => { e.stopPropagation(); onSelect(id); }}>
       <div style={S.tag}>{id.toUpperCase()}{selected && (
-        <button style={S.del} title="Remove this matchup" onMouseDown={(e) => { e.stopPropagation(); onRemove(id); }}><Trash2 size={12} /></button>
+        <button style={S.del} title="Remove this matchup" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }} onClick={(e) => { e.stopPropagation(); onRemove(id); }}><Trash2 size={12} /></button>
       )}</div>
       <Slot id={id} slot="A" d={dispA} seed={seedA} onName={onName} onBye={onBye} onClear={onClear} />
       <div style={S.vs}>vs</div>
@@ -244,7 +244,7 @@ function Slot({ id, slot, d, seed, onName, onBye, onClear }) {
   if (d.type === SLOT.FEED) return <div style={{ ...S.slot, ...S.slotFeed }}><Lock size={12} /> <span style={S.feedTxt}>Winner of {d.sourceBoxId.toUpperCase()}</span></div>;
   if (d.type === SLOT.BYE) return (
     <div style={{ ...S.slot, ...S.slotBye }}><span style={S.byeTxt}>Bye</span>
-      <button style={S.slotX} title="Clear" onMouseDown={(e) => { e.stopPropagation(); onClear(id, slot); }}><X size={12} /></button>
+      <button style={S.slotX} title="Clear" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }} onClick={(e) => { e.stopPropagation(); onClear(id, slot); }}><X size={12} /></button>
     </div>
   );
   const named = d.type === SLOT.NAMED;
@@ -255,9 +255,9 @@ function Slot({ id, slot, d, seed, onName, onBye, onClear }) {
         onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
         onBlur={(e) => onName(id, slot, e.currentTarget.value)} />
       {named ? (
-        <button style={S.slotX} title="Clear" onMouseDown={(e) => { e.stopPropagation(); onClear(id, slot); }}><X size={12} /></button>
+        <button style={S.slotX} title="Clear" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }} onClick={(e) => { e.stopPropagation(); onClear(id, slot); }}><X size={12} /></button>
       ) : (
-        <button style={S.byeBtn} title="Make this a bye" onMouseDown={(e) => { e.stopPropagation(); onBye(id, slot); }}>Bye</button>
+        <button style={S.byeBtn} title="Make this a bye" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }} onClick={(e) => { e.stopPropagation(); onBye(id, slot); }}>Bye</button>
       )}
     </div>
   );
@@ -266,9 +266,9 @@ function Slot({ id, slot, d, seed, onName, onBye, onClear }) {
 function Handles({ pos, onBefore, onBeside, onAfter }) {
   return (
     <>
-      <button className="handle" style={{ ...S.handle, left: pos.x - 52, top: pos.y + CARDH / 2 - 17 }} title="Add a matchup in the earlier round" onMouseDown={(e) => { e.stopPropagation(); onBefore(); }}><Plus size={16} strokeWidth={3} /></button>
-      <button className="handle" style={{ ...S.handle, left: pos.x + CARDW + 18, top: pos.y + CARDH / 2 - 17 }} title="Add a matchup in the later round" onMouseDown={(e) => { e.stopPropagation(); onAfter(); }}><Plus size={16} strokeWidth={3} /></button>
-      <button className="handle" style={{ ...S.handle, left: pos.x + CARDW / 2 - 17, top: pos.y + CARDH + 18 }} title="Add a matchup in the same round" onMouseDown={(e) => { e.stopPropagation(); onBeside(); }}><Plus size={16} strokeWidth={3} /></button>
+      <button className="handle" style={{ ...S.handle, left: pos.x - 52, top: pos.y + CARDH / 2 - 17 }} title="Add a matchup in the earlier round" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }} onClick={(e) => { e.stopPropagation(); onBefore(); }}><Plus size={16} strokeWidth={3} /></button>
+      <button className="handle" style={{ ...S.handle, left: pos.x + CARDW + 18, top: pos.y + CARDH / 2 - 17 }} title="Add a matchup in the later round" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }} onClick={(e) => { e.stopPropagation(); onAfter(); }}><Plus size={16} strokeWidth={3} /></button>
+      <button className="handle" style={{ ...S.handle, left: pos.x + CARDW / 2 - 17, top: pos.y + CARDH + 18 }} title="Add a matchup in the same round" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }} onClick={(e) => { e.stopPropagation(); onBeside(); }}><Plus size={16} strokeWidth={3} /></button>
     </>
   );
 }
@@ -305,7 +305,7 @@ const S = {
   card: { position: 'absolute', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 12, padding: 9, boxShadow: '0 6px 18px rgba(0,0,0,.35)', cursor: 'pointer', userSelect: 'none' },
   cardSel: { border: '2px solid var(--orange)', padding: 8, boxShadow: '0 0 0 4px rgba(255,106,61,.14), 0 8px 22px rgba(0,0,0,.45)' },
   tag: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontFamily: "'Bebas Neue',sans-serif", fontSize: 12, letterSpacing: 1, color: 'var(--muted)', marginBottom: 6, height: 14 },
-  del: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, color: 'var(--orange)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 },
+  del: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, color: 'var(--orange)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 },
   vs: { fontSize: 10, color: 'var(--muted)', textAlign: 'center', margin: '3px 0', letterSpacing: 1 },
   slot: { display: 'flex', alignItems: 'center', gap: 6, height: 34, padding: '0 8px', borderRadius: 8, fontSize: 13 },
   slotOpen: { border: '1px dashed #3a4152' },
@@ -315,9 +315,9 @@ const S = {
   feedTxt: { fontSize: 12, fontWeight: 500 },
   byeTxt: { fontStyle: 'italic', fontSize: 13 },
   input: { flex: 1, minWidth: 0, background: 'transparent', border: 'none', outline: 'none', color: 'var(--text)', fontSize: 13, fontFamily: 'inherit' },
-  slotX: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, color: 'var(--muted)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 },
+  slotX: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, color: 'var(--muted)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 },
   byeBtn: { fontSize: 11, color: 'var(--muted)', background: 'transparent', border: '1px solid var(--line)', borderRadius: 6, padding: '2px 7px', cursor: 'pointer', flexShrink: 0 },
-  handle: { position: 'absolute', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: '50%', background: 'var(--teal)', color: '#08221f', border: 'none', cursor: 'pointer', zIndex: 5, boxShadow: '0 4px 12px rgba(43,212,192,.3)' },
+  handle: { position: 'absolute', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 44, height: 44, borderRadius: '50%', background: 'var(--teal)', color: '#08221f', border: 'none', cursor: 'pointer', zIndex: 5, boxShadow: '0 4px 12px rgba(43,212,192,.3)' },
   empty: { minHeight: 400, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 24 },
   emptyTitle: { fontFamily: "'Bebas Neue',sans-serif", fontSize: 30, letterSpacing: 1.5, margin: 0 },
   emptyText: { color: 'var(--muted)', fontSize: 14, maxWidth: 400, margin: '8px 0 22px', lineHeight: 1.5 },

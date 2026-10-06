@@ -35,7 +35,7 @@ test('failed saved loads offer retry and back without exposing a local draft',as
  await act(async()=>{tree=create(createElement(CustomBracketFill,{bracketId:'b',currentUserId:'alice',openSaved:true,onExit:back}));});
  expect(tree.root.findAllByType('section')).toHaveLength(0);
  expect(localStorage.getItem).not.toHaveBeenCalled();
- act(()=>tree.root.findByProps({'aria-label':'Back'}).props.onClick());expect(back).toHaveBeenCalled();
+ act(()=>tree.root.findByProps({'aria-label':'Close bracket'}).props.onClick());expect(back).toHaveBeenCalled();
  mocks.own.mockResolvedValue({id:'alice',userId:'alice',picks:{[mocks.state.rounds[0][0]]:'p1'}});
  await act(async()=>tree.root.findAllByType('button').find(button=>button.children.includes('Retry')).props.onClick());
  expect(tree.root.findByType('section').props['data-pick']).toBe('p1');
@@ -114,7 +114,7 @@ test('guests can pick and export without reading or submitting account results',
  await act(async()=>{tree=create(createElement(CustomBracketFill,{bracketId:'b'}));});
  const board=tree.root.findByType('section');expect(board.props['data-editable']).toBe(true);
  const labels=tree.root.findAllByType('button').map(button=>button.children.join(' '));
- expect(labels).toContain('Save PDF');expect(labels).toContain('Share bracket');
+ expect(labels).toContain('Download');expect(labels).toContain('Share bracket');
  expect(labels.some(label=>label.includes('Save my bracket'))).toBe(false);
  expect(mocks.own).not.toHaveBeenCalled();expect(mocks.load).not.toHaveBeenCalled();expect(mocks.submit).not.toHaveBeenCalled();
 });
