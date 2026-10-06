@@ -1,3 +1,4 @@
+import { returnView } from '../../lib/useViewNavigation';
 import BracketLoader from '../../components/BracketLoader';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -150,7 +151,7 @@ export const CreateRankingPage = ({ onNavigate }) => {
   };
 
   return (
-    <div className="home-container">
+    <div className="home-container create-ranking-page">
       <div className="page-header">
         <h1>Create Ranking</h1>
 
@@ -289,7 +290,7 @@ export const CreateRankingPage = ({ onNavigate }) => {
           <button
             type="button"
             className="btn-secondary"
-            onClick={() => onNavigate('rankings')}
+            onClick={() => onNavigate(returnView())}
             disabled={creating}
           >
             Cancel

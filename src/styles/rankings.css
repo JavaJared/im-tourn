@@ -946,3 +946,10 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
+/* Keep the heading and all fields in one centered creation column. */
+.home-container.create-ranking-page { max-width: 896px; }
+.create-ranking-page .create-pool-form { width: 100%; margin-inline: auto; }
+.create-ranking-page .ranking-entry-text { min-width: 0; }
+@media (max-width: 600px) {
+  .home-container.create-ranking-page { padding: 24px 16px; }
+}
