@@ -1,4 +1,4 @@
-.for-you-page{max-width:780px;margin:0 auto;padding:32px 24px 64px}
+.for-you-page{width:100%;max-width:1320px;box-sizing:border-box;margin:0 auto;padding:32px 24px 64px}
 .feed-heading,.feed-heading>div,.feed-explore,.feed-card-header,.feed-author,.feed-card footer{display:flex;align-items:center;gap:16px}
 .feed-heading{justify-content:space-between;flex-wrap:wrap;margin-bottom:20px}.feed-heading h1{font-size:2rem;margin:0}.feed-heading>div{flex-wrap:wrap;gap:12px}.feed-heading a,.feed-explore a{color:var(--text-primary)}
 .feed-heading a.nav-btn,.feed-card a.nav-btn{color:#0a0a0f;text-decoration:none;display:inline-flex;align-items:center;min-height:44px}
@@ -20,3 +20,6 @@
 .feed-card .feed-avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover}.feed-avatar{font-size:1rem}
 
 .feed-card .post-champion{display:flex;align-items:center;gap:16px;color:var(--ui-selected)}.post-champion>div{display:flex;flex-direction:column;gap:6px;min-width:0}.post-champion strong{font-size:1.3rem;overflow-wrap:anywhere;color:var(--ui-text)}.post-champion span{font-size:.8rem;color:var(--ui-muted)}.post-champion svg{flex-shrink:0}
+
+/* Give bracket previews desktop space without stretching captions into long lines. */
+.feed-card-body>div>p{max-width:75ch}
