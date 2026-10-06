@@ -126,7 +126,8 @@ function activityQuery(type, mode, friendId) {
   return { source, query: query.orderBy(FieldPath.documentId(), source.group ? 'desc' : 'asc').select(...fields).limit(13) };
 }
 exports.listFriendActivities = onCall(async req => {
-  const uid = uidOf(req), { friendId, type, mode = 'created', cursor } = req.data || {};
+  const { friendId, type, mode = 'created', cursor } = req.data || {};
+  const uid = mode === 'filled' ? uidOf(req) : req.auth?.uid;
   if (!validId(friendId)) throw new HttpsError('invalid-argument', 'Invalid profile.');
   if (mode === 'filled') await canView(uid, friendId);
   let { source, query } = activityQuery(type, mode, friendId);
@@ -186,9 +187,9 @@ exports.getFriendActivity = onCall(async req => {
 });
 
 exports.getUserProfile = onCall(async req => {
-  const viewerId = uidOf(req), profileId = req.data?.profileId || viewerId;
+  const viewerId = req.auth?.uid || null, profileId = req.data?.profileId || viewerId;
   if (!validId(profileId)) throw new HttpsError('invalid-argument', 'Invalid profile.');
-  const friendship = viewerId === profileId ? null : (await pairRef(viewerId, profileId).get()).data();
+  const friendship = !viewerId || viewerId === profileId ? null : (await pairRef(viewerId, profileId).get()).data();
   const relationship = viewerId === profileId ? 'self' : friendship?.status === 'accepted' ? 'accepted'
     : friendship?.status === 'pending' ? (friendship.requester === viewerId ? 'outgoing' : 'incoming') : 'none';
   const privateAccess = relationship === 'self' || relationship === 'accepted';
@@ -227,7 +228,7 @@ exports.getUserProfile = onCall(async req => {
       bio:typeof account.data()?.bio === 'string' ? account.data().bio.slice(0,300) : '',
       photoURL:account.data()?.photoURL || null, friendCount:friendTotal?.data().count ?? null,
       isSelf:viewerId === profileId, relationship, canViewPrivate:privateAccess,
-      canSendFriendRequest:!privateAccess && relationship === 'none', stats:{}, statsPending:true };
+      canSendFriendRequest:!!viewerId && !privateAccess && relationship === 'none', stats:{}, statsPending:true };
   }
   const joinedEntries = joined.docs.filter(doc => validId(doc.data().poolId));
   const poolIds = [...new Set(joinedEntries.map(doc => doc.data().poolId))].slice(0, 100);
@@ -264,7 +265,7 @@ exports.getUserProfile = onCall(async req => {
     isSelf: viewerId === profileId,
     relationship,
     canViewPrivate: privateAccess,
-    canSendFriendRequest: !privateAccess && relationship === 'none',
+    canSendFriendRequest: !!viewerId && !privateAccess && relationship === 'none',
     statsIncomplete: unavailable.length > 0 || [legacyCreated, customCreated, rankingCreated, legacyFilled, customFilled, rankingFilled, joined].some(snap => snap.size >= 201) || joinedEntries.length > 100,
     stats: {
       createdBrackets: legacyCreated.size + customCreated.docs.filter(doc => ['published', 'locked', 'complete'].includes(doc.data().status)).length,

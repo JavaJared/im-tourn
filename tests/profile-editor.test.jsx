@@ -3,13 +3,13 @@ import { act, create } from 'react-test-renderer';
 import { afterEach, expect, test, vi } from 'vitest';
 import ProfileEditor from '../src/pages/friends/ProfileEditor';
 import ProfilePage from '../src/pages/friends/ProfilePage';
-const mocks = vi.hoisted(() => ({ call: vi.fn(), username: 'alice', saveUsername: vi.fn() }));
+const mocks = vi.hoisted(() => ({ call: vi.fn(), username: 'alice', user: {uid:'alice'}, saveUsername: vi.fn() }));
 vi.mock('../src/services/server', () => ({ callServer: (...args) => mocks.call(...args) }));
 vi.mock('../src/lib/useDialog', () => ({ useDialog: () => ({current:null}) }));
-vi.mock('../src/contexts/AuthContext', () => ({ useAuth: () => ({ currentUser: {uid:'alice'}, username: mocks.username, updateUsername: mocks.saveUsername }) }));
+vi.mock('../src/contexts/AuthContext', () => ({ useAuth: () => ({ currentUser: mocks.user, username: mocks.username, updateUsername: mocks.saveUsername }) }));
 vi.mock('../src/lib/usePagedCatalog', () => ({ usePagedCatalog: () => ({items:[], loading:false, error:'', hasMore:false}) }));
 let tree;
-afterEach(() => { if (tree) act(() => tree.unmount()); mocks.call.mockReset(); });
+afterEach(() => { if (tree) act(() => tree.unmount()); mocks.call.mockReset(); mocks.user={uid:'alice'}; });
 test('editor keeps changes after errors and supports retry and photo removal', async () => {
   const saved = vi.fn();
   await act(async () => { tree = create(<ProfileEditor profile={{bio:'Old bio', photoURL:'https://example.com/photo.jpg'}} username="alice" updateUsername={mocks.saveUsername} onSaved={saved} onClose={()=>{}} />); });
@@ -53,4 +53,14 @@ test('profile header is usable before stats finish and stats failure does not hi
   await act(async()=>fail(Error('Offline')));
   expect(tree.root.findByType('h1').children.join('')).toBe('@alice');
   expect(JSON.stringify(tree.toJSON())).toContain('Retry statistics');
+});
+
+test('guest opens a public profile without account or friend editing controls', async () => {
+  mocks.user=null;
+  mocks.call.mockResolvedValue({id:'bob',isSelf:false,username:'bob',bio:'Public bio',friendCount:2,stats:{createdBrackets:3},canViewPrivate:false,canSendFriendRequest:false});
+  await act(async()=>{tree=create(<ProfilePage profileId="bob" onNavigate={()=>{}}/>);});
+  expect(tree.root.findByType('h1').children.join('')).toBe('@bob');
+  expect(JSON.stringify(tree.toJSON())).toContain('Public bio');
+  expect(tree.root.findAllByProps({'aria-label':'Edit profile'})).toHaveLength(0);
+  expect(mocks.call).toHaveBeenCalledWith('getUserProfile',{profileId:'bob'});
 });

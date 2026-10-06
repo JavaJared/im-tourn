@@ -63,7 +63,7 @@ export default function ProfilePage({ profileId, onNavigate }) {
   useEffect(() => {
     let active = true;
     setProfile(null); setError(''); setStatsError(''); setSelected(null); setMode('created'); setEditing(false);
-    if (targetId && currentUser) {
+    if (targetId) {
       let full = null;
       callServer('getUserProfile', { profileId:targetId, section:'header' }).then(
         value => { if (active && !full) setProfile(value); },
@@ -77,7 +77,7 @@ export default function ProfilePage({ profileId, onNavigate }) {
     return () => { active = false; };
   }, [targetId, currentUser?.uid, retry]);
 
-  if (!currentUser) return <div className="home-container"><h1>Profile</h1><p>Sign in to view profiles.</p></div>;
+  if (!targetId) return <div className="home-container"><h1>Profile</h1><p>Sign in to open your profile.</p></div>;
   if (error) return <div className="home-container"><h1>Profile unavailable</h1><p role="alert">{error}</p><button className="nav-btn" onClick={() => setRetry(value => value + 1)}>Retry loading profile</button></div>;
   if (!profile) return <div className="home-container"><BracketLoader label="Loading profile…"/></div>;
 
@@ -92,7 +92,7 @@ export default function ProfilePage({ profileId, onNavigate }) {
         <div className="profile-social">
           {profile.isSelf ? <button className="back-btn" onClick={() => onNavigate('friends')}><strong>{profile.friendCount ?? '—'}</strong> {profile.friendCount === 1 ? 'friend' : 'friends'}</button>
             : <span><strong>{profile.friendCount ?? '—'}</strong> {profile.friendCount === 1 ? 'friend' : 'friends'}</span>}
-          <ProfileFriendAction key={`${currentUser.uid}:${profile.id}`} profile={profile} onRefresh={() => setRetry(value => value + 1)} />
+          {currentUser && <ProfileFriendAction key={`${currentUser?.uid}:${profile.id}`} profile={profile} onRefresh={() => setRetry(value => value + 1)} />}
         </div>
         {profile.bio && <p className="profile-bio">{profile.bio}</p>}
         {profile.isSelf && !profile.bio && <button className="profile-add-bio" onClick={() => setEditing(true)}>Add bio</button>}
@@ -111,7 +111,7 @@ export default function ProfilePage({ profileId, onNavigate }) {
         {[['posted','Posts'],['created','Created'],['filled','Picks']].map(([value,label])=><button key={value} className="back-btn" aria-pressed={mode===value} onClick={()=>{setMode(value);setSelected(null);}}>{label}</button>)}
       </div>
       {mode!=='posted'&&<div className="section-switcher compact-switcher" role="group" aria-label="Content type">{['brackets','rankings'].map(value=><button className="quiet-button" key={value} aria-pressed={kind===value} onClick={()=>{setKind(value);setSelected(null);}}>{value==='brackets'?'Brackets':'Rankings'}</button>)}</div>}
-      {mode==='posted'?<ProfilePosts key={targetId} userId={targetId} photoURL={profile.photoURL} uid={currentUser.uid} onNavigate={onNavigate}/>:<ActivityList key={`${targetId}:${kind}:${mode}`} profileId={targetId} kind={kind} mode={mode} canViewPrivate={profile.canViewPrivate} onNavigate={onNavigate} onSelect={setSelected} />}
+      {mode==='posted'?<ProfilePosts key={targetId} userId={targetId} photoURL={profile.photoURL} uid={currentUser?.uid} onNavigate={onNavigate}/>:<ActivityList key={`${targetId}:${kind}:${mode}`} profileId={targetId} kind={kind} mode={mode} canViewPrivate={profile.canViewPrivate} onNavigate={onNavigate} onSelect={setSelected} />}
     </section>
     <FriendActivityDialog selection={selected} friendId={targetId} onClose={() => setSelected(null)} />
   </div>;

@@ -1,0 +1,6 @@
+.bracket-thumbnail{margin:16px 0;border:1px solid var(--ui-line,#515b6f);border-radius:12px;background:#0d1119;overflow:hidden}
+.bracket-thumbnail>a{display:block;padding:12px;min-width:0}
+.bracket-thumbnail>a:focus-visible{outline:3px solid #5ee0c5;outline-offset:-4px}
+.bracket-thumbnail svg{display:block;width:100%;height:auto;max-height:440px}
+.thumbnail-placeholder{min-height:180px;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;color:var(--ui-muted,#c4cbd6)}
+@media(max-width:600px){.bracket-thumbnail svg{max-height:320px}}

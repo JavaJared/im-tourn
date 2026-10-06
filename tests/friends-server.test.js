@@ -17,6 +17,42 @@ run('accepted friends and shared activity', () => {
     pairRef = require('../functions/friends').internal.pairRef;
   });
   beforeEach(async () => {for (const name of ['bracketPosts','socialWriteLimits','feedPreferences','notificationInboxes','bracketShareLimits','_bracketConsensus','accountProfiles','usernames','friendships','friendProfiles','friendCodes','friendRequestLimits','brackets','customBrackets','submissions','rankings','rankingVotes','rankingEntries','bracketPools','poolEntries']) await db.recursiveDelete(db.collection(name));});
+  test('guests can read public profiles and creations, but never private activity', async () => {
+    await db.doc('accountProfiles/bob').set({username:'bob_tourn',bio:'Hello',email:'private@example.com'});
+    await db.doc('customBrackets/public-profile-bracket').set({hostId:'bob',title:'Public',status:'published'});
+    await db.doc('customBrackets/private-profile-bracket').set({hostId:'bob',title:'Draft',status:'draft'});
+    const profile=await call('getUserProfile',null,{profileId:'bob'});
+    expect(profile).toMatchObject({username:'bob_tourn',bio:'Hello',isSelf:false,canViewPrivate:false,canSendFriendRequest:false,relationship:'none'});
+    expect(profile).not.toHaveProperty('email');
+    expect(profile.stats).not.toHaveProperty('filledBrackets');
+    expect(profile.stats.createdBrackets).toBe(1);
+    expect((await call('getUserProfile',null,{profileId:'bob',section:'header'})).canViewPrivate).toBe(false);
+    const created=await call('listFriendActivities',null,{friendId:'bob',type:'custom',mode:'created'});
+    expect(created.items.map(item=>item.title)).toEqual(['Public']);
+    await expect(call('listFriendActivities',null,{friendId:'bob',type:'custom',mode:'filled'})).rejects.toMatchObject({code:'unauthenticated'});
+    await expect(call('getFriendActivity',null,{friendId:'bob',type:'custom',activityId:'customBrackets/public-profile-bracket/submissions/bob'})).rejects.toMatchObject({code:'unauthenticated'});
+  });
+  test('thumbnails only expose public structures and consented post snapshots', async () => {
+    const matchups=[[{entry1:{name:'A',seed:1},entry2:{name:'B',seed:2},winner:null}]];
+    await db.doc('brackets/thumb').set({matchups:JSON.stringify(matchups)});
+    await db.doc('submissions/thumb-save').set({userId:'bob',bracketId:'thumb',matchups:JSON.stringify([[{...matchups[0][0],winner:2}]])});
+    const preview=await call('getBracketThumbnail',null,{type:'legacy',id:'thumb'});
+    expect(Object.values(preview.nameMap)).toEqual(['A','B']);
+    expect(Object.values(preview.state.boxes).some(box=>box.result?.winnerId)).toBe(false);
+    const post=await call('publishBracketPost','bob',{type:'legacy',bracketId:'thumb',submissionId:'thumb-save',publicConsent:true});
+    const completed=await call('getBracketThumbnail',null,{type:'post',id:post.id});
+    expect(Object.values(completed.state.boxes).some(box=>box.result?.winnerId)).toBe(true);
+    await call('deleteBracketPost','bob',{postId:post.id});
+    await expect(call('getBracketThumbnail',null,{type:'post',id:post.id})).rejects.toMatchObject({code:'not-found'});
+    const custom={status:'draft',rounds:[{ids:['m1']}],boxes:{m1:{slotA:{type:'named',participantId:'a',name:'A'},slotB:{type:'named',participantId:'b',name:'B'}}}};
+    await db.doc('customBrackets/thumb-custom').set(custom);
+    await expect(call('getBracketThumbnail',null,{type:'custom',id:'thumb-custom'})).rejects.toMatchObject({code:'not-found'});
+    await db.doc('customBrackets/thumb-custom').update({status:'published'});
+    expect((await call('getBracketThumbnail',null,{type:'custom',id:'thumb-custom'})).nameMap.a).toBe('A');
+    await db.doc('customBrackets/thumb-custom').update({rounds:null});
+    await expect(call('getBracketThumbnail',null,{type:'custom',id:'thumb-custom'})).rejects.toMatchObject({code:'failed-precondition'});
+    await expect(call('getBracketThumbnail',null,{type:'pool',id:'private'})).rejects.toMatchObject({code:'invalid-argument'});
+  });
   test('public bracket posts require consent, ownership and complete saved picks', async () => {
     const matchups=[[{entry1:{name:'A',seed:1},entry2:{name:'B',seed:2},winner:null}]];
     await db.doc('brackets/post-source').set({title:'My bracket',category:'Movies',matchups:JSON.stringify(matchups)});

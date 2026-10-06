@@ -12,4 +12,4 @@
 
 Validation includes client regressions, server helpers, production build, and focused tests for creation/retry, export choices, bounded avatar access, return navigation and keyboard editing. Firebase emulator-only checks remain in GitHub Actions. No Netlify command or live-site inspection was performed; rendered visual review remains with Jared.
 
-Public profile access and draft restrictions are unchanged. Whole-bracket thumbnail generation remains a separate optional pipeline; the feed uses existing champion summaries without downloading full brackets. Ranking conversion retains its authorized generated-draft review path.
+Public profiles now allow guests to read public identity, published creations, and public posts. Saved choices and pool statistics remain restricted to owners and accepted friends. Draft restrictions are unchanged. Feed cards lazily request full-bracket SVG previews near the viewport; public bracket previews use blank structures, and post previews use the author’s explicitly published snapshot. No stored image pipeline or private submission downloads are required. Ranking conversion retains its authorized generated-draft review path.
