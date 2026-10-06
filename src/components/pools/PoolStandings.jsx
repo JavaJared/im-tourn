@@ -21,8 +21,8 @@ export default function PoolStandings({ entries, currentUserId, nameMap, analysi
         <div className="standings-entry-heading">
           <span className="standings-rank">{e.total == null ? 'Unranked' : `${partial ? 'Loaded rank ' : '#'}${rank}${tied ? ' (tie)' : ''}`}</span>
           <h3><UserLink userId={e.userId} />{e.userId === currentUserId ? ' (you)' : ''}</h3>
-          <strong>{e.total ?? '—'} pts{stale ? ' · may be stale' : e.breakdownUnavailable && e.total != null ? ' · saved score' : ''}</strong>
         </div>
+        <div className="standings-points"><span>Points</span><strong>{e.total ?? '—'} pts{stale ? ' · may be stale' : e.breakdownUnavailable && e.total != null ? ' · saved score' : ''}</strong></div>
         <div className="standings-remaining"><span>Remaining possible</span><strong>{e.breakdownUnavailable?'—':e.remainingPossible===0?'0':`Up to ${e.remainingPossible}`}</strong></div>
         <div className="standings-entry-footer">
           <span style={{...S.badge,...(status?.status==='eliminated'?S.badgeOut:status?.status==='clinched'?S.badgeClinch:S.badgeAlive)}}>{statusText[status?.status] || 'Alive'}</span>

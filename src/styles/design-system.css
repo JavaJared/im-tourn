@@ -40,21 +40,23 @@
 .profile-page .profile-primary-stats{grid-template-columns:repeat(3,minmax(0,1fr));max-width:650px}
 .profile-page .profile-stat{background:transparent;border:0;padding:12px}
 .quiet-count{font-size:.85rem;font-weight:400;color:var(--ui-muted)}
-.pool-standings .standings-entry{display:grid;grid-template-columns:minmax(200px,1fr) minmax(100px,auto) minmax(180px,auto);align-items:center;gap:12px 24px;padding:16px;margin-bottom:8px;border-radius:12px}
-.pool-standings .standings-entry-heading{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:8px 12px}
-.pool-standings .standings-entry-heading h3{margin:0;font-size:1rem;overflow-wrap:anywhere}
-.pool-standings .standings-entry-heading>strong{grid-column:2;font-size:1.1rem}
-.standings-remaining{display:flex;flex-direction:column;gap:4px}.standings-remaining>span{color:var(--ui-muted);font-size:.8rem}
-.pool-standings .standings-entry-footer{display:flex;align-items:center;justify-content:flex-end;gap:12px;margin:0;flex-wrap:wrap}
-.pool-standings .standings-entry-actions{margin:0}
+.pool-standings .standings-entry{display:grid;grid-template-columns:minmax(0,1.2fr) repeat(2,minmax(0,1fr)) minmax(180px,1fr);align-items:center;gap:12px 24px;padding:16px;margin-bottom:8px;border-radius:12px}
+.pool-standings .standings-entry .standings-entry-heading{display:grid;min-width:0;grid-template-columns:auto 1fr;align-items:center;gap:8px 12px}
+.pool-standings .standings-entry .standings-entry-heading h3{min-width:0;margin:0;font-size:1rem;overflow-wrap:anywhere}
+.standings-points,.standings-remaining{display:flex;flex-direction:column;gap:4px;min-width:0;overflow-wrap:anywhere}
+.standings-points>span,.standings-remaining>span{color:var(--ui-muted);font-size:.8rem}
+.standings-points>strong{font-size:1.1rem}
+.pool-standings .standings-entry .standings-entry-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0;flex-wrap:wrap}
+.pool-standings .standings-entry .standings-entry-actions{margin:0}
 .standings-details{grid-column:1/-1}.standings-details>summary{font-size:.85rem;min-height:44px;width:fit-content}
 .standings-details .standings-breakdown{margin-top:12px}
 @media(max-width:700px){
  .header .header-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;order:3}
  .header .header-nav .nav-link{padding:10px 4px;white-space:normal;text-align:center}
  .header .user-name{display:none}
- .pool-standings .standings-entry{grid-template-columns:minmax(0,1fr) auto;gap:12px}
- .pool-standings .standings-entry-footer{grid-column:1/-1;justify-content:space-between}
+ .pool-standings .standings-entry{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+ .pool-standings .standings-entry .standings-entry-heading{grid-column:1/-1}
+ .pool-standings .standings-entry .standings-entry-footer{grid-column:1/-1;justify-content:space-between}
  .profile-page .profile-stat{padding:8px 4px}.profile-page .profile-stat span{font-size:.8rem}
  .action-dialog{padding:20px}.action-dialog-backdrop{align-items:flex-end}
  .create-flow .form-card{padding:16px}.creation-steps{gap:12px;font-size:.9rem}
