@@ -18,11 +18,11 @@ export default function ArenaDiscussion({ room, currentUser, disabled, onAction,
     if (await onAction('comment', { body, requestId })) { setBody(''); setRequestId(crypto.randomUUID()); setNotice('Comment submitted for review. It will appear once approved.'); }
   }
   return <section aria-label="Discussion" className="arena-panel"><h2>Discussion</h2>
-    {currentUser ? <form className="arena-form" onSubmit={submit}><label htmlFor="arena-comment">Your argument<textarea id="arena-comment" required maxLength={1000} value={body} disabled={disabled} onChange={e => { setBody(e.target.value); setRequestId(crypto.randomUUID()); }}/></label><button disabled={disabled || !body.trim()}>Submit for review · 1 credit</button><small>Comments are reviewed before publication. Credits reset at midnight UTC.</small></form> : <p>Sign in to join the discussion.</p>}
+    {currentUser ? <form className="arena-form" onSubmit={submit}><label htmlFor="arena-comment">Your argument<textarea id="arena-comment" required maxLength={1000} value={body} disabled={disabled} onChange={e => { setBody(e.target.value); setRequestId(crypto.randomUUID()); }}/></label><button className="arena-primary" disabled={disabled || !body.trim()}>Submit for review · 1 credit</button><small>Comments are reviewed before publication. Credits reset at midnight UTC.</small></form> : <p>Sign in to join the discussion.</p>}
     {notice && <p role="status">{notice}</p>}
     {loading && <BracketLoader compact/>}{error && <p role="alert">{error} <button onClick={() => load()}>Retry</button></p>}
     {!loading && !items.length && <p>No approved comments yet.</p>}
-    {items.map(c => <article className="arena-comment" key={c.id}><UserLink userId={c.userId}/><time dateTime={new Date(c.createdAt).toISOString()}>{new Date(c.createdAt).toLocaleString()}</time><p>{c.body}</p>{isAdmin && <button onClick={async () => { try { await callServer('manageGoatDebate', { roomId: room.id, action: 'remove', commentId: c.id }); await load(); } catch(e) { setError(e.message); } }}>Remove comment</button>}</article>)}
+    {items.map(c => <article className="arena-comment" key={c.id}><UserLink userId={c.userId}/><time dateTime={new Date(c.createdAt).toISOString()}>{new Date(c.createdAt).toLocaleString()}</time><p>{c.body}</p>{isAdmin && <button className="arena-danger" onClick={async () => { try { await callServer('manageGoatDebate', { roomId: room.id, action: 'remove', commentId: c.id }); await load(); } catch(e) { setError(e.message); } }}>Remove comment</button>}</article>)}
     {cursor && <button onClick={() => load(cursor)}>Older comments</button>}
   </section>;
 }

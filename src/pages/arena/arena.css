@@ -5,7 +5,7 @@
 .arena-room-link:hover { border-color:#ff8a50; }
 .arena-round,.arena-actions { display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; }
 .arena-matchup { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-block:20px 28px; }
-.arena .arena-candidate { display:flex; flex-direction:column; gap:20px; justify-content:center; align-items:center; min-height:200px; padding:24px; background:#171b23; border:2px solid #697386; border-radius:18px; color:#fff; white-space:normal; }
+.arena .arena-candidate { font:inherit; line-height:1.5; display:flex; flex-direction:column; gap:20px; justify-content:center; align-items:center; min-height:200px; padding:24px; background:#171b23; border:2px solid #697386; border-radius:18px; color:#fff; white-space:normal; }
 .arena .arena-candidate strong { font-size:clamp(1.25rem,3vw,2rem); overflow-wrap:anywhere; }
 .arena .arena-candidate.selected { border-color:#ff914d; background:#332219; }
 .arena .arena-candidate:disabled { opacity:1; cursor:default; }
@@ -27,3 +27,81 @@
 .arena summary { cursor:pointer; }
 .arena button:focus-visible,.arena a:focus-visible,.arena summary:focus-visible { outline:3px solid #ffae7d; outline-offset:4px; }
 @media(max-width:540px) { .arena-matchup { gap:10px; } .arena .arena-candidate { padding:16px 8px; min-height:170px; } .arena-actions { justify-content:flex-start; } }
+
+/* Scoped controls also cover retry, pagination, and admin-only actions. */
+.arena button:where(:not(.arena-candidate, .arena-tab)) {
+  appearance:none;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  box-sizing:border-box;
+  min-height:44px;
+  max-width:100%;
+  padding:10px 16px;
+  border:1px solid var(--ui-line);
+  border-radius:8px;
+  background:var(--ui-raised);
+  color:var(--ui-text);
+  font:inherit;
+  font-weight:600;
+  line-height:1.4;
+  text-align:center;
+  white-space:normal;
+  overflow-wrap:anywhere;
+  cursor:pointer;
+}
+.arena button:where(:not(.arena-candidate, .arena-tab)):hover:not(:disabled) {
+  background:var(--ui-surface);
+  border-color:var(--ui-muted);
+}
+.arena button.arena-primary {
+  background:var(--ui-action);
+  border-color:var(--ui-action);
+  color:var(--ui-base);
+}
+.arena button.arena-primary:hover:not(:disabled) { background:#ff9d70; border-color:#ff9d70; }
+.arena button.arena-danger { color:#ffb4b4; border-color:#88505a; }
+.arena button.arena-danger:hover:not(:disabled) { background:#352027; border-color:#ffb4b4; }
+.arena button:where(:not(.arena-candidate)):disabled {
+  background:var(--ui-surface);
+  border-color:var(--ui-line);
+  color:var(--ui-muted);
+  cursor:not-allowed;
+  opacity:1;
+}
+.arena-form input,.arena-form textarea {
+  appearance:none;
+  min-width:0;
+  min-height:44px;
+  margin:0;
+  padding:12px 14px;
+  border:1px solid #697386;
+  border-radius:8px;
+  background:var(--ui-raised);
+  color:var(--ui-text);
+  caret-color:var(--ui-text);
+  font:inherit;
+  font-size:1rem;
+  line-height:1.5;
+  color-scheme:dark;
+}
+.arena-form textarea { min-height:120px; resize:vertical; }
+.arena-form input::placeholder,.arena-form textarea::placeholder { color:var(--ui-muted); opacity:1; }
+.arena-form input:focus-visible,.arena-form textarea:focus-visible {
+  outline:3px solid #ffae7d;
+  outline-offset:3px;
+  border-color:var(--ui-action);
+}
+.arena-form input:disabled,.arena-form textarea:disabled { color:var(--ui-muted); background:var(--ui-surface); cursor:not-allowed; }
+.arena-form form { display:grid; gap:12px; min-width:0; }
+.arena-form label { min-width:0; color:var(--ui-text); }
+.arena-form small { color:var(--ui-muted); line-height:1.5; }
+.arena-panel>summary { min-height:44px; align-content:center; font-weight:600; color:var(--ui-text); }
+.arena-round>span { display:flex; align-items:center; flex-wrap:wrap; gap:12px; }
+.arena-list-row>button { flex-shrink:0; }
+.arena-comment small { overflow-wrap:anywhere; }
+@media(max-width:540px) {
+  .arena-list-row { gap:12px; }
+  .arena-form button,.arena-actions>button { width:100%; }
+}

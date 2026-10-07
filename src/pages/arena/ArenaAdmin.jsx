@@ -13,7 +13,7 @@ export function CreateDebate({ onCreated }) {
     <label>Debate title<input required maxLength={100} value={title} disabled={busy} onChange={e => { setTitle(e.target.value); setRequestId(crypto.randomUUID()); }}/></label>
     <label>Candidates — one per line<textarea required rows={6} value={candidates} disabled={busy} onChange={e => { setCandidates(e.target.value); setRequestId(crypto.randomUUID()); }}/></label>
     <p>First two candidates open the debate. Include at least two reserve challengers.</p>
-    {error && <p role="alert">{error}</p>}<button disabled={busy}>{busy ? 'Creating…' : 'Create · 5 credits'}</button>
+    {error && <p role="alert">{error}</p>}<button className="arena-primary" disabled={busy}>{busy ? 'Creating…' : 'Create · 5 credits'}</button>
   </form></details>;
 }
 export default function ArenaAdmin({ room, onRefresh }) {
@@ -28,10 +28,10 @@ export default function ArenaAdmin({ room, onRefresh }) {
   }
   return <details className="arena-panel"><summary>Host controls & moderation</summary><div className="arena-form">
     <button disabled={busy} onClick={() => run(room.status === 'active' ? 'pause' : 'resume')}>{room.status === 'active' ? 'Pause debate' : 'Resume · new 24-hour window'}</button>
-    <form onSubmit={e => { e.preventDefault(); run('candidate', { name }); }}><label>New candidate<input required maxLength={80} value={name} onChange={e => setName(e.target.value)}/></label><button disabled={busy}>Add candidate</button></form>
+    <form onSubmit={e => { e.preventDefault(); run('candidate', { name }); }}><label>New candidate<input required maxLength={80} value={name} onChange={e => setName(e.target.value)}/></label><button className="arena-primary" disabled={busy}>Add candidate</button></form>
     <button disabled={busy} onClick={() => run('queue')}>Review pending comments</button>
     {queue?.length === 0 && <p>No comments awaiting review.</p>}
-    {queue?.map(c => <article className="arena-comment" key={c.id}><UserLink userId={c.userId}/><p>{c.body}</p><div className="arena-actions"><button disabled={busy} onClick={() => run('approve', { commentId: c.id })}>Approve</button><button disabled={busy} onClick={() => run('remove', { commentId: c.id })}>Remove</button><button disabled={busy} onClick={() => run('restrict', { commentId: c.id })}>Remove & restrict debate access</button></div><small>User ID: {c.userId}</small></article>)}
+    {queue?.map(c => <article className="arena-comment" key={c.id}><UserLink userId={c.userId}/><p>{c.body}</p><div className="arena-actions"><button disabled={busy} onClick={() => run('approve', { commentId: c.id })}>Approve</button><button className="arena-danger" disabled={busy} onClick={() => run('remove', { commentId: c.id })}>Remove</button><button className="arena-danger" disabled={busy} onClick={() => run('restrict', { commentId: c.id })}>Remove & restrict debate access</button></div><small>User ID: {c.userId}</small></article>)}
     {cursor && <button disabled={busy} onClick={() => run('queue', { cursor })}>More pending comments</button>}
     <form onSubmit={e => { e.preventDefault(); run('restore', { userId: restoreId }); }}><label>Restore debate access after appeal — user ID<input required value={restoreId} onChange={e => setRestoreId(e.target.value)}/></label><button disabled={busy}>Restore access</button></form>
     {error && <p role="alert">{error}</p>}
