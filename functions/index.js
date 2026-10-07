@@ -141,3 +141,7 @@ exports.listUserBracketPosts = socialPosts.listUserBracketPosts;
 exports.createBracketFromRanking = require('./ranking-brackets').createBracketFromRanking;
 
 exports.getBracketThumbnail = require("./bracket-thumbnail").getBracketThumbnail;
+
+for (const [name, handler] of Object.entries(require('./arena'))) {
+  if (name !== 'internal') exports[name] = handler;
+}

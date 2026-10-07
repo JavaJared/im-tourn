@@ -5,5 +5,5 @@ export function CreateAction({ onNavigate }) {
 }
 export default function ExploreHeader({ currentView, onNavigate }) {
   return <><header className="page-heading"><h1>Explore</h1><CreateAction onNavigate={onNavigate}/></header>
-    <nav className="section-switcher" aria-label="Explore"><ViewLink view="browse" currentView={currentView} onNavigate={onNavigate}>Brackets</ViewLink><ViewLink view="rankings" currentView={currentView} onNavigate={onNavigate}>Rankings</ViewLink><ViewLink view="weekly" currentView={currentView} onNavigate={onNavigate}>Weekly bracket</ViewLink></nav></>;
+    <nav className="section-switcher" aria-label="Explore"><ViewLink view="browse" currentView={currentView} onNavigate={onNavigate}>Brackets</ViewLink><ViewLink view="rankings" currentView={currentView} onNavigate={onNavigate}>Rankings</ViewLink><ViewLink view="weekly" currentView={currentView} onNavigate={onNavigate}>Weekly bracket</ViewLink><ViewLink view="arena" currentView={currentView} onNavigate={onNavigate}>GOAT Arena</ViewLink></nav></>;
 }

@@ -4,6 +4,7 @@ import { isHiddenView } from '../config/app';
 import { Suspense } from 'react';
 import BracketUrlPage from '../pages/brackets/BracketUrlPage';
 import {
+  ArenaPage,
   FriendsPage,
   ProfilePage,
   RankingsBrowsePage,
@@ -56,6 +57,7 @@ export default function AppRoutes({
       }
     >
       {view === 'not-found' && <section className="home-container"><h1>Page not found</h1><p>This link does not match an available page.</p><button className="nav-btn" onClick={() => setView('home')}>Back to For You</button></section>}
+      {(view === 'arena' || view.startsWith('debate-')) && <ArenaPage key={view} roomId={view.startsWith('debate-') ? view.slice(7) : null} onNavigate={setView}/> }
       {view === 'home' && <ForYouPage key={currentUser?.uid || 'guest'} onNavigate={setView} />}
       {view.startsWith('feed-post-') && <BracketPostPage key={view} postId={view.slice('feed-post-'.length)} onNavigate={setView} />}
       {view === 'browse' && <HomePage onFillOut={handleFillOut} onNavigate={setView} />}

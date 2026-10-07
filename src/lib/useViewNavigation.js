@@ -1,15 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
-const pages = new Set(['home','browse','friends','profile','my-activities','my-brackets','create','fill','pdf','weekly','champions','pools','create-pool','prediction-pools','create-prediction-pool','rankings','create-ranking','my-rankings','drafts','create-draft','my-drafts','privacy','terms','admin','kristin-tiers']);
+const pages = new Set(['arena','home','browse','friends','profile','my-activities','my-brackets','create','fill','pdf','weekly','champions','pools','create-pool','prediction-pools','create-prediction-pool','rankings','create-ranking','my-rankings','drafts','create-draft','my-drafts','privacy','terms','admin','kristin-tiers']);
 export function readView(search) {
   const value = new URLSearchParams(search).get('view') || 'home';
-  return pages.has(value) || /^(feed-post-|pool-|prediction-pool-|ranking-|ranking-vote-|draft-|kristin-tiers-|custom-bracket-|saved-custom-bracket-|fill-bracket-|saved-bracket-|local-bracket-|profile-)[\w-]+$/.test(value) ? value : 'not-found';
+  return pages.has(value) || /^(debate-|feed-post-|pool-|prediction-pool-|ranking-|ranking-vote-|draft-|kristin-tiers-|custom-bracket-|saved-custom-bracket-|fill-bracket-|saved-bracket-|local-bracket-|profile-)[\w-]+$/.test(value) ? value : 'not-found';
 }
 export function returnView(fallback = 'home') {
   if (typeof window === 'undefined') return fallback;
   const value = window.history?.state?.returnTo;
   return typeof value === 'string' && readView('?view='+encodeURIComponent(value)) !== 'not-found' ? value : fallback;
 }
-const returnDestinations = /^(home|browse|rankings|weekly|pools|my-activities|my-brackets|profile(?:-[\w-]+)?|pool-[\w-]+)$/;
+const returnDestinations = /^(arena|debate-[\w-]+|home|browse|rankings|weekly|pools|my-activities|my-brackets|profile(?:-[\w-]+)?|pool-[\w-]+)$/;
 export function useViewNavigation() {
   const [view, update] = useState(() => readView(window.location.search));
   const navigate = useCallback((next, { replace = false } = {}) => {

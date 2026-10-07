@@ -33,8 +33,8 @@ const Header = ({ onNavigate, currentView }) => {
             For You
           </ViewLink>
           <ViewLink
-            className={`nav-link ${['browse','rankings','weekly'].includes(currentView) ? 'active' : ''}`}
-            view="browse" onNavigate={onNavigate} currentView={['browse','rankings','weekly'].includes(currentView)?'browse':currentView}
+            className={`nav-link ${['browse','rankings','weekly','arena'].includes(currentView) ? 'active' : ''}`}
+            view="browse" onNavigate={onNavigate} currentView={['browse','rankings','weekly','arena'].includes(currentView)?'browse':currentView}
           >
             Explore
           </ViewLink>
