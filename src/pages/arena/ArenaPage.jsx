@@ -29,7 +29,7 @@ export default function ArenaPage({ roomId, onNavigate }) {
   }
   if (!data) return <div className="home-container arena">{error ? <p role="alert">{error} <button onClick={load}>Retry</button></p> : <BracketLoader/>}</div>;
   if (!roomId) return <div className="home-container arena"><ExploreHeader currentView="arena" onNavigate={onNavigate}/><h2>GOAT Arena</h2>{error && <p role="alert">{error}</p>}
-    <div className="arena-room-grid">{data.items.map(room => <ViewLink className="arena-panel arena-room-link" key={room.id} view={`debate-${room.id}`} onNavigate={onNavigate}><span>{room.status === 'active' ? 'Live matchup' : 'Paused'}</span><h3>{room.title}</h3><p>{room.matchup.map(id => room.candidates.find(c => c.id === id)?.name).join(' vs. ')}</p></ViewLink>)}</div>
+    <div className="arena-room-grid">{data.items.map(room => <ViewLink className="arena-panel arena-room-link" key={room.id} view={`debate-${room.id}`} onNavigate={onNavigate}>{room.status === 'paused' && <span>Paused</span>}<h3>{room.title}</h3><p>{room.matchup.map(id => room.candidates.find(c => c.id === id)?.name).join(' vs. ')}</p></ViewLink>)}</div>
     {!data.items.length && <p>Featured debates are coming soon.</p>}
     {data.nextCursor && <button onClick={async () => { try { const next = await callServer('listGoatDebates', { cursor: data.nextCursor }); setData(old => ({ ...next, items: [...old.items, ...next.items] })); } catch(e) { setError(e.message); } }}>More debates</button>}
     {data.isAdmin && <CreateDebate onCreated={id => onNavigate(`debate-${id}`)}/>}
