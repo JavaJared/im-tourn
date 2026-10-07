@@ -2,7 +2,7 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { getFirestore, FieldPath } = require('firebase-admin/firestore');
 const { randomInt, createHash } = require('node:crypto');
-const { DAY, canonical, balance, settle } = require('./arena-core');
+const { DAY, canonical, balance, settle, eligibilityReason, restoreEligibility } = require('./arena-core');
 const db = () => getFirestore();
 const fail = (code, message) => { throw new HttpsError(code, message); };
 const admin = req => req.auth && (req.auth.token?.admin === true || req.auth.uid === 'VBbDwj6gkVgW7gBcs3vTmt0ulLF2');
@@ -10,11 +10,23 @@ function requireAdmin(req) { if (!admin(req)) fail('permission-denied', 'Adminis
 function uid(req) { if (!req.auth) fail('unauthenticated', 'Sign in to participate.'); return req.auth.uid; }
 function id(value) { if (typeof value !== 'string' || !/^[\w-]{1,128}$/.test(value)) fail('invalid-argument', 'Invalid identifier.'); return value; }
 function text(value, max) { if (typeof value !== 'string' || !value.trim() || value.trim().length > max) fail('invalid-argument', `Enter between 1 and ${max} characters.`); return value.trim(); }
-function publicRoom(snap) { const r = snap.data(); return { id: snap.id, ...r }; }
+function publicRoom(snap) {
+  const r = snap.data();
+  const candidates = r.candidates.filter(c => !c.status || c.status === 'approved');
+  const visibleIds = new Set(candidates.map(c => c.id));
+  return { id: snap.id, ...r, candidates, nominations: Object.fromEntries(Object.entries(r.nominations).filter(([id]) => visibleIds.has(id))), eligibility: Object.fromEntries(candidates.map(c => [c.id, eligibilityReason(r, c)])) };
+}
 async function advance(ref) {
   return db().runTransaction(async tx => {
     const snap = await tx.get(ref), room = snap.data(), now = Date.now();
-    if (!room || room.status !== 'active' || room.endAt > now) return;
+    if (!room) return;
+    // One-time upgrade: existing results also enforce the chair-change rule.
+    if (!room.lossEpoch) {
+      const history = await tx.get(ref.collection('history').orderBy('round'));
+      Object.assign(room, restoreEligibility(history.docs.map(d => d.data())));
+      tx.update(ref, { chairEpoch: room.chairEpoch, lossEpoch: room.lossEpoch });
+    }
+    if (room.status !== 'active' || room.endAt > now) return;
     const { next, history } = settle(room, now, randomInt);
     tx.set(ref.collection('history').doc(String(room.round).padStart(8, '0')), history);
     tx.set(ref, next);
@@ -33,7 +45,7 @@ async function page(query, cursor, collection = null) {
 }
 exports.listGoatDebates = onCall(async req => {
   const result = await page(db().collection('goatDebates').orderBy(FieldPath.documentId()), req.data?.cursor);
-  return { ...result, isAdmin: !!admin(req) };
+  return { ...result, items: result.items.map(r => publicRoom({ id: r.id, data: () => r })), isAdmin: !!admin(req) };
 });
 exports.getGoatDebate = onCall(async req => {
   const ref = db().doc(`goatDebates/${id(req.data?.roomId)}`);
@@ -43,7 +55,8 @@ exports.getGoatDebate = onCall(async req => {
   let personal = null;
   if (req.auth) {
     const [wallet, ballot, nomination] = await db().getAll(db().doc(`goatAccounts/${req.auth.uid}`), ref.collection('ballots').doc(`${room.round}_${req.auth.uid}`), ref.collection('supporters').doc(`${room.round}_${req.auth.uid}`));
-    personal = { credits: balance(wallet.data(), Date.now()), vote: ballot.data()?.candidateId || null, nomination: nomination.data()?.candidateId || null, restricted: !!wallet.data()?.restricted };
+    const nominated = snap.data().candidates.find(c => c.id === nomination.data()?.candidateId);
+    personal = { nominationName: nominated?.name || null, nominationStatus: nominated?.status || 'approved', credits: balance(wallet.data(), Date.now()), vote: ballot.data()?.candidateId || null, nomination: nomination.data()?.candidateId || null, restricted: !!wallet.data()?.restricted };
   }
   return { room, personal, isAdmin: !!admin(req), serverNow: Date.now() };
 });
@@ -58,6 +71,7 @@ exports.actOnGoatDebate = onCall(async req => {
   if (!['vote', 'nominate', 'comment'].includes(action)) fail('invalid-argument', 'Unknown action.');
   const ref = db().doc(`goatDebates/${id(data.roomId)}`), requestId = id(data.requestId);
   const receipt = ref.collection('receipts').doc(createHash('sha256').update(`${user}:${requestId}`).digest('hex'));
+  await advance(ref);
   const body = action === 'comment' ? text(data.body, 1000) : null;
   return db().runTransaction(async tx => {
     const accountRef = db().doc(`goatAccounts/${user}`);
@@ -66,21 +80,35 @@ exports.actOnGoatDebate = onCall(async req => {
     const room = snap.data(), wallet = walletSnap.data(), now = Date.now();
     if (!room) fail('not-found', 'Debate not found.');
     if (wallet?.restricted) fail('permission-denied', 'Your debate participation is restricted pending review. Use the site feedback form to appeal.');
-    if (room.status !== 'active' || room.endAt <= now || data.round !== room.round) fail('failed-precondition', 'This matchup has ended or is paused. Refresh the debate.');
+    const waitingForChallenger = action === 'nominate' && room.status === 'paused' && room.matchup.length === 1;
+    if ((!waitingForChallenger && (room.status !== 'active' || room.endAt <= now)) || data.round !== room.round) fail('failed-precondition', 'This matchup has ended or is paused. Refresh the debate.');
     const cost = action === 'vote' ? 0 : action === 'nominate' ? 2 : 1;
     const credits = balance(wallet, now);
     if (credits < cost) fail('resource-exhausted', 'Not enough credits. Your 10 daily credits reset at midnight UTC.');
     let result = { credits: credits - cost };
     if (action === 'vote' || action === 'nominate') {
-      const candidateId = id(data.candidateId);
-      if (!room.candidates.some(c => c.id === candidateId)) fail('invalid-argument', 'Choose an existing candidate.');
       const voting = action === 'vote';
-      if (voting ? !room.matchup.includes(candidateId) : room.matchup.includes(candidateId) || room.round - (room.lastPlayed[candidateId] ?? -99) < 2) fail('failed-precondition', 'This candidate is not eligible for this action.');
+      let candidate, added = false;
+      if (!voting && data.name !== undefined) {
+        const name = text(data.name, 80).normalize('NFKC').replace(/\p{Cf}/gu, '').trim().replace(/\s+/g, ' ');
+        if (!canonical(name) || name.length > 80) fail('invalid-argument', 'Enter a candidate name.');
+        candidate = room.candidates.find(c => canonical(c.name) === canonical(name));
+        if (!candidate) {
+          if (room.candidates.length >= 100) fail('resource-exhausted', 'This room has reached its candidate limit. Support an existing candidate.');
+          candidate = { id: `c${room.candidates.length + 1}`, name, status: 'pending' };
+          added = true;
+        }
+      } else candidate = room.candidates.find(c => c.id === id(data.candidateId));
+      if (!candidate) fail('invalid-argument', 'Choose an existing candidate.');
+      const candidateId = candidate.id;
+      const reason = voting ? (!room.matchup.includes(candidateId) ? 'Choose a participant in the current matchup.' : '') : eligibilityReason(room, candidate, true);
+      if (reason) fail('failed-precondition', reason);
       const record = ref.collection(voting ? 'ballots' : 'supporters').doc(`${room.round}_${user}`);
-      if ((await tx.get(record)).exists) fail('already-exists', voting ? 'You have already voted today.' : 'You have already supported a challenger today.');
+      if ((await tx.get(record)).exists) fail('already-exists', voting ? 'You have already voted today.' : 'You have already nominated or supported a challenger in this matchup.');
       const field = voting ? 'votes' : 'nominations';
-      tx.update(ref, { [field]: { ...room[field], [candidateId]: (room[field][candidateId] || 0) + 1 } });
+      tx.update(ref, { [field]: { ...room[field], [candidateId]: (room[field][candidateId] || 0) + 1 }, ...(added ? { candidates: [...room.candidates, candidate] } : {}) });
       tx.set(record, { candidateId, createdAt: now });
+      result = { ...result, candidateId, status: candidate.status || 'approved' };
     } else {
       if (wallet?.commentAt > now - 10000) fail('resource-exhausted', 'Wait a few seconds before commenting again.');
       // Fail closed: unreviewed content never enters the public comments collection.
@@ -106,13 +134,18 @@ exports.createGoatDebate = onCall(async req => {
     if (existing.exists) return { id: ref.id };
     if (wallet.data()?.restricted) fail('permission-denied', 'Account restricted.');
     const credits = balance(wallet.data(), now); if (credits < 5) fail('resource-exhausted', 'Creating a debate costs 5 credits.');
-    tx.set(ref, { title, candidates, creatorId: user, createdAt: now, round: 1, matchup: ['c1', 'c2'], defender: null, votes: {}, nominations: {}, stats: {}, lastPlayed: { c1: 1, c2: 1 }, status: 'active', endAt: now + DAY, pauseReason: '' });
+    tx.set(ref, { title, candidates, creatorId: user, createdAt: now, round: 1, matchup: ['c1', 'c2'], defender: null, chairEpoch: 0, lossEpoch: {}, votes: {}, nominations: {}, stats: {}, lastPlayed: { c1: 1, c2: 1 }, status: 'active', endAt: now + DAY, pauseReason: '' });
     tx.set(account, { day: new Date(now).toISOString().slice(0, 10), balance: credits - 5 }, { merge: true });
     return { id: ref.id };
   });
 });
 exports.manageGoatDebate = onCall(async req => {
   requireAdmin(req); const data = req.data || {}, ref = db().doc(`goatDebates/${id(data.roomId)}`);
+  if (data.action === 'candidateQueue') {
+    const snap = await ref.get();
+    if (!snap.exists) fail('not-found', 'Debate not found.');
+    return { items: snap.data().candidates.filter(c => c.status === 'pending') };
+  }
   if (data.action === 'queue') return page(ref.collection('reviewQueue').orderBy(FieldPath.documentId()), data.cursor);
   return db().runTransaction(async tx => {
     const snap = await tx.get(ref); if (!snap.exists) fail('not-found', 'Debate not found.');
@@ -129,6 +162,16 @@ exports.manageGoatDebate = onCall(async req => {
       const patch = { candidates: [...room.candidates, candidate] };
       if (room.matchup.length === 1) { patch.matchup = [...room.matchup, candidate.id]; patch.lastPlayed = { ...room.lastPlayed, [candidate.id]: room.round }; }
       tx.update(ref, patch);
+    } else if (['approveCandidate', 'rejectCandidate'].includes(data.action)) {
+      const candidateId = id(data.candidateId), candidate = room.candidates.find(c => c.id === candidateId);
+      if (!candidate || candidate.status !== 'pending') fail('failed-precondition', 'This candidate has already been reviewed.');
+      const patch = { candidates: room.candidates.map(c => c.id === candidateId ? { ...c, status: data.action === 'approveCandidate' ? 'approved' : 'rejected' } : c) };
+      if (data.action === 'approveCandidate' && room.matchup.length === 1) {
+        patch.matchup = [...room.matchup, candidateId];
+        patch.lastPlayed = { ...room.lastPlayed, [candidateId]: room.round };
+      }
+      tx.update(ref, patch);
+      tx.set(ref.collection('moderationLog').doc(), { action: data.action, candidateId, moderatorId: req.auth.uid, createdAt: Date.now() });
     } else if (['approve', 'remove', 'restrict'].includes(data.action)) {
       const commentId = id(data.commentId), pending = ref.collection('reviewQueue').doc(commentId), visible = ref.collection('comments').doc(commentId);
       const [queued, published] = await tx.getAll(pending, visible), comment = queued.data() || published.data();

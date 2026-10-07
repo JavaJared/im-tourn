@@ -105,3 +105,6 @@
   .arena-list-row { gap:12px; }
   .arena-form button,.arena-actions>button { width:100%; }
 }
+
+.arena-cooldown { margin-top:24px; }
+.arena-cooldown>summary { min-height:44px; align-content:center; color:var(--ui-muted); }

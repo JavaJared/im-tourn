@@ -74,4 +74,56 @@ run('GOAT Arena transactions',()=>{
     const room=(await db.doc(`goatDebates/${roomId}`).get()).data();expect(room.round).toBe(2);expect(room.stats.c1.wins).toBe(1);
     expect((await db.collection(`goatDebates/${roomId}/history`).get()).size).toBe(1);
   });
+  it('merges concurrent normalized names, counts each user once and keeps pending names private',async()=>{
+    const results=await Promise.all([act('alice','nominate',{name:'  New   Player  '}),act('bob','nominate',{name:'new player'})]);
+    expect(results[0].candidateId).toBe(results[1].candidateId);
+    const snap=await db.doc(`goatDebates/${roomId}`).get(), candidateId=results[0].candidateId;
+    expect(snap.data().candidates).toHaveLength(5);expect(snap.data().nominations[candidateId]).toBe(2);
+    const publicRoom=(await api.getGoatDebate.run(req(null,{roomId}))).room;
+    expect(publicRoom.candidates).toHaveLength(4);expect(publicRoom.nominations[candidateId]).toBeUndefined();
+    expect(JSON.stringify(await api.listGoatDebates.run(req(null,{})))).not.toContain('New Player');
+    await expect(act('alice','nominate',{name:'Another player'})).rejects.toMatchObject({code:'already-exists'});
+    expect((await db.doc('goatAccounts/alice').get()).data().balance).toBe(8);
+    await expect(api.manageGoatDebate.run(req('alice',{roomId,action:'approveCandidate',candidateId}))).rejects.toMatchObject({code:'permission-denied'});
+    await api.manageGoatDebate.run(req(host,{roomId,action:'approveCandidate',candidateId}));
+    const visible=(await api.getGoatDebate.run(req(null,{roomId}))).room;
+    expect(visible.candidates).toHaveLength(5);expect(visible.nominations[candidateId]).toBe(2);
+  });
+  it('repeated existing names count as support and request retries never spend twice',async()=>{
+    const input={name:'  c ',requestId:'name-retry'};
+    await act('alice','nominate',input); await act('alice','nominate',input);
+    const room=(await db.doc(`goatDebates/${roomId}`).get()).data();
+    expect(room.candidates).toHaveLength(4);expect(room.nominations.c3).toBe(1);
+    expect((await db.doc('goatAccounts/alice').get()).data().balance).toBe(8);
+  });
+  it('rejects renominations of a defeated candidate by ID or normalized name without spending',async()=>{
+    await db.doc(`goatDebates/${roomId}`).update({chairEpoch:0,lossEpoch:{c3:0}});
+    await expect(act('alice','nominate',{candidateId:'c3'})).rejects.toMatchObject({code:'failed-precondition'});
+    await expect(act('alice','nominate',{name:'  C  '})).rejects.toMatchObject({code:'failed-precondition'});
+    expect((await api.getGoatDebate.run(req('alice',{roomId}))).personal.credits).toBe(10);
+    await db.doc(`goatDebates/${roomId}`).update({chairEpoch:1});
+    await act('alice','nominate',{name:'C'});
+  });
+  it('rejected names cannot be resubmitted with different capitalization',async()=>{
+    const {candidateId}=await act('alice','nominate',{name:'New Name'});
+    await api.manageGoatDebate.run(req(host,{roomId,action:'rejectCandidate',candidateId}));
+    await expect(act('bob','nominate',{name:'new name'})).rejects.toMatchObject({code:'failed-precondition'});
+  });
+  it('upgrades existing rooms using saved results before accepting nominations',async()=>{
+    const FieldValue=require('../functions/node_modules/firebase-admin/lib/firestore').FieldValue;
+    await db.doc(`goatDebates/${roomId}`).update({lossEpoch:FieldValue.delete(),chairEpoch:FieldValue.delete(),round:4,defender:'c1'});
+    await db.doc(`goatDebates/${roomId}/history/00000001`).set({round:1,matchup:['c1','c3'],winner:'c1',tied:false});
+    await expect(act('alice','nominate',{name:'C',round:4})).rejects.toMatchObject({code:'failed-precondition'});
+    expect((await db.doc(`goatDebates/${roomId}`).get()).data().lossEpoch).toEqual({c3:0});
+  });
+
+  it('accepts a new nomination while awaiting a challenger, but keeps voting paused',async()=>{
+    await db.doc(`goatDebates/${roomId}`).update({status:'paused',endAt:null,matchup:['c1']});
+    const {candidateId}=await act('alice','nominate',{name:'Fresh contender'});
+    await expect(act('bob','vote',{candidateId:'c1'})).rejects.toMatchObject({code:'failed-precondition'});
+    await api.manageGoatDebate.run(req(host,{roomId,action:'approveCandidate',candidateId}));
+    const room=(await db.doc(`goatDebates/${roomId}`).get()).data();
+    expect(room.matchup).toEqual(['c1',candidateId]);expect(room.status).toBe('paused');
+  });
+
 });

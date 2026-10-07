@@ -29,3 +29,30 @@ describe('GOAT matchup lifecycle', () => {
   });
   it('normalizes candidate spacing, width, and capitalization', () => { expect(canonical('  JORDAN  ')).toBe(canonical('Jordan')); expect(canonical('Ａ B')).toBe('a b'); });
 });
+
+describe('defeated challenger eligibility', () => {
+  it('blocks a defeated candidate throughout the same reign, including after two rounds', () => {
+    const room = fixture();
+    Object.assign(room, { round: 5, defender: 'a', chairEpoch: 2, lossEpoch: { c: 2 }, lastPlayed: { a: 5, b: 5, c: 1 }, nominations: { c: 99 } });
+    expect(settle(room, 200, () => 0).next.matchup).toEqual(['a', 'd']);
+  });
+  it('a new chair unlocks past losers but blocks the newly defeated incumbent', () => {
+    const room = fixture();
+    Object.assign(room, { round: 5, defender: 'a', chairEpoch: 2, lossEpoch: { c: 2 }, lastPlayed: { a: 5, b: 5, c: 1 }, nominations: { c: 99 }, votes: { b: 10 } });
+    const next = settle(room, 200, () => 0).next;
+    expect(next.chairEpoch).toBe(3); expect(next.lossEpoch.a).toBe(3); expect(next.matchup).toEqual(['b','c']);
+  });
+  it('ties and empty voting do not unlock past losers or add new losses', () => {
+    const room = fixture(); Object.assign(room, { defender: 'a', chairEpoch: 2, lossEpoch: { c: 2 }, votes: { a: 3, b: 3 } });
+    const next = settle(room, 200, () => 0).next;
+    expect(next.lossEpoch).toEqual({c:2}); expect(next.chairEpoch).toBe(2);
+  });
+  it('pending and rejected candidates never become automatic challengers', () => {
+    const room = fixture(); room.candidates[2].status='pending'; room.candidates[3].status='rejected'; room.nominations={c:50};
+    expect(settle(room,200,()=>0).next.status).toBe('paused');
+  });
+  it('reconstructs eligibility from pre-update matchup history', () => {
+    const {restoreEligibility}=require('../functions/arena-core');
+    expect(restoreEligibility([{matchup:['a','b'],winner:'a'}, {matchup:['a','c'],winner:'a'}, {matchup:['a','d'],winner:'d'}])).toEqual({chairEpoch:1,lossEpoch:{b:0,c:0,a:1}});
+  });
+});
