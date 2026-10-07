@@ -57,6 +57,18 @@ run('server transactions against the Firestore emulator', () => {
     await api.tallyWeeklyVote.run({ data: { before: { data: () => ({ userId: 'old', weekId: 'last-week', votes: JSON.stringify(votes) }) }, after: missing } });
     expect(JSON.parse((await db.doc('weeklyBracket/current').get()).data().votes)['r0-m0'].entry1).toBe(1);
   });
+  test('host scores atomically choose winners and recalculate standings', async () => {
+    const state=generateSeededBracket(['A','B']),boxId=state.rounds[0][0];
+    await db.doc('bracketPools/p').set({hostId:'host',status:'in_progress',bracketMatchups:JSON.stringify(structureFromState(state)),roundPoints:[3],customResults:{}});
+    await db.doc('poolEntries/p_alice').set({poolId:'p',userId:'alice',predictions:JSON.stringify({[boxId]:'p1'}),score:0});
+    const data={poolId:'p',action:'scores',fields:{[`${boxId}:a`]:10,[`${boxId}:b`]:2}};
+    await expect(api.managePoolResults.run(req('intruder',data))).rejects.toMatchObject({code:'permission-denied'});
+    await api.managePoolResults.run(req('host',data));
+    expect((await db.doc('bracketPools/p').get()).data()).toMatchObject({customScores:{[boxId]:{a:10,b:2}},customResults:{[boxId]:'p1'}});
+    expect((await db.doc('poolEntries/p_alice').get()).data().score).toBe(3);
+    await api.managePoolResults.run(req('host',{...data,fields:{[`${boxId}:b`]:11}}));
+    expect((await db.doc('poolEntries/p_alice').get()).data().score).toBe(0);
+  });
   test('completion requires the final and declares all tied submitted entries', async () => {
     let st = generateSeededBracket(['A', 'B']); const structure = structureFromState(st), boxId = st.rounds[0][0]; st = setResult(st, boxId, 'p1');
     await db.doc('bracketPools/p').set({ hostId: 'host', status: 'in_progress', bracketMatchups: JSON.stringify(structure), roundPoints: [3], customResults: {} });

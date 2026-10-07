@@ -10,3 +10,5 @@ export { structureFromState } from './standardBracket';
 
 export { generateSeededBracket } from './standardBracket';
 export { serialize } from './customBracketCodec';
+
+export { applyPoolScores } from './poolScoreResults';

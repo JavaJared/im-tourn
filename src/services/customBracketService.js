@@ -221,22 +221,9 @@ export function recalculateCustomPoolScoresManual(poolId) {
   return queueWrite(poolId, () => callServer('managePoolResults', { poolId, action: 'recalculate' }));
 }
 
-/**
- * Record per-matchup scores. `scoresMap` is { boxId: { a: number|null, b: number|null } }.
- * Scores are display-only (they never affect points), so this does not rescore.
- */
-export async function updateCustomPoolScores(poolId, hostId, fields) {
-  return queueWrite(`scores:${poolId}`, async () => {
-    const pool = await getPoolById(poolId);
-    if (!pool || pool.hostId !== hostId || pool.status !== 'in_progress') throw new Error('Only the active host can record scores');
-    const updates = { updatedAt: serverTimestamp() };
-    for (const [key, value] of Object.entries(fields)) {
-      const match = /^(m[0-9]+):(a|b)$/.exec(key);
-      if (!match || (value != null && (!Number.isFinite(value) || value < 0))) throw new Error('Invalid score');
-      updates[`customScores.${match[1]}.${match[2]}`] = value == null ? deleteField() : value;
-    }
-    await updateDoc(doc(db, POOLS, poolId), updates);
-  });
+/** Scores, inferred winners, and standings commit together on the server. */
+export function updateCustomPoolScores(poolId, hostId, fields) {
+  return queueWrite(poolId, () => callServer('managePoolResults', {poolId, action:'scores', fields}));
 }
 
 /* ---- real-time pool subscriptions (custom pools) ---- */

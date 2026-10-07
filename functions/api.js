@@ -85,7 +85,7 @@ exports.castRankingVote = onCall(async req => {
 });
 exports.managePoolResults = onCall(async req => {
   const uid = requireAuth(req), { poolId, action, boxId, winnerId } = req.data || {};
-  if (!['pick', 'recalculate', 'complete'].includes(action)) throw new HttpsError('invalid-argument', 'Unknown action.');
+  if (!['pick', 'scores', 'recalculate', 'complete'].includes(action)) throw new HttpsError('invalid-argument', 'Unknown action.');
   const ref = db.doc(`bracketPools/${id(poolId)}`);
   return db.runTransaction(async tx => {
     const snap = await tx.get(ref);
@@ -96,12 +96,17 @@ exports.managePoolResults = onCall(async req => {
     const pool = S.adaptLegacyPool({ ...raw, bracketMatchups: parse(raw.bracketMatchups), results: parse(raw.results) });
     let state = S.hydrateState(pool.bracketMatchups, pool.customResults || {});
     if (action === 'pick') { try { state = S.setResult(state, id(boxId), winnerId); } catch (e) { throw new HttpsError('invalid-argument', e.message); } }
+    let scoreUpdates;
+    if (action === 'scores') {
+      try { const applied = S.applyPoolScores(state, raw.customScores, req.data.fields); state = applied.state; scoreUpdates = applied.scores; }
+      catch (e) { throw new HttpsError('invalid-argument', e.message); }
+    }
     if (action === 'complete' && (!S.isEntryComplete(state) || !S.getChampion(state))) throw new HttpsError('failed-precondition', 'Record every result, including the final, before completing the pool.');
     const entries = await tx.get(db.collection('poolEntries').where('poolId', '==', poolId));
     const normalized = entries.docs.filter(d => d.id === `${poolId}_${d.data().userId}`).flatMap(d => { try { const predictions = parse(d.data().predictions); if (!predictions || typeof predictions !== 'object') return []; const entry = S.adaptLegacyEntry({ id: d.id, ...d.data(), predictions }); if (Object.values(entry.predictions).some(value => value !== null && typeof value !== 'string')) return []; return [entry]; } catch { return []; } }).filter(e => e.predictions);
     const board = S.buildLeaderboard(state, normalized.map(e => ({ ...e, picks: e.predictions, displayName: e.userDisplayName })), pool.roundPoints || [], pool);
     for (const e of board) tx.update(db.doc(`poolEntries/${e.id}`), { score: e.total, sleeper1Hit: e.sleeper1Hit, sleeper2Hit: e.sleeper2Hit });
-    const updates = { customResults: S.picksFromState(state), updatedAt: stamp() };
+    const updates = { customResults: S.picksFromState(state), updatedAt: stamp(), ...(scoreUpdates ? {customScores: scoreUpdates} : {}) };
     if (action === 'complete' || raw.status === 'completed') {
       const winners = board.filter(e => e.total === board[0]?.total);
       Object.assign(updates, { status: 'completed', winnerId: winners[0]?.userId || null, winnerIds: winners.map(e => e.userId), winnerName: winners.map(e => e.displayName || 'Anonymous').join(' & ') || null, winnerScore: winners[0]?.total || 0 });

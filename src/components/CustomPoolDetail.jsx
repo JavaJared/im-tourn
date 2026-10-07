@@ -408,7 +408,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
         )}
         {tab === 'results' && (
           <>
-            {canRecord && <div style={S.note}>Editing official results. Tap a player to record the winner. Scores update automatically. <button style={S.ghost} onClick={() => setEditingResults(false)}>Finish editing</button></div>}
+            {canRecord && <div style={S.note}>Editing official results. Enter both scores to select the higher-scoring winner, or tap a player to record the winner. <button style={S.ghost} onClick={() => setEditingResults(false)}>Finish editing</button></div>}
             {!canRecord && status !== 'in_progress' && status !== 'completed' && <div style={S.note}>Official results appear once the host starts the pool.</div>}
             {resState && <Board onInspect={!canRecord ? setInspectedEntry : undefined} state={resState} nameMap={nameMap} editable={canRecord && !busy} onPick={pickResult} sc={scoreUI} scores={scoresByBox} pickedState={submitted ? predState : null} />}
           </>
