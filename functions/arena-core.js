@@ -1,6 +1,5 @@
 const DAY = 86400000;
 const canonical = name => name.normalize('NFKC').replace(/\p{Cf}/gu, '').replace(/[‘’]/g, "'").trim().toLocaleLowerCase('en-US').replace(/\s+/g, ' ');
-const balance = (wallet, now) => wallet?.day === new Date(now).toISOString().slice(0, 10) ? wallet.balance : 10;
 function eligibilityReason(room, candidate, allowPending = false) {
   if (candidate.status === 'rejected') return 'This candidate was not approved.';
   if (candidate.status === 'pending' && !allowPending) return 'Awaiting review';
@@ -56,4 +55,4 @@ function settle(room, now, choose) {
   for (const id of next.matchup) next.lastPlayed[id] = next.round;
   return { next, history };
 }
-module.exports = { DAY, canonical, balance, settle, eligibilityReason, restoreEligibility };
+module.exports = { DAY, canonical, settle, eligibilityReason, restoreEligibility };

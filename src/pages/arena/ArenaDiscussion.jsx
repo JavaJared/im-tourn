@@ -15,10 +15,11 @@ export default function ArenaDiscussion({ room, currentUser, disabled, onAction,
   useEffect(() => { load(); const timer = setInterval(() => { if (!document.hidden) load(); }, 30000); return () => clearInterval(timer); }, [room.id]);
   async function submit(e) {
     e.preventDefault(); setNotice('');
-    if (await onAction('comment', { body, requestId })) { setBody(''); setRequestId(crypto.randomUUID()); setNotice('Comment submitted for review. It will appear once approved.'); }
+    const result = await onAction('comment', { body, requestId });
+    if (result) { setBody(''); setRequestId(crypto.randomUUID()); setNotice(result.status === 'approved' ? 'Comment posted.' : result.status === 'removed' ? 'This comment was removed by a moderator.' : 'Comment received and held for review.'); if (result.status === 'approved') await load(); }
   }
   return <section aria-label="Discussion" className="arena-panel"><h2>Discussion</h2>
-    {currentUser ? <form className="arena-form" onSubmit={submit}><label htmlFor="arena-comment">Your argument<textarea id="arena-comment" required maxLength={1000} value={body} disabled={disabled} onChange={e => { setBody(e.target.value); setRequestId(crypto.randomUUID()); }}/></label><button className="arena-primary" disabled={disabled || !body.trim()}>Submit for review · 1 credit</button><small>Comments are reviewed before publication. Credits reset at midnight UTC.</small></form> : <p>Sign in to join the discussion.</p>}
+    {currentUser ? <form className="arena-form" onSubmit={submit}><label htmlFor="arena-comment">Your argument<textarea id="arena-comment" required maxLength={1000} value={body} disabled={disabled} onChange={e => { setBody(e.target.value); setRequestId(crypto.randomUUID()); }}/></label><button className="arena-primary" disabled={disabled || !body.trim()}>Post comment</button><small>Comments are checked automatically. Some may be held for review.</small></form> : <p>Sign in to join the discussion.</p>}
     {notice && <p role="status">{notice}</p>}
     {loading && <BracketLoader compact/>}{error && <p role="alert">{error} <button onClick={() => load()}>Retry</button></p>}
     {!loading && !items.length && <p>No approved comments yet.</p>}

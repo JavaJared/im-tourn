@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module';
 import { describe, it, expect } from 'vitest';
 const require = createRequire(import.meta.url);
-const { settle, balance, canonical, DAY } = require('../functions/arena-core');
+const { settle, canonical, DAY } = require('../functions/arena-core');
 const fixture = () => ({ round: 1, matchup: ['a','b'], votes: {a:5,b:2}, nominations: {}, candidates: ['a','b','c','d'].map(id => ({id,name:id})), stats: {}, lastPlayed: {a:1,b:1}, defender: null, endAt: 100, status: 'active' });
 describe('GOAT matchup lifecycle', () => {
   it('awards only a decided win and schedules a fresh 24 hours', () => {
@@ -24,9 +24,6 @@ describe('GOAT matchup lifecycle', () => {
     const {next}=settle(room,200,()=>0); expect(next.status).toBe('paused'); expect(next.endAt).toBeNull(); expect(next.stats.a.streak).toBe(0); expect(next.stats.b.wins).toBe(1);
   });
   it('does not mutate the prior round', () => { const room=fixture(), original=structuredClone(room); settle(room,200,()=>0); expect(room).toEqual(original); });
-  it('credits reset at UTC midnight without rollover', () => {
-    const now=Date.UTC(2026,9,7); expect(balance({day:'2026-10-06',balance:3},now)).toBe(10); expect(balance({day:'2026-10-07',balance:3},now)).toBe(3); expect(balance(null,now)).toBe(10);
-  });
   it('normalizes candidate spacing, width, and capitalization', () => { expect(canonical('  JORDAN  ')).toBe(canonical('Jordan')); expect(canonical('Ａ B')).toBe('a b'); });
 });
 

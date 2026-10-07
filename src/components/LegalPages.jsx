@@ -52,7 +52,7 @@ const LegalPageLayout = ({ title, effectiveDate, children }) => (
 
 export const PrivacyPolicyPage = () => {
   return (
-    <LegalPageLayout title="Privacy Policy" effectiveDate="September 23, 2026">
+    <LegalPageLayout title="Privacy Policy" effectiveDate="October 7, 2026">
       <p className="legal-intro">
         This Privacy Policy explains how I'm Tourn ("we," "us," or "our")
         collects, uses, and shares information when you use our website and
@@ -121,9 +121,7 @@ export const PrivacyPolicyPage = () => {
       <p>
         <strong>Service providers.</strong> We use Google Firebase for
         authentication, database, and file storage, and Netlify for web
-        hosting. These providers process data on our behalf under their own
-        privacy commitments. We don't share your information with any other
-        third parties unless required by law.
+        hosting. When automatic moderation is enabled, GOAT Arena comment text is sent to OpenAI to check for potentially harmful content. We do not attach account IDs, usernames, or email addresses to these moderation requests; personal information included in the comment itself is part of the submitted text. Flagged comments may be reviewed by an administrator. These providers process data under their respective privacy commitments.
       </p>
 
       <p>

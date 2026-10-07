@@ -2,7 +2,9 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { getFirestore, FieldPath } = require('firebase-admin/firestore');
 const { randomInt, createHash } = require('node:crypto');
-const { DAY, canonical, balance, settle, eligibilityReason, restoreEligibility } = require('./arena-core');
+const { DAY, canonical, settle, eligibilityReason, restoreEligibility } = require('./arena-core');
+const { reviewComment, publicComment } = require('./arena-comment-review');
+const moderation = require('./arena-moderation');
 const db = () => getFirestore();
 const fail = (code, message) => { throw new HttpsError(code, message); };
 const admin = req => req.auth && (req.auth.token?.admin === true || req.auth.uid === 'VBbDwj6gkVgW7gBcs3vTmt0ulLF2');
@@ -56,7 +58,7 @@ exports.getGoatDebate = onCall(async req => {
   if (req.auth) {
     const [wallet, ballot, nomination] = await db().getAll(db().doc(`goatAccounts/${req.auth.uid}`), ref.collection('ballots').doc(`${room.round}_${req.auth.uid}`), ref.collection('supporters').doc(`${room.round}_${req.auth.uid}`));
     const nominated = snap.data().candidates.find(c => c.id === nomination.data()?.candidateId);
-    personal = { nominationName: nominated?.name || null, nominationStatus: nominated?.status || 'approved', credits: balance(wallet.data(), Date.now()), vote: ballot.data()?.candidateId || null, nomination: nomination.data()?.candidateId || null, restricted: !!wallet.data()?.restricted };
+    personal = { nominationName: nominated?.name || null, nominationStatus: nominated?.status || 'approved', vote: ballot.data()?.candidateId || null, nomination: nomination.data()?.candidateId || null, restricted: !!wallet.data()?.restricted };
   }
   return { room, personal, isAdmin: !!admin(req), serverNow: Date.now() };
 });
@@ -65,7 +67,7 @@ exports.listGoatDiscussion = onCall(async req => {
   const collection = ref.collection(req.data?.history ? 'history' : 'comments');
   return page(collection.orderBy(req.data?.history ? 'round' : 'createdAt', 'desc'), req.data?.cursor, collection);
 });
-// All credit spending, participation limits, and retries share one transaction.
+// Participation limits and retry receipts are enforced transactionally.
 exports.actOnGoatDebate = onCall(async req => {
   const user = uid(req), data = req.data || {}, action = data.action;
   if (!['vote', 'nominate', 'comment'].includes(action)) fail('invalid-argument', 'Unknown action.');
@@ -73,7 +75,7 @@ exports.actOnGoatDebate = onCall(async req => {
   const receipt = ref.collection('receipts').doc(createHash('sha256').update(`${user}:${requestId}`).digest('hex'));
   await advance(ref);
   const body = action === 'comment' ? text(data.body, 1000) : null;
-  return db().runTransaction(async tx => {
+  const result = await db().runTransaction(async tx => {
     const accountRef = db().doc(`goatAccounts/${user}`);
     const [snap, walletSnap, previous] = await tx.getAll(ref, accountRef, receipt);
     if (previous.exists) return previous.data().result;
@@ -82,10 +84,7 @@ exports.actOnGoatDebate = onCall(async req => {
     if (wallet?.restricted) fail('permission-denied', 'Your debate participation is restricted pending review. Use the site feedback form to appeal.');
     const waitingForChallenger = action === 'nominate' && room.status === 'paused' && room.matchup.length === 1;
     if ((!waitingForChallenger && (room.status !== 'active' || room.endAt <= now)) || data.round !== room.round) fail('failed-precondition', 'This matchup has ended or is paused. Refresh the debate.');
-    const cost = action === 'vote' ? 0 : action === 'nominate' ? 2 : 1;
-    const credits = balance(wallet, now);
-    if (credits < cost) fail('resource-exhausted', 'Not enough credits. Your 10 daily credits reset at midnight UTC.');
-    let result = { credits: credits - cost };
+    let result = { ok: true };
     if (action === 'vote' || action === 'nominate') {
       const voting = action === 'vote';
       let candidate, added = false;
@@ -113,13 +112,18 @@ exports.actOnGoatDebate = onCall(async req => {
       if (wallet?.commentAt > now - 10000) fail('resource-exhausted', 'Wait a few seconds before commenting again.');
       // Fail closed: unreviewed content never enters the public comments collection.
       const commentId = `${String(now).padStart(13, '0')}_${receipt.id}`;
-      tx.set(ref.collection('reviewQueue').doc(commentId), { body, userId: user, createdAt: now, round: room.round });
+      tx.set(ref.collection('reviewQueue').doc(commentId), { body, userId: user, createdAt: now, round: room.round, receiptId: receipt.id });
       result = { ...result, status: 'pending', commentId };
     }
-    tx.set(accountRef, { day: new Date(now).toISOString().slice(0, 10), balance: credits - cost, ...(body ? { commentAt: now } : {}) }, { merge: true });
+    if (body) tx.set(accountRef, { commentAt: now }, { merge: true });
     tx.set(receipt, { result });
     return result;
   });
+  if (action === 'comment' && result.status === 'pending') {
+    await reviewComment(ref, result.commentId);
+    return (await receipt.get()).data()?.result || result;
+  }
+  return result;
 });
 exports.createGoatDebate = onCall(async req => {
   requireAdmin(req); const user = uid(req), data = req.data || {};
@@ -133,14 +137,14 @@ exports.createGoatDebate = onCall(async req => {
     const [existing, wallet] = await tx.getAll(ref, account), now = Date.now();
     if (existing.exists) return { id: ref.id };
     if (wallet.data()?.restricted) fail('permission-denied', 'Account restricted.');
-    const credits = balance(wallet.data(), now); if (credits < 5) fail('resource-exhausted', 'Creating a debate costs 5 credits.');
     tx.set(ref, { title, candidates, creatorId: user, createdAt: now, round: 1, matchup: ['c1', 'c2'], defender: null, chairEpoch: 0, lossEpoch: {}, votes: {}, nominations: {}, stats: {}, lastPlayed: { c1: 1, c2: 1 }, status: 'active', endAt: now + DAY, pauseReason: '' });
-    tx.set(account, { day: new Date(now).toISOString().slice(0, 10), balance: credits - 5 }, { merge: true });
     return { id: ref.id };
   });
 });
 exports.manageGoatDebate = onCall(async req => {
   requireAdmin(req); const data = req.data || {}, ref = db().doc(`goatDebates/${id(data.roomId)}`);
+  if (data.action === 'moderationStatus') return { configured: !!(await moderation.getKey()) };
+  if (data.action === 'recheckComment') { await reviewComment(ref, id(data.commentId), true); return { ok: true }; }
   if (data.action === 'candidateQueue') {
     const snap = await ref.get();
     if (!snap.exists) fail('not-found', 'Debate not found.');
@@ -176,8 +180,9 @@ exports.manageGoatDebate = onCall(async req => {
       const commentId = id(data.commentId), pending = ref.collection('reviewQueue').doc(commentId), visible = ref.collection('comments').doc(commentId);
       const [queued, published] = await tx.getAll(pending, visible), comment = queued.data() || published.data();
       if (!comment) return { ok: true };
-      if (data.action === 'approve') tx.set(visible, comment); else tx.delete(visible);
+      if (data.action === 'approve') tx.set(visible, publicComment(comment)); else tx.delete(visible);
       tx.delete(pending);
+      if (comment.receiptId) tx.set(ref.collection('receipts').doc(comment.receiptId), { result: { status: data.action === 'approve' ? 'approved' : 'removed', commentId } }, { merge: true });
       if (data.action === 'restrict') tx.set(db().doc(`goatAccounts/${comment.userId}`), { restricted: true }, { merge: true });
       tx.set(ref.collection('moderationLog').doc(), { action: data.action, moderatorId: req.auth.uid, commentId, userId: comment.userId, createdAt: Date.now() });
     } else if (data.action === 'restore') {
