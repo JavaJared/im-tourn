@@ -167,4 +167,25 @@ run('GOAT Arena transactions',()=>{
     expect((await db.collection('goatDebates').get()).size).toBe(4);
   });
 
+  it('uses Eastern midnight for creation and resuming, irrespective of opening time',async()=>{
+    const {nextEasternMidnight}=require('../functions/arena-core');
+    const ref=db.doc(`goatDebates/${roomId}`);
+    expect((await ref.get()).data().endAt).toBe(nextEasternMidnight(Date.now()));
+    await api.manageGoatDebate.run(req(host,{roomId,action:'pause'}));
+    await api.manageGoatDebate.run(req(host,{roomId,action:'resume'}));
+    expect((await ref.get()).data().endAt).toBe(nextEasternMidnight(Date.now()));
+  });
+  it('aligns existing rooms without changing votes, nominations or the current round',async()=>{
+    const {nextEasternMidnight}=require('../functions/arena-core');
+    const FieldValue=require('../functions/node_modules/firebase-admin/lib/firestore').FieldValue;
+    const ref=db.doc(`goatDebates/${roomId}`);
+    await ref.update({scheduleVersion:FieldValue.delete(),endAt:Date.now()+3600000,votes:{c1:4},nominations:{c3:2}});
+    const {room}=await api.getGoatDebate.run(req(null,{roomId}));
+    expect(room.endAt).toBe(nextEasternMidnight(Date.now()));expect(room.round).toBe(1);
+    expect(room.votes).toEqual({c1:4});expect(room.nominations).toEqual({c3:2});
+    await ref.update({scheduleVersion:FieldValue.delete(),status:'paused',endAt:null});
+    const paused=(await api.getGoatDebate.run(req(null,{roomId}))).room;
+    expect(paused.status).toBe('paused');expect(paused.endAt).toBeNull();
+  });
+
 });

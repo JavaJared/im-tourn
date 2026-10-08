@@ -1,4 +1,29 @@
-const DAY = 86400000;
+const SCHEDULE_VERSION = 'eastern-midnight-v1';
+const easternClock = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/New_York', year: 'numeric', month: 'numeric', day: 'numeric',
+  hour: 'numeric', minute: 'numeric', second: 'numeric', hourCycle: 'h23',
+});
+function easternParts(time) {
+  return Object.fromEntries(easternClock.formatToParts(new Date(time)).filter(p => p.type !== 'literal').map(p => [p.type, Number(p.value)]));
+}
+function nextEasternMidnight(now) {
+  const local = easternParts(now);
+  const target = Date.UTC(local.year, local.month - 1, local.day + 1);
+  let instant = target;
+  // Resolve the target calendar date's offset, not today's offset (DST may change).
+  for (let i = 0; i < 3; i++) {
+    const p = easternParts(instant);
+    const offset = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second) - instant;
+    instant = target - offset;
+  }
+  return instant;
+}
+function alignSchedule(room, now) {
+  return room.scheduleVersion === SCHEDULE_VERSION ? {} : {
+    scheduleVersion: SCHEDULE_VERSION,
+    endAt: room.status === 'active' ? nextEasternMidnight(now) : null,
+  };
+}
 const canonical = name => name.normalize('NFKC').replace(/\p{Cf}/gu, '').replace(/[‘’]/g, "'").trim().toLocaleLowerCase('en-US').replace(/\s+/g, ' ');
 function eligibilityReason(room, candidate, allowPending = false) {
   if (candidate.status === 'rejected') return 'This candidate was not approved.';
@@ -51,8 +76,9 @@ function settle(room, now, choose) {
   }
   next.status = next.matchup.length === 2 ? 'active' : 'paused';
   next.pauseReason = next.status === 'paused' ? 'No eligible challenger. An administrator needs to add or approve a new challenger.' : '';
-  next.endAt = next.status === 'active' ? now + DAY : null;
+  next.endAt = next.status === 'active' ? nextEasternMidnight(now) : null;
+  next.scheduleVersion = SCHEDULE_VERSION;
   for (const id of next.matchup) next.lastPlayed[id] = next.round;
   return { next, history };
 }
-module.exports = { DAY, canonical, settle, eligibilityReason, restoreEligibility };
+module.exports = { SCHEDULE_VERSION, nextEasternMidnight, alignSchedule, canonical, settle, eligibilityReason, restoreEligibility };

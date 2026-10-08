@@ -30,7 +30,7 @@ export default function ArenaAdmin({ room, onRefresh }) {
     } catch(e) { setError(e.message || 'Action failed.'); } finally { setBusy(false); }
   }
   return <details className="arena-panel"><summary>Host controls & moderation</summary><div className="arena-form">
-    <button disabled={busy} onClick={() => run(room.status === 'active' ? 'pause' : 'resume')}>{room.status === 'active' ? 'Pause debate' : 'Resume · new 24-hour window'}</button>
+    <button disabled={busy} onClick={() => run(room.status === 'active' ? 'pause' : 'resume')}>{room.status === 'active' ? 'Pause debate' : 'Resume · until midnight ET'}</button>
     <form onSubmit={e => { e.preventDefault(); run('candidate', { name }); }}><label>New candidate<input required maxLength={80} value={name} onChange={e => setName(e.target.value)}/></label><button className="arena-primary" disabled={busy}>Add candidate</button></form>
     <button disabled={busy} onClick={() => run('moderationStatus')}>Check automatic moderation setup</button>
     {moderationStatus !== null && <p role="status">{moderationStatus ? 'Server key accessible. Comments will be checked automatically.' : 'Moderation key unavailable. Comments are held for manual review.'}</p>}

@@ -2,7 +2,7 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { getFirestore, FieldPath } = require('firebase-admin/firestore');
 const { randomInt, createHash } = require('node:crypto');
-const { DAY, canonical, settle, eligibilityReason, restoreEligibility } = require('./arena-core');
+const { SCHEDULE_VERSION, nextEasternMidnight, alignSchedule, canonical, settle, eligibilityReason, restoreEligibility } = require('./arena-core');
 const { reviewComment, publicComment } = require('./arena-comment-review');
 const moderation = require('./arena-moderation');
 const db = () => getFirestore();
@@ -28,6 +28,8 @@ async function advance(ref) {
       Object.assign(room, restoreEligibility(history.docs.map(d => d.data())));
       tx.update(ref, { chairEpoch: room.chairEpoch, lossEpoch: room.lossEpoch });
     }
+    const schedule = alignSchedule(room, now);
+    if (Object.keys(schedule).length) { Object.assign(room, schedule); tx.update(ref, schedule); }
     if (room.status !== 'active' || room.endAt > now) return;
     const { next, history } = settle(room, now, randomInt);
     tx.set(ref.collection('history').doc(String(room.round).padStart(8, '0')), history);
@@ -137,7 +139,7 @@ exports.createGoatDebate = onCall(async req => {
     const [existing, wallet] = await tx.getAll(ref, account), now = Date.now();
     if (existing.exists) return { id: ref.id };
     if (wallet.data()?.restricted) fail('permission-denied', 'Account restricted.');
-    tx.set(ref, { title, candidates, creatorId: user, createdAt: now, round: 1, matchup: ['c1', 'c2'], defender: null, chairEpoch: 0, lossEpoch: {}, votes: {}, nominations: {}, stats: {}, lastPlayed: { c1: 1, c2: 1 }, status: 'active', endAt: now + DAY, pauseReason: '' });
+    tx.set(ref, { title, candidates, creatorId: user, createdAt: now, round: 1, matchup: ['c1', 'c2'], defender: null, chairEpoch: 0, lossEpoch: {}, votes: {}, nominations: {}, stats: {}, lastPlayed: { c1: 1, c2: 1 }, status: 'active', endAt: nextEasternMidnight(now), scheduleVersion: SCHEDULE_VERSION, pauseReason: '' });
     return { id: ref.id };
   });
 });
@@ -158,7 +160,7 @@ exports.manageGoatDebate = onCall(async req => {
     else if (data.action === 'resume') {
       if (room.status === 'active') return { ok: true };
       if (room.matchup.length !== 2) fail('failed-precondition', 'Add a challenger before resuming.');
-      tx.update(ref, { status: 'active', endAt: Date.now() + DAY, pauseReason: '' });
+      tx.update(ref, { status: 'active', endAt: nextEasternMidnight(Date.now()), scheduleVersion: SCHEDULE_VERSION, pauseReason: '' });
     } else if (data.action === 'candidate') {
       const name = text(data.name, 80);
       if (room.candidates.length >= 100 || room.candidates.some(c => canonical(c.name) === canonical(name))) fail('invalid-argument', 'Duplicate candidate or 100-candidate limit reached.');
@@ -192,8 +194,19 @@ exports.manageGoatDebate = onCall(async req => {
     return { ok: true };
   });
 });
-exports.advanceGoatDebates = onSchedule('every 5 minutes', async () => {
-  const due = await db().collection('goatDebates').where('endAt', '>', 0).where('endAt', '<=', Date.now()).limit(50).get();
-  for (const doc of due.docs) await advance(doc.ref);
+// Includes midnight itself; later runs recover from delays and align legacy rooms
+// without requiring anyone to open them. Pagination avoids starving rooms > 50.
+exports.advanceGoatDebates = onSchedule({ schedule: '*/5 * * * *', timeZone: 'America/New_York' }, async () => {
+  let cursor;
+  do {
+    let query = db().collection('goatDebates').orderBy(FieldPath.documentId()).limit(100);
+    if (cursor) query = query.startAfter(cursor);
+    const page = await query.get();
+    for (const doc of page.docs) {
+      const room = doc.data();
+      if (room.scheduleVersion !== SCHEDULE_VERSION || (room.status === 'active' && room.endAt <= Date.now())) await advance(doc.ref);
+    }
+    cursor = page.size === 100 ? page.docs.at(-1).id : null;
+  } while (cursor);
 });
 exports.internal = { advance };

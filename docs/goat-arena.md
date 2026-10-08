@@ -4,7 +4,7 @@ Entry: Explore → GOAT Arena (`/?view=arena`). Administrators see a “Create f
 
 ## Included
 
-- Ongoing rooms with 24-hour matchups and a five-minute scheduled rollover, also checked when a room opens. Votes close on the server at the deadline. Rollover starts the next full 24-hour window; scheduler outages do not create phantom wins.
+- Ongoing rooms roll over at 12:00 AM America/New_York time (EST in winter, EDT in summer). New and resumed rooms end at the next Eastern midnight; their first matchup can be shorter than a day. The five-minute recovery schedule includes midnight, and opening a room also processes a due rollover. Existing rooms are aligned automatically within a scheduled pass without resetting picks; paused rooms stay paused. Votes close at the server deadline even if scheduler execution is delayed. After an outage, only the actual played matchup earns a result; missed days do not create phantom wins. The next deadline always remains Eastern midnight.
 - Free authenticated voting, one vote per account per matchup.
 - Free comments and nominations. One combined nomination/support per account per matchup. Comments have a server-enforced 10-second cooldown shared across rooms.
 - Matching normalized names merge into the same candidate, including concurrent submissions; they add support rather than duplicate records. New names await admin approval before appearing publicly. Support counts apply only to their submission matchup.
