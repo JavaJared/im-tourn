@@ -145,3 +145,5 @@ exports.getBracketThumbnail = require("./bracket-thumbnail").getBracketThumbnail
 for (const [name, handler] of Object.entries(require('./arena'))) {
   if (name !== 'internal') exports[name] = handler;
 }
+
+Object.assign(exports, require('./arena-requests'));

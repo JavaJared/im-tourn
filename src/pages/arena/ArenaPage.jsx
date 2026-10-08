@@ -6,6 +6,7 @@ import ExploreHeader from '../../components/layout/ExploreHeader';
 import ViewLink from '../../components/layout/ViewLink';
 import ArenaAdmin, { CreateDebate } from './ArenaAdmin';
 import ArenaDiscussion from './ArenaDiscussion';
+import ArenaRequests from './ArenaRequests';
 import ArenaChallengers from './ArenaChallengers';
 import './arena.css';
 
@@ -32,6 +33,7 @@ export default function ArenaPage({ roomId, onNavigate }) {
     <div className="arena-room-grid">{data.items.map(room => <ViewLink className="arena-panel arena-room-link" key={room.id} view={`debate-${room.id}`} onNavigate={onNavigate}>{room.status === 'paused' && <span>Paused</span>}<h3>{room.title}</h3><p>{room.matchup.map(id => room.candidates.find(c => c.id === id)?.name).join(' vs. ')}</p></ViewLink>)}</div>
     {!data.items.length && <p>Featured debates are coming soon.</p>}
     {data.nextCursor && <button onClick={async () => { try { const next = await callServer('listGoatDebates', { cursor: data.nextCursor }); setData(old => ({ ...next, items: [...old.items, ...next.items] })); } catch(e) { setError(e.message); } }}>More debates</button>}
+    {currentUser ? <ArenaRequests key={currentUser.uid} isAdmin={data.isAdmin} onNavigate={onNavigate} onPublished={load}/> : <p>Sign in to request a debate.</p>}
     {data.isAdmin && <CreateDebate onCreated={id => onNavigate(`debate-${id}`)}/>}
   </div>;
   const { room, personal, isAdmin } = data;

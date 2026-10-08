@@ -14,7 +14,7 @@ run('GOAT Arena transactions',()=>{
   beforeAll(()=>{process.env.GCLOUD_PROJECT='demo-im-tourn';api=require('../functions/index.js');db=require('../functions/node_modules/firebase-admin/lib/firestore').getFirestore();});
   afterEach(()=>vi.restoreAllMocks());
   beforeEach(async()=>{
-    for(const name of ['goatDebates','goatAccounts'])await db.recursiveDelete(db.collection(name));
+    for(const name of ['goatDebates','goatAccounts','goatDebateRequests'])await db.recursiveDelete(db.collection(name));
     ({id:roomId}=await api.createGoatDebate.run(req(host,{title:'Best food',candidates:['A','B','C','D'],requestId:'create'})));
   });
   it('blocks direct client access to private records and forged account writes',async()=>{
@@ -23,6 +23,8 @@ run('GOAT Arena transactions',()=>{
       const client=env.authenticatedContext('alice').firestore();
       await assertFails(getDoc(doc(client,`goatDebates/${roomId}/reviewQueue/secret`)));
       await assertFails(getDoc(doc(client,'goatAccounts/alice')));
+      await assertFails(getDoc(doc(client,'goatDebateRequests/private')));
+      await assertFails(setDoc(doc(client,'goatDebateRequests/forged'),{status:'approved'}));
       await assertFails(setDoc(doc(client,'goatAccounts/alice'),{restricted:false}));
       await assertFails(setDoc(doc(client,`goatDebates/${roomId}/ballots/1_alice`),{candidateId:'c1'}));
     } finally {await env.cleanup();}
@@ -186,6 +188,75 @@ run('GOAT Arena transactions',()=>{
     await ref.update({scheduleVersion:FieldValue.delete(),status:'paused',endAt:null});
     const paused=(await api.getGoatDebate.run(req(null,{roomId}))).room;
     expect(paused.status).toBe('paused');expect(paused.endAt).toBeNull();
+  });
+
+  const proposal=(overrides={})=>({title:'Greatest player',candidates:['Alpha','Beta','Gamma','Delta','Epsilon'],requestId:crypto.randomUUID(),...overrides});
+  it('requires sign-in, five distinct challengers and unrestricted participation for debate requests',async()=>{
+    await expect(api.requestGoatDebate.run(req(null,proposal()))).rejects.toMatchObject({code:'unauthenticated'});
+    for(const candidates of [['A','B','C','D'],['A','B','C','D',' a '],['A','B','C','D','\u200b']])
+      await expect(api.requestGoatDebate.run(req('alice',proposal({candidates})))).rejects.toMatchObject({code:'invalid-argument'});
+    await db.doc('goatAccounts/alice').set({restricted:true});
+    await expect(api.requestGoatDebate.run(req('alice',proposal()))).rejects.toMatchObject({code:'permission-denied'});
+  });
+  it('keeps debate requests private and limits administrative review to admins',async()=>{
+    const {id}=await api.requestGoatDebate.run(req('alice',proposal()));
+    expect((await api.listGoatDebates.run(req(null,{}))).items).toHaveLength(1);
+    expect((await api.listGoatDebateRequests.run(req('alice',{}))).items[0]).toMatchObject({id,status:'pending'});
+    expect((await api.listGoatDebateRequests.run(req('bob',{userId:'alice'}))).items).toHaveLength(0);
+    await expect(api.listGoatDebateRequests.run(req(null,{}))).rejects.toMatchObject({code:'unauthenticated'});
+    await expect(api.listGoatDebateRequests.run(req('alice',{queue:true}))).rejects.toMatchObject({code:'permission-denied'});
+    await expect(api.reviewGoatDebateRequest.run(req('alice',{id,action:'approve'}))).rejects.toMatchObject({code:'permission-denied'});
+    expect((await api.listGoatDebateRequests.run(req(host,{queue:true}))).items).toHaveLength(1);
+  });
+  it('retries request submission safely and enforces three pending requests under concurrency',async()=>{
+    const input=proposal();
+    const results=await Promise.all([1,2].map(()=>api.requestGoatDebate.run(req('alice',input))));
+    expect(results[0].id).toBe(results[1].id);
+    const more=await Promise.allSettled([1,2,3].map(()=>api.requestGoatDebate.run(req('alice',proposal()))));
+    expect(more.filter(r=>r.status==='fulfilled')).toHaveLength(2);
+    expect((await db.doc('goatAccounts/alice').get()).data().pendingDebateRequests).toBe(3);
+    expect((await db.collection('goatDebateRequests').get()).size).toBe(3);
+  });
+  it('approval publishes exactly one valid debate with a midnight deadline and frees a request slot',async()=>{
+    const {id}=await api.requestGoatDebate.run(req('alice',proposal()));
+    const approvals=await Promise.all([1,2].map(()=>api.reviewGoatDebateRequest.run(req(host,{id,action:'approve'}))));
+    expect(approvals[0]).toEqual(approvals[1]);
+    const {room}=await api.getGoatDebate.run(req(null,{roomId:approvals[0].roomId}));
+    expect(room.title).toBe('Greatest player');expect(room.candidates).toHaveLength(5);expect(room.matchup).toEqual(['c1','c2']);
+    expect(room.endAt).toBe(require('../functions/arena-core').nextEasternMidnight(Date.now()));
+    expect((await db.collection('goatDebates').get()).size).toBe(2);
+    expect((await db.doc('goatAccounts/alice').get()).data().pendingDebateRequests).toBe(0);
+    expect((await api.listGoatDebateRequests.run(req(host,{queue:true}))).items).toHaveLength(0);
+    expect((await api.listGoatDebateRequests.run(req('alice',{}))).items[0]).toMatchObject({status:'approved',roomId:room.id});
+    await expect(api.reviewGoatDebateRequest.run(req(host,{id,action:'reject'}))).rejects.toMatchObject({code:'failed-precondition'});
+  });
+  it('rejections stay private, expose the reason to the requester and cannot later be approved',async()=>{
+    const {id}=await api.requestGoatDebate.run(req('alice',proposal()));
+    await api.reviewGoatDebateRequest.run(req(host,{id,action:'reject',reason:'An existing debate covers this topic.'}));
+    await api.reviewGoatDebateRequest.run(req(host,{id,action:'reject'}));
+    expect((await api.listGoatDebateRequests.run(req('alice',{}))).items[0]).toMatchObject({status:'rejected',reason:'An existing debate covers this topic.',roomId:null});
+    expect((await db.collection('goatDebates').get()).size).toBe(1);
+    expect((await db.doc('goatAccounts/alice').get()).data().pendingDebateRequests).toBe(0);
+    await expect(api.reviewGoatDebateRequest.run(req(host,{id,action:'approve'}))).rejects.toMatchObject({code:'failed-precondition'});
+  });
+  it('resolves simultaneous conflicting reviews atomically',async()=>{
+    const {id}=await api.requestGoatDebate.run(req('alice',proposal()));
+    const decisions=await Promise.allSettled(['approve','reject'].map(action=>api.reviewGoatDebateRequest.run(req(host,{id,action}))));
+    expect(decisions.filter(r=>r.status==='fulfilled')).toHaveLength(1);
+    const record=(await db.doc(`goatDebateRequests/${id}`).get()).data();
+    expect((await db.collection('goatDebates').get()).size).toBe(record.status==='approved'?2:1);
+    expect((await db.doc('goatAccounts/alice').get()).data().pendingDebateRequests).toBe(0);
+  });
+  it('paginates private and pending request lists without losing requests or leaking other users',async()=>{
+    const batch=db.batch();
+    for(let i=0;i<23;i++)batch.set(db.doc(`goatDebateRequests/item${String(i).padStart(2,'0')}`),{title:'Test',candidates:[],userId:'alice',status:'pending',createdAt:1});
+    batch.set(db.doc('goatDebateRequests/other'),{title:'Private',candidates:[],userId:'bob',status:'rejected',createdAt:1});await batch.commit();
+    for(const [user,queue] of [['alice',false],[host,true]]){
+      const first=await api.listGoatDebateRequests.run(req(user,{queue}));
+      const second=await api.listGoatDebateRequests.run(req(user,{queue,cursor:first.nextCursor}));
+      expect(first.items).toHaveLength(20);expect(second.items).toHaveLength(3);expect(second.nextCursor).toBeNull();
+      expect(new Set([...first.items,...second.items].map(r=>r.id)).size).toBe(23);
+    }
   });
 
 });

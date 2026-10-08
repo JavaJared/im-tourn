@@ -108,3 +108,11 @@
 
 .arena-cooldown { margin-top:24px; }
 .arena-cooldown>summary { min-height:44px; align-content:center; color:var(--ui-muted); }
+
+.arena-requests { display:grid; gap:16px; margin-top:20px; }
+.arena-requests>button { justify-self:start; }
+.arena-request { min-width:0; padding-block:20px; border-top:1px solid var(--ui-line); overflow-wrap:anywhere; }
+.arena-request h4 { margin:0 0 12px; font-size:1.1rem; }
+.arena-request-candidates { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr)); gap:8px 32px; padding-left:24px; }
+.arena-request-candidates li { margin:0; }
+.arena-request-status { color:var(--ui-muted); }

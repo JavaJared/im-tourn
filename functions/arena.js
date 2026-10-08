@@ -1,4 +1,4 @@
-const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { onCall } = require('firebase-functions/v2/https');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { getFirestore, FieldPath } = require('firebase-admin/firestore');
 const { randomInt, createHash } = require('node:crypto');
@@ -6,12 +6,7 @@ const { SCHEDULE_VERSION, nextEasternMidnight, alignSchedule, canonical, settle,
 const { reviewComment, publicComment } = require('./arena-comment-review');
 const moderation = require('./arena-moderation');
 const db = () => getFirestore();
-const fail = (code, message) => { throw new HttpsError(code, message); };
-const admin = req => req.auth && (req.auth.token?.admin === true || req.auth.uid === 'VBbDwj6gkVgW7gBcs3vTmt0ulLF2');
-function requireAdmin(req) { if (!admin(req)) fail('permission-denied', 'Administrator access required.'); }
-function uid(req) { if (!req.auth) fail('unauthenticated', 'Sign in to participate.'); return req.auth.uid; }
-function id(value) { if (typeof value !== 'string' || !/^[\w-]{1,128}$/.test(value)) fail('invalid-argument', 'Invalid identifier.'); return value; }
-function text(value, max) { if (typeof value !== 'string' || !value.trim() || value.trim().length > max) fail('invalid-argument', `Enter between 1 and ${max} characters.`); return value.trim(); }
+const { fail, admin, requireAdmin, uid, id, text, debateInput, newRoom } = require('./arena-shared');
 function publicRoom(snap) {
   const r = snap.data();
   const candidates = r.candidates.filter(c => !c.status || c.status === 'approved');
@@ -129,17 +124,14 @@ exports.actOnGoatDebate = onCall(async req => {
 });
 exports.createGoatDebate = onCall(async req => {
   requireAdmin(req); const user = uid(req), data = req.data || {};
-  const title = text(data.title, 100);
-  if (!Array.isArray(data.candidates) || data.candidates.length < 4 || data.candidates.length > 50) fail('invalid-argument', 'Supply 4–50 candidates, with the opening pair first.');
-  const candidates = data.candidates.map((name, i) => ({ id: `c${i + 1}`, name: text(name, 80) }));
-  if (new Set(candidates.map(c => canonical(c.name))).size !== candidates.length) fail('invalid-argument', 'Candidate names must be unique.');
+  const input = debateInput(data);
   const key = createHash('sha256').update(`${user}:${id(data.requestId)}`).digest('hex');
   const ref = db().doc(`goatDebates/${key}`), account = db().doc(`goatAccounts/${user}`);
   return db().runTransaction(async tx => {
     const [existing, wallet] = await tx.getAll(ref, account), now = Date.now();
     if (existing.exists) return { id: ref.id };
     if (wallet.data()?.restricted) fail('permission-denied', 'Account restricted.');
-    tx.set(ref, { title, candidates, creatorId: user, createdAt: now, round: 1, matchup: ['c1', 'c2'], defender: null, chairEpoch: 0, lossEpoch: {}, votes: {}, nominations: {}, stats: {}, lastPlayed: { c1: 1, c2: 1 }, status: 'active', endAt: nextEasternMidnight(now), scheduleVersion: SCHEDULE_VERSION, pauseReason: '' });
+    tx.set(ref, newRoom(input, user, now));
     return { id: ref.id };
   });
 });

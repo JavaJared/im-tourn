@@ -53,3 +53,11 @@ Wait for both backend and frontend workflows before testing. If the frontend arr
 No redeployment is needed just to add/rotate the key: the server retrieves it at runtime with its own Google credentials. Missing permissions or disabled Secret Manager are handled as unavailable configuration. OpenAI 401/429/5xx errors remain in manual review. Unit tests mock the provider; emulator tests never read production secrets or send content externally.
 
 References: https://developers.openai.com/api/docs/guides/moderation and https://cloud.google.com/secret-manager/docs/access-secret-version.
+
+### User-requested debates
+
+Signed-in users can open **Request a debate** on the GOAT Arena page and submit a title with 5–50 unique challengers (80 characters per name). The first two form the opening matchup. Requests are private until approved; **My requests** shows pending/approved/rejected status, any rejection reason, and a link to an approved debate. Each account may have up to three pending requests. Existing debate restrictions apply to requests too.
+
+Administrators open **Review debate requests** to inspect the full challenger list and requester profile, then choose **Approve & publish** or **Reject** with an optional reason. Approval creates the featured debate atomically, starting immediately and ending its opening matchup at the next midnight Eastern. Concurrent reviews and retries cannot create duplicate debates or overwrite a completed decision. Rejected requests do not create debates. Refresh requests retrieves new submissions and decisions; both lists are paginated.
+
+The new callable functions are `requestGoatDebate`, `listGoatDebateRequests`, and `reviewGoatDebateRequest`. Private `goatDebateRequests` documents are server-only under the existing default-deny Firestore rules. Queries use a single equality filter plus ascending document ID and require no composite indexes. Deploy the Firebase backend as well as the frontend through the existing GitHub workflows.
