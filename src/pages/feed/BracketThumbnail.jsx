@@ -27,13 +27,13 @@ export function ThumbnailDrawing({data,title}) {
           const source=layout.positions[feederId(state,r,p,w)];if(!source)return null;
           const fromRight=source.x>pos.x;
           const x=source.x+(fromRight?0:CARDW),endX=pos.x+(fromRight?CARDW:0),y=source.y+CARDH/2,endY=pos.y+CARDH/2;
-          return <path key={w} d={`M${x} ${y} H${(x+endX)/2} V${endY} H${endX}`} fill="none" stroke="#627086" strokeWidth="2"/>;
+          return <path key={w} d={`M${x} ${y} H${(x+endX)/2} V${endY} H${endX}`} fill="none" stroke="var(--ui-muted, #627086)" strokeWidth="2"/>;
         })}
-        <rect x={pos.x} y={pos.y} width={CARDW} height={CARDH} rx="10" fill="#1c2432" stroke="#627086"/>
+        <rect x={pos.x} y={pos.y} width={CARDW} height={CARDH} rx="10" fill="var(--ui-surface, #1c2432)" stroke="var(--ui-muted, #627086)"/>
         {['A','B'].map((slot,i)=>{
           const entry=resolveSlot(state,loc,nameMap,id,slot,seedMap);
           const label=entry.kind==='player'?`${entry.seed?`${entry.seed}. `:''}${entry.name}`:entry.kind==='bye'?'Bye':'TBD';
-          return <text key={slot} x={pos.x+8} y={pos.y+24+i*30} fill={entry.pid!=null&&entry.pid===winner?'#5ee0c5':'#f0f3f8'} fontSize="22" fontFamily="sans-serif"><title>{label}</title>{label.length>14?`${label.slice(0,13)}…`:label}</text>;
+          return <text key={slot} x={pos.x+8} y={pos.y+24+i*30} fill={entry.pid!=null&&entry.pid===winner?'var(--ui-selected, #5ee0c5)':'var(--ui-text, #f0f3f8)'} fontSize="22" fontFamily="sans-serif"><title>{label}</title>{label.length>14?`${label.slice(0,13)}…`:label}</text>;
         })}
       </g>;
     }))}

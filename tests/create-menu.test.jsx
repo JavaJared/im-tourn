@@ -1,9 +1,11 @@
 import React from 'react';
 import {act,create} from 'react-test-renderer';
 import {expect,test,vi} from 'vitest';
-import {CreateAction} from '../src/components/layout/ExploreHeader';
+import ActionDisclosure from '../src/components/ActionDisclosure';
+import ViewLink from '../src/components/layout/ViewLink';
+function CreateAction({onNavigate}) { return <ActionDisclosure label="Create"><ViewLink view="create" onNavigate={onNavigate}>Bracket</ViewLink><ViewLink view="create-ranking" onNavigate={onNavigate}>Ranking</ViewLink></ActionDisclosure>; }
 
-test('touch selection remains open until activation; outside interaction and Escape dismiss',()=>{
+test('legacy disclosure touch selection remains open until activation; outside interaction and Escape dismiss',()=>{
   const listeners={},focus=vi.fn(),navigate=vi.fn();
   const inside={},outside={},menu={open:true,contains:target=>target===inside,querySelector:()=>({focus})};
   vi.stubGlobal('document',{addEventListener:(name,fn)=>{listeners[name]=fn;},removeEventListener:(name)=>{delete listeners[name];}});

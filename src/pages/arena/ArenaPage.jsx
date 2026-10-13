@@ -8,6 +8,7 @@ import ArenaAdmin, { CreateDebate } from './ArenaAdmin';
 import ArenaDiscussion from './ArenaDiscussion';
 import ArenaRequests from './ArenaRequests';
 import ArenaChallengers from './ArenaChallengers';
+import ArenaMatchup from './ArenaMatchup';
 import './arena.css';
 
 export default function ArenaPage({ roomId, onNavigate }) {
@@ -45,7 +46,7 @@ export default function ArenaPage({ roomId, onNavigate }) {
   return <div className="home-container arena">
     <ViewLink view="arena" onNavigate={onNavigate}>GOAT Arena</ViewLink><header className="page-heading"><h1>{room.title}</h1></header>
     <div className="arena-round"><span>Matchup {room.round}</span><span>{room.status === 'paused' ? 'Paused' : seconds ? `${Math.floor(seconds / 3600)}h ${Math.floor(seconds % 3600 / 60)}m remaining · midnight ET` : 'Matchup ended'}{expired && room.status === 'active' && <button onClick={load}>Load next matchup</button>}</span></div>
-    <div className="arena-matchup">{room.matchup.map(id => <button className={`arena-candidate${personal?.vote === id ? ' selected' : ''}`} key={id} disabled={disabled || !!personal?.vote} aria-pressed={personal?.vote === id} onClick={() => act('vote', { candidateId: id })}><span>{room.defender === id ? 'GOAT Chair' : 'Challenger'}</span><strong>{name(id)}</strong><span>{room.votes[id] || 0} votes{personal?.vote === id ? ' · Your vote' : ''}</span></button>)}</div>
+    <ArenaMatchup room={room} vote={personal?.vote} disabled={disabled} onVote={candidateId => act('vote', { candidateId })}/>
     {!currentUser && <p>Sign in to vote. Voting is free.</p>}{room.pauseReason && <p>{room.pauseReason}</p>}{personal?.restricted && <p role="status">Your debate access is restricted pending review. Use the site feedback form to appeal.</p>}
     {error && <p role="alert">{error} <button onClick={load}>Refresh</button></p>}
     <nav className="section-switcher" aria-label="Debate sections">{[['discussion','Discussion'], ['challengers','Next challenger'], ['history','GOAT Chair'], ['rules','Rules']].map(([value, label]) => <button className="arena-tab" key={value} aria-pressed={tab === value} onClick={() => { setTab(value); if(value === 'history') loadHistory(); }}>{label}</button>)}</nav>

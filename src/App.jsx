@@ -4,6 +4,7 @@ import './mobile/mobile.css';
 import AnalyticsConsent from './components/AnalyticsConsent';
 import PageMetadata from './components/PageMetadata';
 import AppRoutes from './app/AppRoutes.jsx';
+import { legacySurface } from './components/layout/navigation';
 import useAppState from './app/useAppState';
 import { AuthProvider } from './contexts/AuthContext';
 import Header from './components/layout/Header.jsx';
@@ -34,7 +35,7 @@ function AppContent() {
       <PageMetadata view={view} />
       <Header onNavigate={setView} currentView={view} />
 
-      <main id="main-content" className="main-content" tabIndex={-1}>
+      <main id="main-content" className={`main-content ${legacySurface(view) ? 'legacy-surface' : 'stadium-surface'}`} tabIndex={-1}>
         <AppRoutes
           view={view}
           handleFillOut={handleFillOut}
@@ -53,7 +54,7 @@ function AppContent() {
         currentView={view}
       />
 
-      <FeedbackModal isOpen={showFeedbackModal} onClose={() => setShowFeedbackModal(false)} />
+      <div className="legacy-surface"><FeedbackModal isOpen={showFeedbackModal} onClose={() => setShowFeedbackModal(false)} /></div>
 
       {showTour && <GuidedTour onComplete={handleTourComplete} />}
     </div></ProfileNavigationContext.Provider>

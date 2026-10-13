@@ -1,140 +1,45 @@
 import NotificationBell from '../notifications/NotificationBell';
 import { useState } from 'react';
+import * as Menu from '@radix-ui/react-dropdown-menu';
+import { Home, Compass, FolderHeart, UserRound, Users, Shield, LogOut, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { ADMIN_USER_IDS, FEATURES } from '../../config/app.js';
-import ViewLink from './ViewLink.jsx';
-import AuthModal from '../dialogs/AuthModal.jsx';
+import { ADMIN_USER_IDS } from '../../config/app';
+import ViewLink from './ViewLink';
+import AuthModal from '../dialogs/AuthModal';
+import CreateMenu from './CreateMenu';
+import { navigationSection } from './navigation';
+import { Button } from '../ui/Button';
 
-const Header = ({ onNavigate, currentView }) => {
+export function PrimaryNavigation({ currentView, onNavigate }) {
+  const active = navigationSection(currentView);
+  return <nav className="stadium-nav" aria-label="Primary">
+    {[['home','Home',Home],['browse','Explore',Compass],['my-activities','My Stuff',FolderHeart]].map(([view,label,Icon]) =>
+      <ViewLink key={view} view={view} currentView={active} onNavigate={onNavigate}><Icon size={19} aria-hidden="true"/><span>{label}</span></ViewLink>)}
+    <CreateMenu onNavigate={onNavigate} active={active === 'create'}/>
+  </nav>;
+}
+export default function Header({ onNavigate, currentView }) {
   const { currentUser, username, logout } = useAuth();
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState('login');
-  const [showUserMenu, setShowUserMenu] = useState(false);
-
+  const [showAuth, setShowAuth] = useState(false), [authMode, setAuthMode] = useState('login'), [error, setError] = useState('');
+  const [accountOpen, setAccountOpen] = useState(false);
   const isAdmin = currentUser && ADMIN_USER_IDS.includes(currentUser.uid);
-
-  const openAuth = (mode) => {
-    setAuthMode(mode);
-    setShowAuthModal(true);
-  };
-
-  return (
-    <>
-      <header className="header">
-        <ViewLink className="logo" view="home" onNavigate={onNavigate}>
-          I'M TOURN<span className="sr-only"> home</span>
-        </ViewLink>
-
-        <nav className="header-nav" aria-label="Primary">
-          <ViewLink
-            className={`nav-link ${currentView === 'home' ? 'active' : ''}`}
-            view="home" onNavigate={onNavigate} currentView={currentView}
-          >
-            For You
-          </ViewLink>
-          <ViewLink
-            className={`nav-link ${['browse','rankings','weekly','arena'].includes(currentView) ? 'active' : ''}`}
-            view="browse" onNavigate={onNavigate} currentView={['browse','rankings','weekly','arena'].includes(currentView)?'browse':currentView}
-          >
-            Explore
-          </ViewLink>
-          <ViewLink
-            className={`nav-link ${currentView === 'pools' || currentView === 'create-pool' || currentView.startsWith('pool-') ? 'active' : ''}`}
-            view="pools" onNavigate={onNavigate} currentView={currentView}
-          >
-            Pools
-          </ViewLink>
-          {FEATURES.predictions && (
-            <ViewLink
-              className={`nav-link ${currentView === 'prediction-pools' || currentView === 'create-prediction-pool' || currentView.startsWith('prediction-pool-') ? 'active' : ''}`}
-              view="prediction-pools" onNavigate={onNavigate} currentView={currentView}
-            >
-              Predictions
-            </ViewLink>
-          )}
-          {FEATURES.drafts && (
-            <ViewLink
-              className={`nav-link ${currentView === 'drafts' || currentView === 'create-draft' || currentView.startsWith('draft-') ? 'active' : ''}`}
-              view="drafts" onNavigate={onNavigate} currentView={currentView}
-            >
-              Drafts
-            </ViewLink>
-          )}
-          {FEATURES.pastChampions && (
-            <ViewLink
-              className={`nav-link ${currentView === 'champions' ? 'active' : ''}`}
-              view="champions" onNavigate={onNavigate} currentView={currentView}
-            >
-              Past Champions
-            </ViewLink>
-          )}
-        </nav>
-
-        <div className="header-actions">
-          {currentUser && <NotificationBell key={currentUser.uid} onNavigate={onNavigate} />}
-          {currentUser ? (
-            <div className="user-menu-container" onKeyDown={(event) => {
-              if (event.key === 'Escape') {
-                setShowUserMenu(false);
-                event.currentTarget.querySelector('.user-btn')?.focus();
-              }
-            }} onBlur={(event) => {
-              if (!event.currentTarget.contains(event.relatedTarget)) setShowUserMenu(false);
-            }}>
-              <button className="user-btn" aria-expanded={showUserMenu} aria-controls="account-links" onClick={() => setShowUserMenu(!showUserMenu)}>
-                <span className="user-avatar">
-                  {username?.[0]?.toUpperCase() ||
-                    currentUser.email?.[0]?.toUpperCase()}
-                </span>
-                <span className="user-name">{username ? `@${username}` : '…'}</span>
-              </button>
-
-              {showUserMenu && (
-                <div className="user-dropdown" id="account-links">
-                  <button onClick={() => { onNavigate('profile'); setShowUserMenu(false); }}>Profile</button>
-                  <button onClick={() => { onNavigate('my-activities'); setShowUserMenu(false); }}>My Activities</button>
-                  <button onClick={() => { onNavigate('friends'); setShowUserMenu(false); }}>Friends</button>
-                  {isAdmin && (
-                    <button
-                      onClick={() => {
-                        onNavigate('admin');
-                        setShowUserMenu(false);
-                      }}
-                    >
-                      Admin Panel
-                    </button>
-                  )}
-                  <button
-                    onClick={() => {
-                      logout();
-                      setShowUserMenu(false);
-                    }}
-                  >
-                    Log Out
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="auth-buttons">
-              <button className="back-btn" onClick={() => openAuth('login')}>
-                Log In
-              </button>
-              <button className="nav-btn" onClick={() => openAuth('signup')}>
-                Sign Up
-              </button>
-            </div>
-          )}
-        </div>
-      </header>
-
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        initialMode={authMode}
-      />
-    </>
-  );
-};
-
-export default Header;
+  function authenticate(mode) { setAuthMode(mode); setShowAuth(true); }
+  return <>
+    <header className="stadium-header">
+      <ViewLink className="stadium-wordmark" view="home" onNavigate={onNavigate}>I'M TOURN<span className="sr-only"> home</span></ViewLink>
+      <PrimaryNavigation currentView={currentView} onNavigate={onNavigate}/>
+      <div className="stadium-account">
+        {currentUser ? <><NotificationBell key={currentUser.uid} onNavigate={onNavigate}/>
+          <Menu.Root open={accountOpen} onOpenChange={setAccountOpen}><Menu.Trigger asChild><Button className="account-trigger" aria-label="Your account"><span className="account-avatar" aria-hidden="true">{username?.[0]?.toUpperCase() || '•'}</span><span className="account-name">{username ? `@${username}` : 'Account'}</span><ChevronDown size={14} aria-hidden="true"/></Button></Menu.Trigger>
+            <Menu.Portal><Menu.Content className="ui-menu" align="end" sideOffset={8} collisionPadding={12} aria-label="Your account">
+              {[[UserRound,'profile','Profile'],[Users,'friends','Friends'],...(isAdmin?[[Shield,'admin','Admin panel']]:[])].map(([Icon,view,label]) => <Menu.Item key={view} asChild><ViewLink view={view} onNavigate={view => { setAccountOpen(false); onNavigate(view); }}><Icon size={18} aria-hidden="true"/>{label}</ViewLink></Menu.Item>)}
+              <Menu.Separator className="ui-menu-separator"/>
+              <Menu.Item onSelect={async () => { try { await logout(); setError(''); } catch { setError('Could not log out. Please retry.'); } }}><LogOut size={18} aria-hidden="true"/>Log out</Menu.Item>
+            </Menu.Content></Menu.Portal>
+          </Menu.Root></> : <><Button variant="ghost" onClick={() => authenticate('login')}>Log in</Button><Button className="signup-action" onClick={() => authenticate('signup')}>Sign up</Button></>}
+      </div>
+    </header>
+    {error && <p role="alert" className="header-error">{error}</p>}
+    <div className="legacy-surface"><AuthModal isOpen={showAuth} onClose={() => setShowAuth(false)} initialMode={authMode}/></div>
+  </>;
+}
