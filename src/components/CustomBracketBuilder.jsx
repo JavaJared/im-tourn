@@ -1,3 +1,4 @@
+import { competitionTheme } from './brackets/competitionTheme';
 import BracketLoader from './BracketLoader';
 import SaveNotice from './SaveNotice';
 import DefaultBracketSetup from './DefaultBracketSetup';
@@ -274,62 +275,61 @@ function Handles({ pos, onBefore, onBeside, onAfter }) {
 }
 
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&display=swap');
 .cbb *{box-sizing:border-box}
 .cbb ::-webkit-scrollbar{width:11px;height:11px}
-.cbb ::-webkit-scrollbar-thumb{background:#2a3040;border-radius:6px;border:3px solid transparent;background-clip:padding-box}
-.cbb input::placeholder{color:#5b6275}
+.cbb ::-webkit-scrollbar-thumb{background:var(--color-control-line);border-radius:6px;border:3px solid transparent;background-clip:padding-box}
+.cbb input::placeholder{color:var(--muted)}
 .handle{transition:transform .12s ease, box-shadow .12s ease}
-.handle:hover{transform:scale(1.12);box-shadow:0 0 0 6px rgba(43,212,192,.14)}
+.handle:hover{transform:scale(1.12);box-shadow:0 0 0 6px var(--color-brand-soft)}
 .spin{animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 `;
 const S = {
-  root: { '--bg': '#0c0e13', '--surface': '#14171f', '--surface2': '#1b1f2b', '--line': '#2a3040', '--text': '#eef1f7', '--muted': '#828ba1', '--orange': '#ff6a3d', '--teal': '#2bd4c0', position: 'relative', display: 'flex', flexDirection: 'column', height: '100%', minHeight: 560, background: 'var(--bg)', color: 'var(--text)', fontFamily: "'Outfit',system-ui,sans-serif", borderRadius: 14, overflow: 'hidden', border: '1px solid var(--line)' },
+  root: { ...competitionTheme, position: 'relative', display: 'flex', flexDirection: 'column', height: '100%', minHeight: 560, background: 'var(--bg)', color: 'var(--text)', fontFamily: 'var(--font-ui)', borderRadius: 14, overflow: 'hidden', border: '1px solid var(--line)' },
   center: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, color: 'var(--muted)', fontSize: 14 },
-  top: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', borderBottom: '1px solid var(--line)', background: 'linear-gradient(180deg,#14171f,#101319)' },
+  top: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', borderBottom: '1px solid var(--line)', background: 'var(--surface)' },
   brand: { display: 'flex', flexDirection: 'column', lineHeight: 1 },
-  brandMark: { fontFamily: "'Bebas Neue',sans-serif", fontSize: 22, letterSpacing: 1.5, color: 'var(--orange)' },
+  brandMark: { fontFamily: 'var(--font-display)', fontSize: 22, letterSpacing: 1.5, color: 'var(--orange)' },
   brandSub: { fontSize: 12, color: 'var(--muted)', marginTop: 3 },
   topRight: { display: 'flex', alignItems: 'center', gap: 12 },
   addBtn: { display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: 'var(--text)', background: 'var(--surface2)', border: '1px solid var(--line)', borderRadius: 9, padding: '7px 12px', cursor: 'pointer' },
   count: { fontSize: 13, color: 'var(--muted)' },
   savePill: { display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, transition: 'opacity .3s' },
   publish: { display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: 'var(--muted)', background: 'var(--surface2)', border: '1px solid var(--line)', borderRadius: 9, padding: '8px 14px', cursor: 'pointer' },
-  publishOn: { color: '#0c0e13', background: 'var(--teal)', border: '1px solid var(--teal)' },
+  publishOn: { color: 'var(--color-on-brand)', background: 'var(--teal)', border: '1px solid var(--teal)' },
   scroll: { flex: 1, overflow: 'auto', position: 'relative' },
   svg: { position: 'absolute', inset: 0, pointerEvents: 'none' },
-  edge: { fill: 'none', stroke: 'rgba(43,212,192,.5)', strokeWidth: 2 },
-  colHead: { position: 'absolute', top: 26, textAlign: 'center', fontFamily: "'Bebas Neue',sans-serif", fontSize: 15, letterSpacing: 1.2, color: 'var(--muted)' },
-  card: { position: 'absolute', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 12, padding: 9, boxShadow: '0 6px 18px rgba(0,0,0,.35)', cursor: 'pointer', userSelect: 'none' },
-  cardSel: { border: '2px solid var(--orange)', padding: 8, boxShadow: '0 0 0 4px rgba(255,106,61,.14), 0 8px 22px rgba(0,0,0,.45)' },
-  tag: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontFamily: "'Bebas Neue',sans-serif", fontSize: 12, letterSpacing: 1, color: 'var(--muted)', marginBottom: 6, height: 14 },
+  edge: { fill: 'none', stroke: 'var(--color-brand)', strokeWidth: 2 },
+  colHead: { position: 'absolute', top: 26, textAlign: 'center', fontFamily: 'var(--font-display)', fontSize: 15, letterSpacing: 1.2, color: 'var(--muted)' },
+  card: { position: 'absolute', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 12, padding: 9, boxShadow: 'var(--shadow-card)', cursor: 'pointer', userSelect: 'none' },
+  cardSel: { border: '2px solid var(--orange)', padding: 8, boxShadow: '0 0 0 4px var(--color-brand-soft)' },
+  tag: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontFamily: 'var(--font-display)', fontSize: 12, letterSpacing: 1, color: 'var(--muted)', marginBottom: 6, height: 14 },
   del: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, color: 'var(--orange)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 },
   vs: { fontSize: 10, color: 'var(--muted)', textAlign: 'center', margin: '3px 0', letterSpacing: 1 },
   slot: { display: 'flex', alignItems: 'center', gap: 6, height: 34, padding: '0 8px', borderRadius: 8, fontSize: 13 },
-  slotOpen: { border: '1px dashed #3a4152' },
+  slotOpen: { border: '1px dashed var(--color-control-line)' },
   slotNamed: { border: '1px solid var(--line)', background: 'var(--surface2)' },
-  slotFeed: { background: 'rgba(43,212,192,.08)', color: 'var(--teal)', border: '1px solid rgba(43,212,192,.2)' },
+  slotFeed: { background: 'var(--color-brand-soft)', color: 'var(--teal)', border: '1px solid var(--color-brand)' },
   slotBye: { background: 'var(--surface2)', color: 'var(--muted)', justifyContent: 'space-between' },
   feedTxt: { fontSize: 12, fontWeight: 500 },
   byeTxt: { fontStyle: 'italic', fontSize: 13 },
   input: { flex: 1, minWidth: 0, background: 'transparent', border: 'none', outline: 'none', color: 'var(--text)', fontSize: 13, fontFamily: 'inherit' },
   slotX: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, color: 'var(--muted)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 },
   byeBtn: { fontSize: 11, color: 'var(--muted)', background: 'transparent', border: '1px solid var(--line)', borderRadius: 6, padding: '2px 7px', cursor: 'pointer', flexShrink: 0 },
-  handle: { position: 'absolute', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 44, height: 44, borderRadius: '50%', background: 'var(--teal)', color: '#08221f', border: 'none', cursor: 'pointer', zIndex: 5, boxShadow: '0 4px 12px rgba(43,212,192,.3)' },
+  handle: { position: 'absolute', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 44, height: 44, borderRadius: '50%', background: 'var(--teal)', color: 'var(--color-on-brand)', border: 'none', cursor: 'pointer', zIndex: 5, boxShadow: 'var(--shadow-card)' },
   empty: { minHeight: 400, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 24 },
-  emptyTitle: { fontFamily: "'Bebas Neue',sans-serif", fontSize: 30, letterSpacing: 1.5, margin: 0 },
+  emptyTitle: { fontFamily: 'var(--font-display)', fontSize: 30, letterSpacing: 1.5, margin: 0 },
   emptyText: { color: 'var(--muted)', fontSize: 14, maxWidth: 400, margin: '8px 0 22px', lineHeight: 1.5 },
-  bigAdd: { display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 600, color: '#0c0e13', background: 'var(--orange)', border: 'none', borderRadius: 11, padding: '12px 20px', cursor: 'pointer' },
-  foot: { display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 18px', borderTop: '1px solid var(--line)', background: '#101319' },
+  bigAdd: { display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 600, color: 'var(--color-on-brand)', background: 'var(--orange)', border: 'none', borderRadius: 11, padding: '12px 20px', cursor: 'pointer' },
+  foot: { display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 18px', borderTop: '1px solid var(--line)', background: 'var(--surface)' },
   ready: { display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--teal)', fontWeight: 500 },
   notReady: { alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--orange)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 500 },
   errList: { margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexWrap: 'wrap', gap: '4px 18px', animation: 'pop .15s ease' },
   errItem: { fontSize: 12.5, color: 'var(--muted)' },
   overlay: { position: 'absolute', inset: 0, background: 'rgba(6,8,12,.66)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 40, animation: 'pop .12s ease' },
-  sheet: { width: 340, maxWidth: '88%', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 14, padding: 20, boxShadow: '0 20px 50px rgba(0,0,0,.55)' },
-  sheetTitle: { fontFamily: "'Bebas Neue',sans-serif", fontSize: 22, letterSpacing: 1, color: 'var(--text)' },
+  sheet: { width: 340, maxWidth: '88%', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 14, padding: 20, boxShadow: 'var(--shadow-menu)' },
+  sheetTitle: { fontFamily: 'var(--font-display)', fontSize: 22, letterSpacing: 1, color: 'var(--text)' },
   sheetSub: { fontSize: 13, color: 'var(--muted)', margin: '4px 0 14px', lineHeight: 1.4 },
   rpList: { display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 240, overflow: 'auto' },
   rpRow: { display: 'flex', alignItems: 'center', gap: 10 },
@@ -338,6 +338,6 @@ const S = {
   rpUnit: { fontSize: 12, color: 'var(--muted)', width: 24 },
   sheetActions: { display: 'flex', gap: 10, marginTop: 18 },
   cancelBtn: { flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--text)', background: 'var(--surface2)', border: '1px solid var(--line)', borderRadius: 9, padding: '10px 0', cursor: 'pointer' },
-  confirmBtn: { flex: 2, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#0c0e13', background: 'var(--teal)', border: '1px solid var(--teal)', borderRadius: 9, padding: '10px 0', cursor: 'pointer' },
-  toast: { position: 'absolute', bottom: 70, left: '50%', transform: 'translateX(-50%)', background: 'var(--orange)', color: '#0c0e13', fontSize: 13, fontWeight: 600, padding: '9px 16px', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,.4)', animation: 'pop .15s ease', zIndex: 20 },
+  confirmBtn: { flex: 2, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: 'var(--color-on-brand)', background: 'var(--teal)', border: '1px solid var(--teal)', borderRadius: 9, padding: '10px 0', cursor: 'pointer' },
+  toast: { position: 'absolute', bottom: 70, left: '50%', transform: 'translateX(-50%)', background: 'var(--orange)', color: 'var(--color-on-brand)', fontSize: 13, fontWeight: 600, padding: '9px 16px', borderRadius: 10, boxShadow: 'var(--shadow-menu)', animation: 'pop .15s ease', zIndex: 20 },
 };

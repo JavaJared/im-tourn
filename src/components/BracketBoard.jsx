@@ -74,7 +74,7 @@ export default function BracketBoard({ state, nameMap, seedMap, editable, onPick
             const decided = resolveParticipant(state, loc, id, w === 0 ? 'A' : 'B') != null;
             const fromRight = cp.x > pos.x;
             const x1 = fromRight ? cp.x : cp.x + CARDW, y1 = cp.y + CARDH / 2, x2 = fromRight ? pos.x + CARDW : pos.x, y2 = pos.y + CARDH / 2, mx = (x1 + x2) / 2;
-            return <path key={id + w} d={`M ${x1} ${y1} C ${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`} fill="none" stroke={decided ? 'rgba(43,212,192,.5)' : 'rgba(130,139,161,.32)'} strokeWidth="2" />;
+            return <path key={id + w} d={`M ${x1} ${y1} C ${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`} fill="none" stroke={decided ? 'var(--color-brand)' : 'var(--color-control-line)'} strokeWidth="2" />;
           });
         })}
       </svg>
@@ -123,22 +123,22 @@ function Card({ id, pos, a, b, result, editable, onPick, official, sc, hl, match
  * (CSS custom properties are inherited from the host component's root). */
 const BS = {
   svg: { position: 'absolute', inset: 0, pointerEvents: 'none' },
-  colHead: { position: 'absolute', top: 8, textAlign: 'center', fontFamily: "'Bebas Neue',sans-serif", fontSize: 15, letterSpacing: 1.2, color: 'var(--muted)' },
-  card: { position: 'absolute', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 12, padding: 9, boxShadow: '0 6px 18px rgba(0,0,0,.35)', userSelect: 'none' },
-  cardHl: { boxShadow: '0 0 0 2px var(--teal), 0 6px 18px rgba(43,212,192,.25)' },
-  tag: { fontFamily: "'Bebas Neue',sans-serif", fontSize: 12, letterSpacing: 1, color: 'var(--muted)', marginBottom: 6, height: 14 },
+  colHead: { position: 'absolute', top: 8, textAlign: 'center', fontFamily: 'var(--font-display)', fontSize: 15, letterSpacing: 1.2, color: 'var(--muted)' },
+  card: { position: 'absolute', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 12, padding: 9, boxShadow: 'var(--shadow-card)', userSelect: 'none' },
+  cardHl: { boxShadow: '0 0 0 2px var(--teal)' },
+  tag: { fontFamily: 'var(--font-display)', fontSize: 12, letterSpacing: 1, color: 'var(--muted)', marginBottom: 6, height: 14 },
   vs: { fontSize: 10, color: 'var(--muted)', textAlign: 'center', margin: '3px 0', letterSpacing: 1 },
   slot: { display: 'flex', alignItems: 'center', gap: 7, height: 34, padding: '0 10px', borderRadius: 8, fontSize: 13, border: '1px solid transparent' },
   slotIdle: { background: 'var(--surface2)', border: '1px solid var(--line)' },
-  slotPick: { background: 'var(--surface2)', border: '1px solid #3a4152' },
-  slotWin: { background: 'rgba(43,212,192,.14)', border: '1px solid rgba(43,212,192,.45)', color: 'var(--teal)', fontWeight: 600 },
-  slotWrong: { background: 'rgba(255,99,99,.13)', border: '1px solid rgba(255,99,99,.5)', color: '#ff8a8a', fontWeight: 600 },
-  slotLose: { background: 'transparent', border: '1px solid var(--line)', color: 'var(--muted)', opacity: .6 },
-  slotPending: { background: 'rgba(130,139,161,.07)', border: '1px solid var(--line)', color: 'var(--muted)' },
+  slotPick: { background: 'var(--surface2)', border: '1px solid var(--color-control-line)' },
+  slotWin: { background: 'var(--color-brand-soft)', border: '1px solid var(--color-brand)', color: 'var(--teal)', fontWeight: 600 },
+  slotWrong: { background: 'var(--color-danger-soft)', border: '1px solid var(--color-danger)', color: 'var(--color-danger)', fontWeight: 600 },
+  slotLose: { background: 'transparent', border: '1px solid var(--line)', color: 'var(--muted)', opacity: 1 },
+  slotPending: { background: 'var(--surface2)', border: '1px solid var(--line)', color: 'var(--muted)' },
   slotMuted: { background: 'var(--surface2)', color: 'var(--muted)' },
   name: { flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'normal', overflowWrap: 'anywhere', lineHeight: '14px', maxHeight: 28 },
   seed: { flex: 'none', minWidth: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10.5, fontWeight: 700, color: 'var(--muted)', background: 'var(--surface2)', border: '1px solid var(--line)', borderRadius: 5, padding: '0 3px' },
   scoreText: { marginLeft: 4, fontSize: 12, fontWeight: 700, color: 'var(--text)', minWidth: 18, textAlign: 'right', flex: 'none' },
-  pend: { fontSize: 12 }, byeTxt: { fontStyle: 'italic' },
-  finalTag: { fontFamily: "'Outfit',sans-serif", fontSize: 10, letterSpacing: .5, color: 'var(--orange)', textTransform: 'uppercase', marginLeft: 6 },
+  pend: { fontSize: 12, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }, byeTxt: { fontStyle: 'italic' },
+  finalTag: { fontFamily: 'var(--font-ui)', fontSize: 10, letterSpacing: .5, color: 'var(--orange)', textTransform: 'uppercase', marginLeft: 6 },
 };

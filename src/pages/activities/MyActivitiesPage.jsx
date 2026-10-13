@@ -37,7 +37,7 @@ export default function MyActivitiesPage({ onNavigate, onFillOut, onViewSaved })
     } catch (error) { if (version === generation.current) setError(error.message || 'Could not open this activity. Please retry.'); }
     finally { if (version === generation.current) { setOpening(''); openingRef.current = false; } }
   };
-  if (!currentUser) return <section className="activities-page"><h1>My Stuff</h1><p>Sign in to find your brackets, saved picks, pools, and rankings in one place.</p><button className="nav-btn" onClick={() => setSignIn(true)}>Log in</button><div className="legacy-surface"><AuthModal isOpen={signIn} onClose={() => setSignIn(false)} initialMode="login" /></div></section>;
+  if (!currentUser) return <section className="activities-page"><h1>My Stuff</h1><p>Sign in to find your brackets, saved picks, pools, and rankings in one place.</p><button className="nav-btn" onClick={() => setSignIn(true)}>Log in</button><div className="stadium-dialog-surface"><AuthModal isOpen={signIn} onClose={() => setSignIn(false)} initialMode="login" /></div></section>;
   return <section className="activities-page">
     <header className="activities-heading"><div><h1>My Stuff</h1></div><button className="back-btn" disabled={catalog.loading} onClick={catalog.refresh}>Refresh</button></header>
     <div className="activities-shortcuts"><button onClick={() => onNavigate('weekly')}>Weekly bracket →</button><button onClick={() => onNavigate('pools')}>Join a pool →</button></div>

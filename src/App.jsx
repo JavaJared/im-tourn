@@ -54,7 +54,7 @@ function AppContent() {
         currentView={view}
       />
 
-      <div className="legacy-surface"><FeedbackModal isOpen={showFeedbackModal} onClose={() => setShowFeedbackModal(false)} /></div>
+      <div className="stadium-dialog-surface"><FeedbackModal isOpen={showFeedbackModal} onClose={() => setShowFeedbackModal(false)} /></div>
 
       {showTour && <GuidedTour onComplete={handleTourComplete} />}
     </div></ProfileNavigationContext.Provider>

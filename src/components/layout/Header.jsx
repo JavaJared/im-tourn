@@ -40,6 +40,6 @@ export default function Header({ onNavigate, currentView }) {
       </div>
     </header>
     {error && <p role="alert" className="header-error">{error}</p>}
-    <div className="legacy-surface"><AuthModal isOpen={showAuth} onClose={() => setShowAuth(false)} initialMode={authMode}/></div>
+    <div className="stadium-dialog-surface"><AuthModal isOpen={showAuth} onClose={() => setShowAuth(false)} initialMode={authMode}/></div>
   </>;
 }

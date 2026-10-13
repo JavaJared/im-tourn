@@ -19,5 +19,7 @@ export function navigationSection(view) {
   return 'browse';
 }
 export function legacySurface(view) {
-  return !['home', 'my-activities', 'arena'].includes(view) && !view.startsWith('debate-');
+  // Keep only the not-yet-migrated tools in their original contained theme.
+  return ['drafts', 'my-drafts', 'create-draft', 'prediction-pools', 'create-prediction-pool', 'kristin-tiers'].includes(view)
+    || ['draft-', 'prediction-pool-', 'kristin-tiers-'].some(prefix => view.startsWith(prefix));
 }

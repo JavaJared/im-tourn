@@ -63,3 +63,52 @@ body { background:var(--color-canvas); color:var(--color-ink); font-family:var(-
  .create-chevron { display:none; }.stadium-account .ui-button { padding-inline:10px; }
 }
 @media(prefers-reduced-motion:reduce) { .feed-skeleton * { animation:none; }.ui-button { transition:none; } }
+
+/* Shared forms and competition surfaces. Controls have their own visible boundary. */
+.stadium-surface :is(.form-card,.create-pool-form,.ranking-detail-info) { background:var(--color-surface); border-color:var(--color-line); box-shadow:var(--shadow-card); }
+.stadium-surface :is(.form-input,.form-textarea,.entry-input,.join-code-input,.search-input,.category-select,.form-group input,.form-group select,.form-group textarea,.ranking-entry-input) { background:var(--color-surface); color:var(--color-ink); border-color:var(--color-control-line); }
+.stadium-surface :is(input,textarea)::placeholder { color:var(--color-muted); opacity:1; }
+.stadium-surface :is(.page-header,.create-header) { text-align:left; }
+.stadium-surface :is(.page-header,.create-header) h1 { background:none; -webkit-text-fill-color:currentColor; }
+.stadium-surface .action-disclosure-panel { background:var(--color-surface); box-shadow:var(--shadow-menu); }
+.stadium-surface .hero { background:var(--color-surface); border:1px solid var(--color-line); border-radius:var(--radius-card); padding:32px; text-align:left; }
+.stadium-surface .hero h1 { font-family:var(--font-display); max-width:22ch; }
+.stadium-surface .hero h1 span { background:none; -webkit-text-fill-color:currentColor; color:var(--color-brand); }
+.stadium-surface .hero .hero-cta { background:var(--color-brand); color:var(--color-on-brand); box-shadow:none; }
+:is(.cbpr,.cbpd,.cbb,.cbp) :is(button,input,select):focus-visible { outline:3px solid var(--color-focus); outline-offset:2px; }
+:is(.cbpr,.cbpd,.cbb,.cbp) button:disabled { cursor:not-allowed; }
+:is(.cbpr,.cbpd,.cbb,.cbp) .pick-control:hover:not(:disabled) { box-shadow:inset 0 0 0 2px var(--color-brand); }
+.cbpd .cb-score { border-color:var(--color-control-line); }
+.cbpd .cb-score:focus-visible { outline:3px solid var(--color-focus); }
+.cbb input:focus-visible { outline:2px solid var(--color-focus); outline-offset:2px; }
+.stadium-surface .save-notice[role='alert'] { border-color:var(--color-danger); }
+.stadium-surface :is(.error-message,.join-error,.auth-error) { color:var(--color-danger); }
+@media(max-width:600px) { .stadium-surface .hero { padding:24px; } }
+
+.stadium-surface .section-title { font:700 1.2rem/1.3 var(--font-ui); text-transform:none; letter-spacing:-.02em; }
+.stadium-surface .featured-ranking-card { background:var(--color-brand-soft); border-color:var(--color-line); box-shadow:none; }
+.stadium-surface .bracket-card:hover { transform:none; }
+.stadium-surface :is(.category-filter,.ranking-sort-toggle) { border-color:var(--color-control-line); }
+.stadium-surface .catalog-controls { margin-top:16px; }
+.stadium-surface .profile-stats { grid-template-columns:repeat(auto-fit,minmax(100px,1fr)); }
+
+/* Dialog wrappers do not reserve page height when their dialog is closed. */
+.stadium-dialog-surface { font-family:var(--font-ui); color:var(--color-ink); }
+.stadium-dialog-surface .modal-content { background:var(--color-surface); box-shadow:var(--shadow-menu); }
+.stadium-dialog-surface :is(input,textarea,select) { background:var(--color-surface); border-color:var(--color-control-line); color:var(--color-ink); font-family:var(--font-ui); }
+.stadium-dialog-surface :is(.nav-btn,.publish-btn) { color:var(--color-on-brand); background:var(--color-brand); }
+.stadium-dialog-surface :is(.nav-btn,.publish-btn):hover { background:var(--color-brand-hover); }
+.stadium-dialog-surface .modal-title { font-family:var(--font-ui); font-weight:700; letter-spacing:-.025em; }
+.stadium-dialog-surface .google-btn { border:1px solid var(--color-control-line); transform:none; font-family:var(--font-ui); }
+.stadium-dialog-surface :focus-visible { outline:3px solid var(--color-focus); outline-offset:3px; }
+.stadium-dialog-surface .error-message { color:var(--color-danger); border-color:var(--color-danger); background:var(--color-danger-soft); }
+.stadium-surface .admin-btn { min-height:44px; }
+.stadium-surface .admin-btn.secondary { border-color:var(--color-control-line); }
+.stadium-dialog-surface .feedback-type-btn { color:var(--color-ink); }
+.stadium-dialog-surface .feedback-type-btn.active { color:var(--color-brand-hover); background:var(--color-brand-soft); border-color:var(--color-brand); }
+.stadium-surface .create-pool-form { padding:24px; border:1px solid var(--color-line); border-radius:var(--radius-card); }
+.stadium-surface .create-pool-form .form-group :is(input[type='text'],textarea),.stadium-surface .ranking-entry-text { border-color:var(--color-control-line); }
+.stadium-surface .create-pool-form .form-group label { text-transform:none; letter-spacing:0; color:var(--color-ink); font-weight:600; }
+.stadium-dialog-surface :is(button,input,textarea,select) { font-family:var(--font-ui); }
+.stadium-dialog-surface .feedback-modal h2 { font-family:var(--font-ui); letter-spacing:-.025em; }
+@media(max-width:600px) { .stadium-surface .create-pool-form { padding:16px; } }

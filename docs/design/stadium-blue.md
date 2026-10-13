@@ -123,22 +123,22 @@ Official references checked:
 |---|---|---|
 | Shell/navigation | Light header, four choices, one Create menu, account and bell | Implemented first slice |
 | Home feed | Consistent card hierarchy, readable thumbnails, blue CTA, restrained metadata, skeleton/empty state | Implemented first slice for existing content types |
-| Explore | Unified destination navigation, then shared catalog/search/filter patterns | Navigation done; individual catalog visuals pending |
+| Explore | Unified destination navigation, then shared catalog/search/filter patterns | Navigation and catalog palette migrated in second slice |
 | GOAT rooms | Chair/challenger roles, VS, vote bars, large names; preserve discussion/nomination/admin behavior | Implemented first slice |
 | My Stuff | Promote route, light cards and filter chips; retain actual source categories | Implemented first slice |
-| Bracket view | Tokenize `BracketFrame`/`BracketBoard` and inline colors; align connectors/states; retain round mode, overview, next unanswered, friend/consensus views | Next core slice |
-| Bracket creation | Refine existing Details → Entries → Preview flow, retain arbitrary sizes, byes/seeds and ranking conversion | Next core slice |
-| PNG export | Carry approved bracket palette into actual exported DOM; validate tall/two-sided brackets and transparent backgrounds | Required alongside bracket migration |
-| Rankings | Clear numbered rows, one primary save action, accessible reordering controls; consistent validation | Pending |
+| Bracket view | Tokenize `BracketFrame`/`BracketBoard` and inline colors; align connectors/states; retain round mode, overview, next unanswered, friend/consensus views | Implemented second slice; real-account acceptance pending |
+| Bracket creation | Refine existing Details → Entries → Preview flow, retain arbitrary sizes, byes/seeds and ranking conversion | Implemented second slice; real-account acceptance pending |
+| PNG export | Carry approved bracket palette into actual exported DOM; validate tall/two-sided brackets and transparent backgrounds | Light palette and pending-label fit fixed; actual local PNG download verified |
+| Rankings | Clear numbered rows, one primary save action, accessible reordering controls; consistent validation | Styles migrated second slice; ranking form checked locally |
 | Tier lists | Restyle private editor, retain current visibility and keyboard alternatives; no new public exposure | Pending |
-| Pools/predictions | Light directory cards; preserve My Picks/Official Results/Standings/Rules; stat columns with aligned numerals | Pending |
-| Standings | Position/username, score, remaining possible, status; secondary actions in detail disclosure | Pending, preserve potential-point tie ordering |
-| Profiles/friends | Light social header and content tabs, shared avatars/cards; retain username/bio/edit/request behavior | Pending |
-| Notifications | Light dialog, readable unread state, existing sent-bracket destinations, focus and dismissal | Pending |
-| Auth/settings | Tokenized labels/fields/errors, maintain username onboarding and provider behavior | Pending |
-| Weekly bracket | Remove isolated neon theme; preserve voting/results | Pending |
-| Admin | Separate participant and admin areas; semantic danger actions and confirmation patterns | Pending |
-| Legal/feedback | Consistent typography and dialog controls; do not edit policy claims during styling | Pending |
+| Pools/predictions | Light directory cards; preserve My Picks/Official Results/Standings/Rules; stat columns with aligned numerals | Bracket pools migrated; disabled predictions remain contained |
+| Standings | Position/username, score, remaining possible, status; secondary actions in detail disclosure | Migrated second slice; potential-point tie ordering preserved |
+| Profiles/friends | Light social header and content tabs, shared avatars/cards; retain username/bio/edit/request behavior | Migrated second slice; public profile fixture checked |
+| Notifications | Light dialog, readable unread state, existing sent-bracket destinations, focus and dismissal | Migrated second slice; real inbox acceptance pending |
+| Auth/settings | Tokenized labels/fields/errors, maintain username onboarding and provider behavior | Dialog palette migrated; authentication behavior unchanged |
+| Weekly bracket | Remove isolated neon theme; preserve voting/results | Theme migrated second slice; weekly voting acceptance pending |
+| Admin | Separate participant and admin areas; semantic danger actions and confirmation patterns | Theme migrated second slice; authorized admin acceptance pending |
+| Legal/feedback | Consistent typography and dialog controls; do not edit policy claims during styling | Light typography/dialogs applied; policy text unchanged |
 
 ## 6. Roadmap, dependencies and release gates
 
@@ -170,3 +170,33 @@ Local Chromium screenshots use fixture content with external API requests interc
 | Components and logo options | [Catalog](screenshots/concepts-1440.png) | [Catalog](screenshots/concepts-390.png) |
 
 Validation: build passes; 281 unit/component tests passed, with 97 existing emulator-dependent tests skipped in this non-emulator run. New semantic contrast tests pass normal-text 4.5:1 and control/focus 3:1 thresholds for specified token pairs. This is not a full WCAG conformance claim. Local fixtures checked at 360/390/768/1280/1440px; Create keyboard open/arrows/Escape/focus restoration and mobile route selection verified. See `local-review.json`. Authenticated real-account, Android emulator and cross-browser visual acceptance remain pending.
+
+
+## Second slice: competition and supporting screens
+
+The branch now applies Stadium Blue to bracket browsing, the guided creator and custom editor, playable/saved brackets, ranking forms/results, pools and standings, profiles/friends, social dialogs, notifications, authentication/feedback dialogs, weekly brackets and admin styles. `competitionTheme.js` provides one semantic palette for bracket roots. The rendering engine, seeding, scoring, save services, access rules, routes and data schemas have not changed.
+
+The mobile round selector now has enough room for its full label. Pending matchup text is constrained within its slot, including image exports. PNG export reads the rendered background instead of hard-coding the former dark canvas. Alive and Eliminated retain both distinct text and semantic green/red colors. Pool browsing now shares the Explore destination navigation.
+
+Private tier lists and disabled drafts/predictions still use explicit legacy containment and remain unlisted/disabled. Their deeper redesign and removal of the remaining compatibility CSS are outstanding. Actual account/host workflows, weekly voting, notifications and admin operations still need acceptance review; styling implementation is not a claim that those live operations were exercised.
+
+### Second-slice evidence
+
+- Production build passed; existing Firebase chunk warning remains.
+- Offline unit/component run: 281 passed, 97 emulator-dependent tests skipped. An initial unguarded run was stopped by automatic review after an existing test attempted a Firebase request. The successful run disabled both Node sockets and fetch before loading tests; it did not require production access.
+- Local Chromium fixtures at 360, 390, 768, 1280 and 1440px: no page overflow or uncaught errors for profile, ranking directory, pool guest state and bracket/standings catalog.
+- Keyboard bracket pick, next unanswered, Create menu focus restoration and route navigation checked. Actual PNG generated and inspected.
+- Local fixture authentication checked the five-entry creator (automatic byes, review step) and ranking form at 390/1440px. No bracket or ranking was published and no account credentials were used.
+- These checks do not substitute for real-account acceptance, cross-browser, Android or full accessibility review.
+
+| Surface | Desktop | Phone |
+|---|---|---|
+| Playable bracket | [Desktop](screenshots/competition-1440.png) | [Phone](screenshots/competition-390.png) |
+| Pool standings | [Desktop](screenshots/standings-1440.png) | [Phone](screenshots/standings-390.png) |
+| Bracket creation review | [Desktop](screenshots/create-1440.png) | [Phone](screenshots/create-390.png) |
+| Ranking creation | [Desktop](screenshots/create-ranking-1440.png) | [Phone](screenshots/create-ranking-390.png) |
+| Rankings | [Desktop](screenshots/rankings-1440.png) | [Phone](screenshots/rankings-390.png) |
+| Public profile | [Desktop](screenshots/profile-1440.png) | [Phone](screenshots/profile-390.png) |
+| Pools guest state | [Desktop](screenshots/pools-1440.png) | [Phone](screenshots/pools-390.png) |
+
+See `competition-review.json` for fixture check coverage. The PR remains a draft, with production still on main.

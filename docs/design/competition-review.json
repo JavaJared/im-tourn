@@ -1,0 +1,111 @@
+{
+  "fixtureOnly": true,
+  "liveSiteVisited": false,
+  "checks": [
+    {
+      "page": "profile",
+      "width": 1440,
+      "overflow": false
+    },
+    {
+      "page": "profile",
+      "width": 1280,
+      "overflow": false
+    },
+    {
+      "page": "profile",
+      "width": 768,
+      "overflow": false
+    },
+    {
+      "page": "profile",
+      "width": 390,
+      "overflow": false
+    },
+    {
+      "page": "profile",
+      "width": 360,
+      "overflow": false
+    },
+    {
+      "page": "rankings",
+      "width": 1440,
+      "overflow": false
+    },
+    {
+      "page": "rankings",
+      "width": 1280,
+      "overflow": false
+    },
+    {
+      "page": "rankings",
+      "width": 768,
+      "overflow": false
+    },
+    {
+      "page": "rankings",
+      "width": 390,
+      "overflow": false
+    },
+    {
+      "page": "rankings",
+      "width": 360,
+      "overflow": false
+    },
+    {
+      "page": "pools",
+      "width": 1440,
+      "overflow": false
+    },
+    {
+      "page": "pools",
+      "width": 1280,
+      "overflow": false
+    },
+    {
+      "page": "pools",
+      "width": 768,
+      "overflow": false
+    },
+    {
+      "page": "pools",
+      "width": 390,
+      "overflow": false
+    },
+    {
+      "page": "pools",
+      "width": 360,
+      "overflow": false
+    },
+    {
+      "page": "competition",
+      "width": 1440,
+      "overflow": false
+    },
+    {
+      "page": "competition",
+      "width": 1280,
+      "overflow": false
+    },
+    {
+      "page": "competition",
+      "width": 768,
+      "overflow": false
+    },
+    {
+      "page": "competition",
+      "width": 390,
+      "overflow": false
+    },
+    {
+      "page": "competition",
+      "width": 360,
+      "overflow": false
+    }
+  ],
+  "keyboardMenu": "open, arrows, Escape, restored focus",
+  "mobileNavigation": "Ranking route and My Stuff verified",
+  "competition": "Keyboard pick, next unanswered, PNG export",
+  "creation": "Fixture auth; five entries with byes, review, ranking form; never published",
+  "pageErrors": []
+}

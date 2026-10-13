@@ -11,7 +11,7 @@
 }
 
 .sleeper-modal h2 {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.8rem;
   letter-spacing: 1px;
   margin-bottom: 0.5rem;
@@ -49,7 +49,7 @@
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
   color: var(--text-primary);
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 1rem;
   cursor: pointer;
   appearance: none;
@@ -85,7 +85,7 @@
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
   padding: 0.75rem 1.5rem;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-weight: 500;
   border-radius: 8px;
   cursor: pointer;
@@ -99,9 +99,9 @@
 .submit-sleepers-btn {
   background: var(--accent-teal);
   border: none;
-  color: var(--bg-dark);
+  color: var(--color-on-brand);
   padding: 0.75rem 1.5rem;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-weight: 700;
   border-radius: 8px;
   cursor: pointer;
@@ -109,7 +109,7 @@
 }
 
 .submit-sleepers-btn:hover:not(:disabled) {
-  background: #00f5c8;
+  background: var(--color-brand-hover);
 }
 
 .skip-sleepers-btn:disabled,
@@ -124,7 +124,7 @@
 }
 
 .pool-entry.analyzable:hover {
-  background: rgba(0, 212, 170, 0.1);
+  background: var(--color-brand-soft);
   border-color: var(--accent-teal);
 }
 
@@ -137,7 +137,7 @@
 }
 
 .analysis-hint span {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--color-subtle);
   padding: 0.4rem 0.8rem;
   border-radius: 6px;
 }
@@ -173,7 +173,7 @@
 }
 
 .modal-close:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--color-subtle);
   color: var(--text-primary);
 }
 
@@ -193,12 +193,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.2rem;
 }
 
 .analysis-header h2 {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.8rem;
   letter-spacing: 0.5px;
   margin: 0;
@@ -227,13 +227,13 @@
   gap: 1rem;
   align-items: center;
   padding: 0.75rem 1rem;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-subtle);
   border-radius: 10px;
   border: 1px solid var(--border-subtle);
 }
 
 .analysis-row.champion-row {
-  background: rgba(0, 212, 170, 0.1);
+  background: var(--color-brand-soft);
   border-color: var(--accent-teal);
 }
 
@@ -253,7 +253,7 @@
 }
 
 .analysis-count {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.5rem;
   color: var(--accent-orange);
   min-width: 40px;
@@ -274,7 +274,7 @@
 .analysis-user {
   font-size: 0.8rem;
   padding: 0.2rem 0.5rem;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--color-subtle);
   border-radius: 4px;
   color: var(--text-secondary);
 }
@@ -291,7 +291,7 @@
 }
 
 .viewing-participant-header h3 {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.3rem;
   letter-spacing: 0.5px;
   flex: 1;
@@ -312,7 +312,7 @@
   justify-content: center;
   margin-bottom: 1rem;
   padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-subtle);
   border-radius: 8px;
 }
 
@@ -329,7 +329,7 @@
 }
 
 .legend-item.incorrect {
-  color: #ff6b6b;
+  color: var(--color-danger);
 }
 
 .legend-item.pending {
@@ -341,7 +341,7 @@
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
   padding: 0.35rem 0.75rem;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.8rem;
   font-weight: 500;
   border-radius: 6px;
@@ -352,7 +352,7 @@
 .view-bracket-btn:hover {
   border-color: var(--accent-teal);
   color: var(--accent-teal);
-  background: rgba(0, 212, 170, 0.1);
+  background: var(--color-brand-soft);
 }
 
 .lb-action {
