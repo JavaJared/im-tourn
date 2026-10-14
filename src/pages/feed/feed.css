@@ -12,7 +12,7 @@
 .feed-card-body { padding:0 24px 24px; }.feed-tags { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .feed-card h2 { font-family:var(--font-display); font-size:clamp(1.75rem,4vw,2.25rem); line-height:1.1; margin:16px 0 12px; overflow-wrap:anywhere; letter-spacing:0; }
 .feed-card h2 a { color:var(--ui-text); text-decoration:none; }.feed-card h2 a:hover { text-decoration:underline; text-underline-offset:4px; }
-.feed-card-body p { color:var(--ui-muted); line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; margin:0; max-width:65ch; }
+.feed-card-body p { color:var(--ui-muted); line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; margin:0; max-width:100%; }
 .feed-card .feed-caption-clamped { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
 .feed-card footer { padding:16px 24px; border-top:1px solid var(--ui-line); flex-wrap:wrap; color:var(--ui-muted); font-size:.875rem; }
 .feed-card footer .feed-participate { margin-left:auto; color:var(--color-on-brand); }
