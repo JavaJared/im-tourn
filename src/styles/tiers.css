@@ -1,12 +1,6 @@
 
 
-/* ============================================================
-   Kristin Tiers
-   Append to src/App.css.
-   Colour values fall back to literals in case the custom property
-   names differ in your stylesheet — swap the fallbacks out once
-   you've confirmed the variable names.
-   ============================================================ */
+/* Private tier editor; visibility and tier definitions are unchanged. */
 
 .kt-page {
   padding-bottom: 3rem;
@@ -15,8 +9,8 @@
 /* ---- inputs & small buttons ---- */
 
 .kt-input {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: var(--color-subtle);
+  border: 1px solid var(--color-control-line);
   border-radius: 8px;
   color: inherit;
   font-family: inherit;
@@ -45,7 +39,7 @@
 }
 
 .kt-danger {
-  color: #ff6b6b;
+  color: var(--color-danger);
 }
 
 .kt-field-label {
@@ -53,7 +47,7 @@
   font-size: 0.78rem;
   letter-spacing: 0.04em;
   margin: 1rem 0 0.35rem;
-  opacity: 0.7;
+  color: var(--color-muted);
   text-transform: uppercase;
 }
 
@@ -87,11 +81,11 @@
 }
 
 .kt-save-note {
-  opacity: 0.6;
+  color: var(--color-muted);
 }
 
 .kt-save-error {
-  color: #ff6b6b;
+  color: var(--color-danger);
 }
 
 .kt-toolbar {
@@ -106,8 +100,8 @@
 
 .kt-action-bar {
   align-items: center;
-  background: rgba(43, 212, 192, 0.1);
-  border: 1px solid rgba(43, 212, 192, 0.35);
+  background: var(--color-brand-soft);
+  border: 1px solid var(--color-brand);
   border-radius: 10px;
   display: flex;
   flex-wrap: wrap;
@@ -127,7 +121,7 @@
   flex: 1;
   font-size: 0.85rem;
   min-width: 140px;
-  opacity: 0.75;
+  color: var(--color-muted);
 }
 
 .kt-action-buttons {
@@ -139,8 +133,8 @@
 
 .kt-tier,
 .kt-pool {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--color-subtle);
+  border: 1px solid var(--color-control-line);
   border-radius: 12px;
   margin-bottom: 0.85rem;
   padding: 0.75rem 0.9rem;
@@ -159,14 +153,14 @@
 }
 
 .kt-tier-name {
-  font-family: 'Bebas Neue', 'Outfit', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.15rem;
   letter-spacing: 0.05em;
 }
 
 .kt-tier-count {
   font-size: 0.8rem;
-  opacity: 0.6;
+  color: var(--color-muted);
 }
 
 .kt-tier-clear {
@@ -182,7 +176,7 @@
 .kt-pool-empty {
   font-size: 0.85rem;
   margin: 0.4rem 0;
-  opacity: 0.55;
+  color: var(--color-muted);
 }
 
 /* ---- tiles ---- */
@@ -198,7 +192,7 @@
 
 .kt-tile-face {
   align-items: center;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--color-subtle);
   border: 2px solid transparent;
   border-radius: 8px;
   display: flex;
@@ -216,10 +210,10 @@
 }
 
 .kt-tile-initials {
-  font-family: 'Bebas Neue', 'Outfit', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.25rem;
   letter-spacing: 0.05em;
-  opacity: 0.85;
+  color: var(--color-muted);
 }
 
 .kt-tile-label {
@@ -233,19 +227,19 @@
 }
 
 .kt-tile:hover .kt-tile-face {
-  border-color: rgba(255, 255, 255, 0.25);
+  border-color: var(--color-control-line);
 }
 
 .kt-tile-selected .kt-tile-face {
   border-color: var(--accent-orange, #ff7a1a);
-  transform: translateY(-2px);
+  transform: none;
 }
 
 /* empty slot */
 
 .kt-tile-empty {
   align-items: center;
-  border: 2px dashed rgba(255, 255, 255, 0.18);
+  border: 2px dashed var(--color-control-line);
   border-radius: 8px;
   display: flex;
   height: 62px;
@@ -254,18 +248,18 @@
 }
 
 .kt-tile-empty:hover {
-  border-color: rgba(255, 255, 255, 0.4);
+  border-color: var(--color-control-line);
 }
 
 /* highlighted while something is selected and waiting to be placed */
 .kt-tile-empty.kt-tile-target {
-  background: rgba(43, 212, 192, 0.08);
+  background: var(--color-brand-soft);
   border-color: var(--accent-teal, #2bd4c0);
 }
 
 .kt-tile-plus {
   font-size: 1.4rem;
-  opacity: 0.45;
+  color: var(--color-muted);
 }
 
 /* ---- modal ---- */
@@ -282,8 +276,8 @@
 }
 
 .kt-modal {
-  background: #16181d;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--color-surface);
+  border: 1px solid var(--color-control-line);
   border-radius: 14px;
   max-width: 420px;
   padding: 1.5rem;
@@ -291,7 +285,7 @@
 }
 
 .kt-modal h3 {
-  font-family: 'Bebas Neue', 'Outfit', sans-serif;
+  font-family: var(--font-display);
   letter-spacing: 0.05em;
   margin: 0 0 0.5rem;
 }
@@ -304,7 +298,7 @@
 
 .kt-image-preview {
   align-items: center;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--color-subtle);
   border-radius: 8px;
   display: flex;
   flex: none;
@@ -361,7 +355,7 @@
 }
 
 /* Visible keyboard focus and reduced-motion support across bracket surfaces. */
-:where(button,a,input,select,textarea,[role="button"]):focus-visible { outline: 3px solid #2bd4c0; outline-offset: 3px; }
+:where(button,a,input,select,textarea,[role="button"]):focus-visible { outline: 3px solid var(--color-focus); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
 
 /* Native pick buttons retain the legacy bracket layout. */
@@ -375,6 +369,8 @@
   text-align: left;
 }
 .fill-container button.matchup-entry:first-child { border-bottom: 1px solid var(--border-subtle); }
-.fill-container button.matchup-entry.selected { background: rgba(0, 212, 170, 0.15); border-left-color: var(--accent-teal); }
-.fill-container button.matchup-entry:hover:not(:disabled) { background: rgba(255, 107, 53, 0.1); }
+.fill-container button.matchup-entry.selected { background: var(--color-brand-soft); border-left-color: var(--accent-teal); }
+.fill-container button.matchup-entry:hover:not(:disabled) { background: var(--color-brand-soft); }
 .fill-container button.matchup-entry:disabled { cursor: not-allowed; }
+
+.kt-tile { color:var(--color-ink); }.kt-input { min-height:44px; background:var(--color-surface); }.kt-text-btn { min-height:44px; }.kt-modal { color:var(--color-ink); box-shadow:var(--shadow-menu); }

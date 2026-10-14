@@ -23,7 +23,7 @@
 }
 
 .footer-section h4 {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.1rem;
   letter-spacing: 1px;
   color: var(--text-primary);
@@ -58,10 +58,10 @@
 }
 
 .footer-logo {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.8rem;
   letter-spacing: 2px;
-  background: var(--gradient-primary);
+  background: var(--color-brand);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -133,7 +133,7 @@
 }
 
 .feedback-modal h2 {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.8rem;
   letter-spacing: 1px;
   margin: 0;
@@ -159,7 +159,7 @@
   border: 2px solid var(--border-subtle);
   border-radius: 8px;
   color: var(--text-secondary);
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.8rem;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -199,7 +199,7 @@
 }
 
 .feedback-success h2 {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 2rem;
   margin-bottom: 0.5rem;
 }
@@ -217,7 +217,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(10, 10, 15, 0.95);
+  background: rgba(21, 37, 63, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -288,7 +288,7 @@
 }
 
 .tour-title {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.8rem;
   letter-spacing: 1px;
   color: var(--text-primary);
@@ -312,7 +312,7 @@
   background: transparent;
   border: none;
   color: var(--text-muted);
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.9rem;
   cursor: pointer;
   padding: 0.75rem 1.5rem;
@@ -324,10 +324,10 @@
 }
 
 .tour-next-btn {
-  background: var(--gradient-primary);
+  background: var(--color-brand);
   border: none;
   color: white;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 1rem;
   font-weight: 600;
   padding: 0.875rem 2rem;

@@ -1,27 +1,12 @@
 /* src/App.css */
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&display=swap');
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
-:root {
-  --bg-dark: #0a0a0f;
-  --bg-card: #12121a;
-  --bg-card-hover: #1a1a25;
-  --accent-orange: #ff6b35;
-  --accent-orange-glow: rgba(255, 107, 53, 0.3);
-  --accent-teal: #00d4aa;
-  --accent-teal-glow: rgba(0, 212, 170, 0.3);
-  --text-primary: #ffffff;
-  --text-secondary: #8a8a9a;
-  --text-muted: #5a5a6a;
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-active: rgba(255, 107, 53, 0.5);
-}
 
 body {
   background: var(--bg-dark);
   color: var(--text-primary);
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   min-height: 100vh;
 }
 
@@ -55,7 +40,7 @@ body {
 }
 
 .logo {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 2.2rem;
   letter-spacing: 3px;
   background: linear-gradient(135deg, var(--accent-orange), var(--accent-teal));
@@ -73,7 +58,7 @@ body {
   color: white;
   border: none;
   padding: 0.9rem 2rem;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-weight: 600;
   font-size: 0.95rem;
   letter-spacing: 0.5px;
@@ -94,7 +79,7 @@ body {
   color: var(--text-secondary);
   padding: 0.8rem 1.5rem;
   border-radius: 8px;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -167,7 +152,7 @@ body {
   background: none;
   border: none;
   color: var(--text-primary);
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.95rem;
   text-align: left;
   cursor: pointer;
@@ -220,7 +205,7 @@ body {
 }
 
 .modal-title {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 2rem;
   letter-spacing: 2px;
   text-align: center;
@@ -268,7 +253,7 @@ body {
   border: none;
   padding: 1rem;
   border-radius: 10px;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-weight: 600;
   font-size: 1rem;
   cursor: pointer;

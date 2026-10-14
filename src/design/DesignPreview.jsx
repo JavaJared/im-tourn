@@ -1,6 +1,7 @@
 // Development-only component catalog. Fixtures never call or write backend data.
 import React from 'react';
 import CompetitionPreview from './CompetitionPreview';
+import SupportingPreview from './SupportingPreview';
 import { createRoot } from 'react-dom/client';
 import { Trophy, ArrowRight, Check, Bell } from 'lucide-react';
 import { PrimaryNavigation } from '../components/layout/Header';
@@ -22,7 +23,7 @@ function Preview() {
       <section className="arena"><h2 className="preview-label">02 / GOAT Arena</h2><h2>Greatest basketball player?</h2><ArenaMatchup room={room} vote={vote} onVote={setVote}/><div className="preview-tools">{vote && <Badge tone="success">Vote recorded</Badge>}<Button onClick={()=>setVote(null)}>Reset example vote</Button></div></section></div>
       <section className="preview-section"><h2>Identity directions — for review</h2><div className="preview-logos"><div><LogoMark/><strong className="logo-a">I'M TOURN</strong><span>A / Athletic bracket</span></div><div><LogoMark round/><strong className="logo-b">i’m tourn.</strong><span>B / Social competition</span></div></div></section>
       <section className="preview-section"><h2>Shared states</h2><div className="preview-tools"><Button variant="primary">Primary action</Button><Button>Secondary</Button><Button disabled>Saving…</Button><Badge tone="success">Alive</Badge><Badge tone="accent"><Trophy size={14}/>Champion</Badge></div><FeedSkeleton/></section>
-      <CompetitionPreview/>
+      <CompetitionPreview/><SupportingPreview/>
     </main></div>;
 }
 createRoot(document.getElementById('root')).render(<Preview/>);

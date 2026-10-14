@@ -130,8 +130,8 @@ Official references checked:
 | Bracket creation | Refine existing Details → Entries → Preview flow, retain arbitrary sizes, byes/seeds and ranking conversion | Implemented second slice; real-account acceptance pending |
 | PNG export | Carry approved bracket palette into actual exported DOM; validate tall/two-sided brackets and transparent backgrounds | Light palette and pending-label fit fixed; actual local PNG download verified |
 | Rankings | Clear numbered rows, one primary save action, accessible reordering controls; consistent validation | Styles migrated second slice; ranking form checked locally |
-| Tier lists | Restyle private editor, retain current visibility and keyboard alternatives; no new public exposure | Pending |
-| Pools/predictions | Light directory cards; preserve My Picks/Official Results/Standings/Rules; stat columns with aligned numerals | Bracket pools migrated; disabled predictions remain contained |
+| Tier lists | Restyle private editor, retain current visibility and keyboard alternatives; no new public exposure | Final styling complete; local tile/dialog checks passed |
+| Pools/predictions | Light directory cards; preserve My Picks/Official Results/Standings/Rules; stat columns with aligned numerals | Bracket pools and disabled predictions migrated; feature gates preserved |
 | Standings | Position/username, score, remaining possible, status; secondary actions in detail disclosure | Migrated second slice; potential-point tie ordering preserved |
 | Profiles/friends | Light social header and content tabs, shared avatars/cards; retain username/bio/edit/request behavior | Migrated second slice; public profile fixture checked |
 | Notifications | Light dialog, readable unread state, existing sent-bracket destinations, focus and dismissal | Migrated second slice; real inbox acceptance pending |
@@ -151,9 +151,9 @@ Official references checked:
 
 ### Integration and known limitations
 
-`legacySurface(view)` keeps unconverted routes on their existing dark variables. This prevents contrast regressions from hard-coded feature styles. It is temporary containment in the **same app**, not duplicated pages or a new application. The light shell currently surrounds some dark legacy content on the branch; this is a known unfinished migration, not the final design.
+The temporary `legacySurface(view)` routing wrapper and `legacy-bridge.css` were removed in the final cleanup after tier, draft and prediction styles migrated. Existing semantic variable aliases remain because feature components still consume them; all resolve to the same light palette.
 
-Inter (variable Latin) and Barlow Condensed (Latin 600/700/800) are self-hosted with font-display: swap. The old Google font import remains for legacy components until they migrate. No dark toggle is shipped. No live-site or private-account review is claimed. The component catalog uses clearly marked fixtures. Server functions and permissions are unchanged. Existing Firebase's large chunk warning remains; do not confuse it with a failed build.
+Inter (variable Latin) and Barlow Condensed (Latin 600/700/800) are self-hosted with font-display: swap. All remaining font consumers now use those self-hosted families; the old Google font import has been removed. No dark toggle is shipped. No live-site or private-account review is claimed. The component catalog uses clearly marked fixtures. Server functions and permissions are unchanged. Existing Firebase's large chunk warning remains; do not confuse it with a failed build.
 
 Use `npm run dev` and open `/design-preview.html` for a local component catalog and representative concepts; this HTML is not a production build entry. Production remains on `main`. Review branch only, no manual Netlify deployment.
 
@@ -178,7 +178,7 @@ The branch now applies Stadium Blue to bracket browsing, the guided creator and 
 
 The mobile round selector now has enough room for its full label. Pending matchup text is constrained within its slot, including image exports. PNG export reads the rendered background instead of hard-coding the former dark canvas. Alive and Eliminated retain both distinct text and semantic green/red colors. Pool browsing now shares the Explore destination navigation.
 
-Private tier lists and disabled drafts/predictions still use explicit legacy containment and remain unlisted/disabled. Their deeper redesign and removal of the remaining compatibility CSS are outstanding. Actual account/host workflows, weekly voting, notifications and admin operations still need acceptance review; styling implementation is not a claim that those live operations were exercised.
+Final cleanup migrated private tier lists and disabled drafts/predictions and removed the dark containment layer. They remain unlisted/disabled as before. Actual account/host workflows, weekly voting, notifications and admin operations still need acceptance review; styling implementation is not a claim that those live operations were exercised.
 
 ### Second-slice evidence
 
@@ -200,3 +200,17 @@ Private tier lists and disabled drafts/predictions still use explicit legacy con
 | Pools guest state | [Desktop](screenshots/pools-1440.png) | [Phone](screenshots/pools-390.png) |
 
 See `competition-review.json` for fixture check coverage. The PR remains a draft, with production still on main.
+
+
+## Final styling cleanup
+
+- Tier tiles, item dialogs, draft cards and prediction controls now use the shared light surfaces, borders, status colors and typography. Feature flags, access rules, tier definitions and persistence are unchanged.
+- Removed the dark route wrapper, `legacy-bridge.css`, duplicate dark root token definitions, all Outfit/Bebas declarations and the external Google Fonts import. Kept semantic aliases used by existing feature components.
+- Fixed the onboarding tour button's missing background token and retained readable text on global primary actions, including portals.
+- Build passed; network-blocked unit/component suite: 281 passed, 97 emulator-dependent tests skipped.
+- Local fixture review at 360/390/768/1440px: no horizontal overflow or page errors; tier selection works by keyboard; item dialog closes with Escape. Public draft and prediction URLs remain gated.
+- [Supporting screens desktop](screenshots/supporting-1440.png), [mobile](screenshots/supporting-390.png), [tier item dialog](screenshots/tier-dialog-390.png). Coverage is recorded in `final-review.json`. Examples use production presentation components where available and explicitly labeled local markup for prediction/weekly controls.
+
+### Remaining release decisions
+
+The coding cleanup is complete. Keep PR #27 in draft until the user reviews the appearance and real-account flows. Logo selection, final favicon/app icon replacement, authenticated host/admin/notification checks, Android/cross-browser acceptance, and merging to main are not claimed complete. Existing logos remain unchanged. No live-site access or manual Netlify deployment was performed.

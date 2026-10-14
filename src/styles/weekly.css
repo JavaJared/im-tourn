@@ -57,7 +57,7 @@
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-weight: 700;
   font-size: 0.95rem;
   letter-spacing: 0.5px;
@@ -117,7 +117,7 @@
 }
 
 .weekly-round-title {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 0.9rem;
   letter-spacing: 1px;
   color: var(--text-muted);
@@ -134,7 +134,7 @@
 .active-badge {
   background: var(--accent-orange);
   color: white;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.6rem;
   font-weight: 700;
   padding: 3px 6px;
@@ -150,7 +150,7 @@
 .complete-badge {
   background: var(--accent-teal);
   color: var(--bg-dark);
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.6rem;
   font-weight: 700;
   padding: 3px 6px;
@@ -220,7 +220,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 0.8rem;
   flex-shrink: 0;
 }
@@ -289,7 +289,7 @@
   color: white;
   border: none;
   padding: 1rem 3rem;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-weight: 700;
   font-size: 1.1rem;
   letter-spacing: 1px;
@@ -320,7 +320,7 @@
 }
 
 .weekly-champion .champion-label {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.2rem;
   letter-spacing: 2px;
   color: var(--accent-teal);
@@ -328,7 +328,7 @@
 }
 
 .weekly-champion .champion-name {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 2.5rem;
   letter-spacing: 2px;
   background: linear-gradient(135deg, var(--accent-teal), var(--accent-orange));
@@ -360,7 +360,7 @@
 }
 
 .champion-rank {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.6rem;
   color: var(--text-muted);
   min-width: 40px;
@@ -377,7 +377,7 @@
 }
 
 .champion-card-title {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.3rem;
   letter-spacing: 0.5px;
   color: var(--text-primary);
@@ -411,7 +411,7 @@
 }
 
 .champion-card-name {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.2rem;
   letter-spacing: 0.5px;
   background: linear-gradient(135deg, var(--accent-teal), var(--accent-orange));
@@ -421,7 +421,7 @@
 }
 
 .champion-card-name.no-winner {
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.85rem;
   background: none;
   -webkit-text-fill-color: var(--text-muted);

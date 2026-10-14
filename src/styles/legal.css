@@ -41,7 +41,7 @@
 }
 
 .legal-content h2 {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.5rem;
   letter-spacing: 0.04em;
   color: var(--text-primary);

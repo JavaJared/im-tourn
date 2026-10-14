@@ -1,0 +1,32 @@
+{
+  "fixtureOnly": true,
+  "liveSiteVisited": false,
+  "checks": [
+    {
+      "width": 1440,
+      "overflow": false,
+      "keyboardSelection": true,
+      "dialogEscape": true
+    },
+    {
+      "width": 768,
+      "overflow": false,
+      "keyboardSelection": true,
+      "dialogEscape": true
+    },
+    {
+      "width": 390,
+      "overflow": false,
+      "keyboardSelection": true,
+      "dialogEscape": true
+    },
+    {
+      "width": 360,
+      "overflow": false,
+      "keyboardSelection": true,
+      "dialogEscape": true
+    }
+  ],
+  "disabledRoutesStillGated": true,
+  "pageErrors": []
+}
