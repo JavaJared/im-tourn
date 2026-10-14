@@ -31,7 +31,7 @@
   --shadow-menu: 0 12px 36px #15253f1f;
   --motion-fast: 160ms;
   --page-width: 1280px;
-  --feed-width: max(1160px, 75vw); /* Expand bracket previews across wide screens. */
+  --feed-width: max(1160px, 65vw); /* Expand bracket previews across wide screens. */
   color-scheme: light;
 }
 /* Adapter for screens migrated from the existing token names. */

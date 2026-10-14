@@ -1,4 +1,4 @@
-.for-you-page { width:100%; max-width:var(--feed-width,max(1160px,75vw)); box-sizing:border-box; margin:0 auto; padding:32px 24px 64px; }
+.for-you-page { width:100%; max-width:var(--feed-width,max(1160px,65vw)); box-sizing:border-box; margin:0 auto; padding:32px 24px 64px; }
 .feed-heading,.feed-heading>div,.feed-card-header,.feed-author,.feed-card footer { display:flex; align-items:center; gap:16px; }
 .feed-heading { justify-content:space-between; flex-wrap:wrap; margin-bottom:24px; }
 .feed-heading h1 { margin:0; }.feed-heading>div { flex-wrap:wrap; gap:12px; }
