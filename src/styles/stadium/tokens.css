@@ -31,7 +31,7 @@
   --shadow-menu: 0 12px 36px #15253f1f;
   --motion-fast: 160ms;
   --page-width: 1280px;
-  --feed-width: 1000px; /* Large bracket previews need more than a text-only feed. */
+  --feed-width: 1160px; /* Large bracket previews need more than a text-only feed. */
   color-scheme: light;
 }
 /* Adapter for screens migrated from the existing token names. */

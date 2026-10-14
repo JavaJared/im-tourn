@@ -94,7 +94,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
         role="dialog"
         aria-modal="true"
         aria-label={mode === 'reset' ? 'Reset password' : 'Account sign in'}
-        className="modal-content"
+        className="modal-content auth-dialog"
         onClick={(e) => e.stopPropagation()}
       >
         <button aria-label="Close dialog" className="modal-close" onClick={onClose}>
