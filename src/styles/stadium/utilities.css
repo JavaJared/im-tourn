@@ -1,0 +1,12 @@
+/* No Preflight: existing bracket layout depends on its current element defaults.
+   Prefix keeps new utilities from colliding with legacy .container/.hidden/etc. */
+@layer theme, utilities;
+@import 'tailwindcss/theme.css' layer(theme) prefix(tw);
+@import 'tailwindcss/utilities.css' layer(utilities) prefix(tw);
+@source '../../components/ui';
+@theme inline {
+  --color-stadium: var(--color-brand);
+  --color-ink: var(--color-ink);
+  --color-canvas: var(--color-canvas);
+  --font-sans: var(--font-ui);
+}

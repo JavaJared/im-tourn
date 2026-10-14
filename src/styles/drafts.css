@@ -37,8 +37,8 @@
 
 .draft-browse-card:hover {
   background: var(--bg-card-hover);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(255, 107, 53, 0.1);
+  transform: none;
+  box-shadow:var(--shadow-card);
 }
 
 .draft-status-badge {
@@ -54,15 +54,15 @@
 }
 
 .draft-status-badge.status-open {
-  background: rgba(0, 212, 170, 0.15);
+  background: var(--color-brand-soft);
   color: var(--accent-teal);
-  border: 1px solid rgba(0, 212, 170, 0.3);
+  border: 1px solid var(--color-brand);
 }
 
 .draft-status-badge.status-live {
-  background: rgba(255, 107, 53, 0.15);
+  background: var(--color-brand-soft);
   color: var(--accent-orange);
-  border: 1px solid rgba(255, 107, 53, 0.3);
+  border: 1px solid var(--color-brand);
   animation: pulse-badge 2s ease-in-out infinite;
 }
 
@@ -72,14 +72,14 @@
 }
 
 .draft-status-badge.status-completed {
-  background: rgba(138, 138, 154, 0.15);
+  background: var(--color-subtle);
   color: var(--text-secondary);
-  border: 1px solid rgba(138, 138, 154, 0.3);
+  border: 1px solid var(--color-line);
 }
 
 .draft-card-category {
   display: inline-block;
-  background: rgba(255, 107, 53, 0.1);
+  background: var(--color-brand-soft);
   color: var(--accent-orange);
   font-size: 0.7rem;
   font-weight: 600;
@@ -91,7 +91,7 @@
 }
 
 .draft-card-title {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.4rem;
   letter-spacing: 0.03em;
   color: var(--text-primary);
@@ -142,7 +142,7 @@
   border-radius: 10px;
   padding: 0.75rem 1rem;
   color: var(--text-primary);
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 1rem;
   transition: border-color 0.15s ease;
 }
@@ -159,7 +159,7 @@
 }
 
 .draft-lobby-section h2 {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.5rem;
   letter-spacing: 0.04em;
   margin-bottom: 1rem;
@@ -195,7 +195,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.1rem;
   flex-shrink: 0;
 }
@@ -208,7 +208,7 @@
 
 .draft-host-tag {
   font-size: 0.7rem;
-  background: rgba(255, 107, 53, 0.15);
+  background: var(--color-brand-soft);
   color: var(--accent-orange);
   padding: 0.15rem 0.5rem;
   border-radius: 8px;
@@ -220,18 +220,18 @@
 
 .draft-kick-btn {
   background: transparent;
-  border: 1px solid rgba(255, 107, 53, 0.3);
+  border: 1px solid var(--color-brand);
   color: var(--accent-orange);
   padding: 0.3rem 0.7rem;
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.8rem;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   transition: all 0.15s ease;
 }
 
 .draft-kick-btn:hover {
-  background: rgba(255, 107, 53, 0.1);
+  background: var(--color-brand-soft);
 }
 
 .draft-lobby-actions {
@@ -270,8 +270,8 @@
 
 .draft-current-pick.draft-my-turn {
   border-color: var(--accent-orange);
-  background: rgba(255, 107, 53, 0.06);
-  box-shadow: 0 0 30px rgba(255, 107, 53, 0.1);
+  background: var(--color-brand-soft);
+  box-shadow:var(--shadow-card);
 }
 
 .draft-pick-info {
@@ -281,7 +281,7 @@
 }
 
 .draft-pick-label {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.6rem;
   letter-spacing: 0.04em;
   color: var(--text-primary);
@@ -297,7 +297,7 @@
 }
 
 .draft-timer {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 2.5rem;
   color: var(--text-secondary);
   min-width: 3rem;
@@ -328,7 +328,7 @@
   border-radius: 10px;
   padding: 0.9rem 1.25rem;
   color: var(--text-primary);
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 1.1rem;
   font-weight: 500;
   transition: all 0.2s ease;
@@ -336,7 +336,7 @@
 
 .draft-pick-input:focus {
   outline: none;
-  box-shadow: 0 0 0 3px var(--accent-orange-glow);
+  box-shadow:var(--shadow-card);
 }
 
 .draft-pick-input::placeholder {
@@ -351,7 +351,7 @@
 }
 
 .draft-board h2 {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.5rem;
   letter-spacing: 0.04em;
   margin-bottom: 1rem;
@@ -377,7 +377,7 @@
 }
 
 .draft-board-header.draft-board-active {
-  background: rgba(255, 107, 53, 0.1);
+  background: var(--color-brand-soft);
   border-color: var(--accent-orange);
   color: var(--accent-orange);
 }
@@ -419,7 +419,7 @@
 }
 
 .draft-scoring h2 {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.5rem;
   letter-spacing: 0.04em;
   margin-bottom: 0.3rem;
@@ -430,7 +430,7 @@
 }
 
 .draft-scoring-participant h3 {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.2rem;
   letter-spacing: 0.03em;
   color: var(--accent-orange);
@@ -454,7 +454,7 @@
 }
 
 .draft-scoring-round {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1rem;
   color: var(--text-muted);
   min-width: 2rem;
@@ -473,7 +473,7 @@
   border-radius: 6px;
   padding: 0.4rem 0.5rem;
   color: var(--text-primary);
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.95rem;
   text-align: center;
   transition: border-color 0.15s ease;

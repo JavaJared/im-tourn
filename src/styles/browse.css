@@ -9,7 +9,7 @@
 }
 
 .hero h1 {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 4.5rem;
   letter-spacing: 4px;
   margin-bottom: 1rem;
@@ -42,7 +42,7 @@
 }
 
 .page-header h1 {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 3rem;
   letter-spacing: 3px;
 }
@@ -54,7 +54,7 @@
 }
 
 .section-title {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.8rem;
   letter-spacing: 2px;
   color: var(--text-secondary);
@@ -105,7 +105,7 @@
   border-radius: 10px;
   padding: 0.9rem 2.5rem 0.9rem 3rem;
   color: var(--text-primary);
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.95rem;
   transition: all 0.3s ease;
 }
@@ -113,7 +113,7 @@
 .search-input:focus {
   outline: none;
   border-color: var(--accent-orange);
-  box-shadow: 0 0 0 3px var(--accent-orange-glow);
+  box-shadow: var(--shadow-card);
 }
 
 .search-input::placeholder {
@@ -127,7 +127,7 @@
   transform: translateY(-50%);
   background: var(--text-muted);
   border: none;
-  color: var(--bg-dark);
+  color: var(--color-on-brand);
   width: 20px;
   height: 20px;
   border-radius: 50%;
@@ -157,7 +157,7 @@
   border-radius: 8px;
   padding: 0.75rem 2.5rem 0.75rem 1rem;
   color: var(--text-primary);
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -184,7 +184,7 @@
   color: var(--accent-orange);
   padding: 0.7rem 1.25rem;
   border-radius: 8px;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.85rem;
   font-weight: 500;
   cursor: pointer;
@@ -238,7 +238,7 @@
 
 .bracket-category {
   display: inline-block;
-  background: rgba(255, 107, 53, 0.15);
+  background: var(--color-brand-soft);
   color: var(--accent-orange);
   padding: 0.4rem 1rem;
   border-radius: 20px;
@@ -250,7 +250,7 @@
 }
 
 .bracket-title {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.8rem;
   letter-spacing: 1px;
   margin-bottom: 0.5rem;
@@ -298,7 +298,7 @@
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
   padding: 0.6rem 1rem;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-weight: 500;
   font-size: 0.85rem;
   border-radius: 8px;
@@ -309,5 +309,5 @@
 .view-submissions-btn:hover {
   border-color: var(--accent-teal);
   color: var(--accent-teal);
-  background: rgba(0, 212, 170, 0.1);
+  background: var(--color-brand-soft);
 }

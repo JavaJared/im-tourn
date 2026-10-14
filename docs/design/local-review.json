@@ -1,0 +1,84 @@
+{
+  "fixtureOnly": true,
+  "liveSiteVisited": false,
+  "checks": [
+    {
+      "page": "feed",
+      "width": 1440,
+      "overflow": false
+    },
+    {
+      "page": "feed",
+      "width": 1280,
+      "overflow": false
+    },
+    {
+      "page": "feed",
+      "width": 768,
+      "overflow": false
+    },
+    {
+      "page": "feed",
+      "width": 390,
+      "overflow": false
+    },
+    {
+      "page": "feed",
+      "width": 360,
+      "overflow": false
+    },
+    {
+      "page": "arena",
+      "width": 1440,
+      "overflow": false
+    },
+    {
+      "page": "arena",
+      "width": 1280,
+      "overflow": false
+    },
+    {
+      "page": "arena",
+      "width": 768,
+      "overflow": false
+    },
+    {
+      "page": "arena",
+      "width": 390,
+      "overflow": false
+    },
+    {
+      "page": "arena",
+      "width": 360,
+      "overflow": false
+    },
+    {
+      "page": "concepts",
+      "width": 1440,
+      "overflow": false
+    },
+    {
+      "page": "concepts",
+      "width": 1280,
+      "overflow": false
+    },
+    {
+      "page": "concepts",
+      "width": 768,
+      "overflow": false
+    },
+    {
+      "page": "concepts",
+      "width": 390,
+      "overflow": false
+    },
+    {
+      "page": "concepts",
+      "width": 360,
+      "overflow": false
+    }
+  ],
+  "keyboardMenu": "open, arrows, Escape, restored focus",
+  "mobileNavigation": "Ranking route and My Stuff verified",
+  "pageErrors": []
+}

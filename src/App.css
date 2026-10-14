@@ -21,6 +21,11 @@
 @import './styles/design-system.css';
 @import './styles/accessibility.css';
 
+@import './styles/stadium/fonts.css';
+@import './styles/stadium/tokens.css';
+@import './styles/stadium/foundation.css';
+@import './styles/stadium/utilities.css';
+
 /* Names remain recognizable as links on cards and standings. */
 .user-link { color: inherit; text-decoration: underline; text-underline-offset: .18em; overflow-wrap: anywhere; }
 .user-link:hover { text-decoration-thickness: 2px; }

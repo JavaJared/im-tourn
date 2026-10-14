@@ -1,6 +1,7 @@
+import { forwardRef } from 'react';
 // Keep native link behavior for bookmarks, new tabs and modified clicks.
-export default function ViewLink({ view, onNavigate, currentView, children, ...props }) {
-  return <a {...props}
+export default forwardRef(function ViewLink({ view, onNavigate, currentView, children, ...props }, ref) {
+  return <a ref={ref} {...props}
     href={view === 'home' ? '/' : '/?view=' + encodeURIComponent(view)}
     aria-current={currentView === view ? 'page' : undefined}
     onClick={event => {
@@ -8,4 +9,4 @@ export default function ViewLink({ view, onNavigate, currentView, children, ...p
       event.preventDefault();
       onNavigate(view);
     }}>{children}</a>;
-}
+});

@@ -15,7 +15,7 @@
   gap: 0.75rem;
   padding: 1.5rem;
   margin-bottom: 1.5rem;
-  background: linear-gradient(135deg, rgba(0, 212, 170, 0.2), rgba(255, 107, 53, 0.2));
+  background: linear-gradient(135deg, var(--color-brand-soft), var(--color-brand-soft));
   border: 2px solid var(--accent-teal);
   border-radius: 12px;
 }
@@ -25,7 +25,7 @@
 }
 
 .pool-winner-banner .winner-text {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.5rem;
   letter-spacing: 1px;
   background: linear-gradient(135deg, var(--accent-teal), var(--accent-orange));
@@ -44,7 +44,7 @@
   display: grid;
   grid-template-columns: 60px 1fr 1fr 80px 70px;
   padding: 1rem;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--color-subtle);
   font-weight: 600;
   font-size: 0.85rem;
   color: var(--text-muted);
@@ -80,8 +80,8 @@
   display: inline-block;
   font-size: 0.75rem;
   padding: 0.2rem 0.5rem;
-  background: rgba(255, 107, 53, 0.15);
-  border: 1px solid rgba(255, 107, 53, 0.3);
+  background: var(--color-brand-soft);
+  border: 1px solid var(--color-brand);
   border-radius: 4px;
   color: var(--text-secondary);
   white-space: nowrap;
@@ -91,7 +91,7 @@
 }
 
 .sleeper-pick-tag.hit {
-  background: rgba(0, 212, 170, 0.2);
+  background: var(--color-brand-soft);
   border-color: var(--accent-teal);
   color: var(--accent-teal);
 }
@@ -102,15 +102,15 @@
 }
 
 .leaderboard-row:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-subtle);
 }
 
 .leaderboard-row.current-user {
-  background: rgba(255, 107, 53, 0.1);
+  background: var(--color-brand-soft);
 }
 
 .lb-rank {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.1rem;
   color: var(--text-muted);
 }
@@ -129,7 +129,7 @@
 }
 
 .lb-score {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.2rem;
   color: var(--accent-orange);
   text-align: right;
@@ -144,13 +144,13 @@
 .scoring-info {
   margin-top: 1.5rem;
   padding: 1rem;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-subtle);
   border-radius: 8px;
   text-align: center;
 }
 
 .scoring-info h4 {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1rem;
   letter-spacing: 1px;
   color: var(--text-muted);
@@ -197,7 +197,7 @@
   border: 1px solid var(--border-subtle);
   border-radius: 6px;
   color: var(--text-primary);
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.9rem;
   text-align: center;
 }
@@ -274,8 +274,8 @@
 .sleeper-settings {
   margin-top: 1rem;
   padding: 1rem;
-  background: rgba(0, 212, 170, 0.05);
-  border: 1px solid rgba(0, 212, 170, 0.2);
+  background: var(--color-brand-soft);
+  border: 1px solid var(--color-brand);
   border-radius: 10px;
 }
 

@@ -115,5 +115,5 @@ test('standings uses distinct status badges without incomplete-analysis clutter'
  const html=renderToStaticMarkup(<PoolStandings entries={entries} nameMap={{}} analysis={analysis}/>);
  expect(html).not.toContain('Analysis incomplete');expect(html).not.toContain('Analysis unavailable');
  expect(html).toContain('Alive');expect(html).toContain('Eliminated');expect(html).toContain('Clinched');
- expect(html).toContain('#6ee7b7');expect(html).toContain('#ff8a8a');
+ expect(html).toContain('var(--color-success)');expect(html).toContain('var(--color-danger)');
 });

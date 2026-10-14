@@ -1,14 +1,13 @@
 /* Shared visual hierarchy. Accessibility overrides remain last in App.css. */
-:root{--ui-base:#0c0e13;--ui-surface:#14171f;--ui-raised:#1b1f2b;--ui-line:#353c4d;--ui-text:#eef1f7;--ui-muted:#b3bdce;--ui-action:#ff864f;--ui-selected:#2bd4c0;--ui-radius:12px;--bg:var(--ui-base);--surface:var(--ui-surface);--surface2:var(--ui-raised);--line:var(--ui-line);--text:var(--ui-text);--muted:var(--ui-muted);--orange:var(--ui-action);--teal:var(--ui-selected)}
-.nav-btn,.publish-btn{box-shadow:none;border-radius:8px;background:var(--ui-action);color:#0c0e13}
-.nav-btn:hover,.publish-btn:hover{transform:none;box-shadow:none;background:#ff9d70}
+.nav-btn,.publish-btn{box-shadow:none;border-radius:8px;background:var(--ui-action);color:var(--color-on-brand)}
+.nav-btn:hover,.publish-btn:hover{transform:none;box-shadow:none;background:var(--color-brand-hover)}
 .back-btn,.quiet-button{min-height:44px;border-radius:8px}
 .quiet-button{border:0;background:transparent;color:var(--ui-muted);font:inherit;padding:8px 12px;cursor:pointer}
 .page-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:24px}
 .page-heading h1,.create-flow>h1{font-size:clamp(1.75rem,4vw,2.25rem);margin:0}
 .section-switcher{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:16px 0 24px;border-bottom:1px solid var(--ui-line);padding-bottom:12px}
 .section-switcher>a,.section-switcher>button{display:inline-flex;align-items:center;min-height:44px;padding:8px 16px;text-decoration:none;color:var(--ui-muted);border:1px solid transparent;background:transparent;border-radius:8px;font:inherit;cursor:pointer}
-.section-switcher [aria-current="page"],.section-switcher [aria-pressed="true"]{color:var(--ui-text);border-color:var(--ui-selected);background:#2bd4c012}
+.section-switcher [aria-current="page"],.section-switcher [aria-pressed="true"]{color:var(--ui-text);border-color:var(--ui-selected);background:var(--color-brand-soft)}
 .compact-switcher{border:0;margin-top:0;gap:4px}
 .action-disclosure{position:relative;display:inline-block;text-align:left}
 .action-disclosure>summary{list-style:none;display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;border:1px solid var(--ui-line);border-radius:8px;padding:8px 12px;color:var(--ui-text);background:var(--ui-raised);cursor:pointer}

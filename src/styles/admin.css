@@ -10,7 +10,7 @@
 }
 
 .admin-section-title {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.3rem;
   letter-spacing: 1px;
   color: var(--text-primary);
@@ -61,7 +61,7 @@
 .admin-btn {
   padding: 0.75rem 1.5rem;
   border-radius: 8px;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-weight: 600;
   font-size: 0.9rem;
   cursor: pointer;
@@ -70,14 +70,14 @@
 }
 
 .admin-btn.primary {
-  background: linear-gradient(135deg, var(--accent-orange), #ff8c5a);
+  background: linear-gradient(135deg, var(--accent-orange), var(--color-brand-hover));
   color: white;
-  box-shadow: 0 4px 15px var(--accent-orange-glow);
+  box-shadow: var(--shadow-card);
 }
 
 .admin-btn.primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px var(--accent-orange-glow);
+  transform: none;
+  box-shadow: var(--shadow-card);
 }
 
 .admin-btn.secondary {
@@ -92,28 +92,28 @@
 }
 
 .admin-btn.success {
-  background: linear-gradient(135deg, var(--accent-teal), #00b894);
-  color: var(--bg-dark);
+  background: var(--color-success);
+  color: var(--color-on-brand);
 }
 
 .admin-btn.success:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px var(--accent-teal-glow);
+  transform: none;
+  box-shadow: var(--shadow-card);
 }
 
 .admin-btn.advance {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: var(--color-brand);
   color: white;
 }
 
 .admin-btn.danger {
   background: transparent;
-  border: 1px solid #ff4757;
-  color: #ff4757;
+  border: 1px solid var(--color-danger);
+  color: var(--color-danger);
 }
 
 .admin-btn.danger:hover {
-  background: #ff4757;
+  background: var(--color-danger);
   color: white;
 }
 
@@ -123,7 +123,7 @@
 }
 
 .preview-bracket-card {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--color-subtle);
   border: 1px solid var(--border-subtle);
   border-radius: 12px;
   padding: 1.5rem;
@@ -131,7 +131,7 @@
 }
 
 .preview-bracket-card h3 {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.5rem;
   letter-spacing: 1px;
   margin-bottom: 0.5rem;
@@ -161,7 +161,7 @@
 }
 
 .entry-chip {
-  background: rgba(255, 107, 53, 0.15);
+  background: var(--color-brand-soft);
   color: var(--accent-orange);
   padding: 0.3rem 0.75rem;
   border-radius: 20px;
@@ -183,12 +183,12 @@
 }
 
 .round-tab {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--color-subtle);
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
   padding: 0.6rem 1rem;
   border-radius: 8px;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.85rem;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -218,7 +218,7 @@
 }
 
 .editing-round-title {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.2rem;
   letter-spacing: 1px;
   color: var(--accent-orange);
@@ -232,7 +232,7 @@
 }
 
 .manual-matchup {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--color-subtle);
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
   padding: 1rem;
@@ -265,14 +265,14 @@
   gap: 0.5rem;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   color: var(--text-primary);
   text-align: left;
 }
 
 .manual-entry:hover:not(:disabled) {
   border-color: var(--accent-orange);
-  background: rgba(255, 107, 53, 0.1);
+  background: var(--color-brand-soft);
 }
 
 .manual-entry:disabled {
@@ -282,19 +282,19 @@
 
 .manual-entry.is-winner {
   border-color: var(--accent-teal);
-  background: rgba(0, 212, 170, 0.15);
+  background: var(--color-brand-soft);
 }
 
 .manual-seed {
   width: 24px;
   height: 24px;
-  background: rgba(255, 107, 53, 0.2);
+  background: var(--color-brand-soft);
   color: var(--accent-orange);
   border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 0.85rem;
   flex-shrink: 0;
 }
@@ -311,7 +311,7 @@
 
 .winner-badge {
   background: var(--accent-teal);
-  color: var(--bg-dark);
+  color: var(--color-on-brand);
   font-size: 0.65rem;
   font-weight: 700;
   padding: 3px 6px;

@@ -1,13 +1,13 @@
 .bracket-pick-tabs { display:flex; flex-wrap:wrap; gap:8px; padding:12px 18px; border-bottom:1px solid var(--line); }
-.bracket-pick-tabs button, .bracket-pick-summary button, .bracket-pick-summary select { min-height:44px; padding:8px 12px; background:var(--surface2); color:var(--text); border:1px solid #667086; border-radius:8px; font:inherit; cursor:pointer; }
-.bracket-pick-tabs button[aria-pressed=true] { color:#0c0e13; background:#2bd4c0; border-color:#2bd4c0; font-weight:700; }
+.bracket-pick-tabs button, .bracket-pick-summary button, .bracket-pick-summary select { min-height:44px; padding:8px 12px; background:var(--surface2); color:var(--text); border:1px solid var(--color-control-line); border-radius:8px; font:inherit; cursor:pointer; }
+.bracket-pick-tabs button[aria-pressed=true] { color:var(--color-on-brand); background:var(--color-brand); border-color:var(--color-brand); font-weight:700; }
 .bracket-pick-tabs button:disabled { opacity:.6; cursor:wait; }
 .bracket-pick-summary { padding:12px 18px; }
 .bracket-pick-summary p { margin:8px 0; }
 .bracket-pick-summary details { max-width:65ch; margin-bottom:12px; }
 .bracket-pick-summary summary { cursor:pointer; min-height:44px; display:list-item; }
 .bracket-pick-summary select { max-width:100%; }
-.engine-support { display:block; font-size:10px; color:#c6d0e2; font-weight:400; }
+.engine-support { display:block; font-size:10px; color:var(--color-muted); font-weight:400; }
 
 /* Keep the selector, empty state and sharing feedback in distinct rows. */
 .bracket-pick-summary { display:flex; flex-direction:column; align-items:flex-start; gap:16px; padding:24px; }
@@ -15,7 +15,7 @@
 .bracket-friend-selector { display:flex; align-items:center; flex-wrap:wrap; gap:12px; max-width:100%; }
 .bracket-friend-selector > span { font-weight:600; }
 .bracket-friend-selector select { min-width:180px; width:auto; }
-.bracket-friend-empty { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:20px 28px; width:100%; max-width:760px; padding:20px; box-sizing:border-box; border:1px solid #485163; border-radius:12px; background:var(--surface2, #1b202a); }
+.bracket-friend-empty { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:20px 28px; width:100%; max-width:760px; padding:20px; box-sizing:border-box; border:1px solid var(--color-line); border-radius:12px; background:var(--surface2, #1b202a); }
 .bracket-friend-empty > p { flex:1 1 220px; margin:0; line-height:1.5; }
 .bracket-share-action { display:flex; flex-direction:column; align-items:flex-start; gap:12px; min-width:0; max-width:100%; }
 .bracket-share-action > button { white-space:normal; }

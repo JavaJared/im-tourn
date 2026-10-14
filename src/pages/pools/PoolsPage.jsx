@@ -1,3 +1,4 @@
+import ExploreHeader from '../../components/layout/ExploreHeader';
 import BracketLoader from '../../components/BracketLoader';
 import UserLink from '../../components/layout/UserLink';
 import { usePagedCatalog } from '../../lib/usePagedCatalog';
@@ -91,10 +92,7 @@ const PoolsPage = ({ onNavigate }) => {
   if (!currentUser) {
     return (
       <div className="home-container">
-        <div className="page-header">
-          <h1>Bracket Pools</h1>
-
-        </div>
+        <ExploreHeader currentView="pools" onNavigate={onNavigate}/>
         <div className="empty-state">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -115,10 +113,7 @@ const PoolsPage = ({ onNavigate }) => {
 
   return (
     <div className="home-container">
-      <div className="page-header">
-        <h1>Bracket Pools</h1>
-
-      </div>
+      <ExploreHeader currentView="pools" onNavigate={onNavigate}/>
 
       <div className="pools-actions">
         <button className="nav-btn" onClick={() => onNavigate('create-pool')}>

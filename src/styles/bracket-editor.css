@@ -9,7 +9,7 @@
 }
 
 .create-header h1 {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 3rem;
   letter-spacing: 3px;
   margin-bottom: 0.5rem;
@@ -38,12 +38,12 @@
 
 .form-input {
   width: 100%;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--color-subtle);
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
   padding: 1rem 1.2rem;
   color: var(--text-primary);
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 1rem;
   transition: all 0.3s ease;
 }
@@ -51,7 +51,7 @@
 .form-input:focus {
   outline: none;
   border-color: var(--accent-orange);
-  box-shadow: 0 0 0 3px var(--accent-orange-glow);
+  box-shadow: var(--shadow-card);
 }
 
 .form-input::placeholder { color: var(--text-muted); }
@@ -61,11 +61,11 @@
   min-height: 100px;
   resize: vertical;
   padding: 0.875rem 1rem;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--color-subtle);
   border: 2px solid var(--border-subtle);
   border-radius: 10px;
   color: var(--text-primary);
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.95rem;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -73,7 +73,7 @@
 .form-textarea:focus {
   outline: none;
   border-color: var(--accent-orange);
-  box-shadow: 0 0 0 3px var(--accent-orange-glow);
+  box-shadow: var(--shadow-card);
 }
 
 .form-textarea::placeholder { color: var(--text-muted); }
@@ -97,7 +97,7 @@
 .size-options { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; }
 
 .size-option {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--color-subtle);
   border: 2px solid var(--border-subtle);
   border-radius: 12px;
   padding: 1.2rem;
@@ -107,13 +107,13 @@
 }
 
 .size-option:hover { border-color: var(--accent-orange); }
-.size-option.selected { border-color: var(--accent-orange); background: rgba(255, 107, 53, 0.1); }
-.size-option .number { font-family: 'Bebas Neue', sans-serif; font-size: 2.5rem; color: var(--accent-orange); line-height: 1; }
+.size-option.selected { border-color: var(--accent-orange); background: var(--color-brand-soft); }
+.size-option .number { font-family: var(--font-display); font-size: 2.5rem; color: var(--accent-orange); line-height: 1; }
 .size-option .label { color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.3rem; }
 
 .entries-section { margin-top: 2.5rem; padding-top: 2rem; border-top: 1px solid var(--border-subtle); }
 .entries-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
-.entries-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 1px; }
+.entries-title { font-family: var(--font-display); font-size: 1.5rem; letter-spacing: 1px; }
 .entries-count { color: var(--text-muted); font-size: 0.9rem; }
 
 .entries-list {
@@ -134,24 +134,24 @@
 .entry-seed {
   width: 40px;
   height: 40px;
-  background: linear-gradient(135deg, var(--accent-orange), #ff8c5a);
+  background: linear-gradient(135deg, var(--accent-orange), var(--color-brand-hover));
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.3rem;
   flex-shrink: 0;
 }
 
 .entry-input {
   flex: 1;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--color-subtle);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
   padding: 0.9rem 1rem;
   color: var(--text-primary);
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.95rem;
   transition: all 0.3s ease;
 }
@@ -160,11 +160,11 @@
 
 .publish-btn {
   width: 100%;
-  background: linear-gradient(135deg, var(--accent-orange), #ff8c5a);
+  background: linear-gradient(135deg, var(--accent-orange), var(--color-brand-hover));
   color: white;
   border: none;
   padding: 1.2rem;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-weight: 700;
   font-size: 1.1rem;
   letter-spacing: 1px;
@@ -172,41 +172,41 @@
   cursor: pointer;
   transition: all 0.3s ease;
   margin-top: 2rem;
-  box-shadow: 0 4px 30px var(--accent-orange-glow);
+  box-shadow: var(--shadow-card);
 }
 
-.publish-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 40px var(--accent-orange-glow); }
+.publish-btn:hover:not(:disabled) { transform: none; box-shadow: var(--shadow-card); }
 .publish-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Fill Page */
 .fill-container { padding: 2rem; overflow-x: auto; }
 .fill-header { text-align: center; margin-bottom: 2rem; }
-.fill-header h1 { font-family: 'Bebas Neue', sans-serif; font-size: 2.5rem; letter-spacing: 2px; }
+.fill-header h1 { font-family: var(--font-display); font-size: 2.5rem; letter-spacing: 2px; }
 .fill-header p { color: var(--text-secondary); font-weight: 300; margin-top: 0.5rem; }
 
-.bracket-wrapper { 
-  display: flex; 
-  justify-content: center; 
+.bracket-wrapper {
+  display: flex;
+  justify-content: center;
   align-items: stretch;
-  gap: 0; 
-  padding: 2rem; 
-  min-width: fit-content; 
+  gap: 0;
+  padding: 2rem;
+  min-width: fit-content;
 }
 
-.round { 
-  display: flex; 
-  flex-direction: column; 
+.round {
+  display: flex;
+  flex-direction: column;
   justify-content: space-around;
   min-width: 220px;
   padding: 0 0.5rem;
 }
 
-.round-title { 
-  font-family: 'Bebas Neue', sans-serif; 
-  font-size: 1.2rem; 
-  letter-spacing: 1px; 
-  color: var(--text-muted); 
-  text-align: center; 
+.round-title {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  text-align: center;
   margin-bottom: 1rem;
   position: absolute;
   top: 0;
@@ -226,10 +226,10 @@
   flex: 1;
 }
 
-.matchup { 
-  background: var(--bg-card); 
-  border: 1px solid var(--border-subtle); 
-  border-radius: 12px; 
+.matchup {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
   overflow: hidden;
 }
 
@@ -244,20 +244,20 @@
 }
 
 .matchup-entry:first-child { border-bottom: 1px solid var(--border-subtle); }
-.matchup-entry:hover:not(.empty) { background: rgba(255, 107, 53, 0.1); }
-.matchup-entry.selected { background: rgba(0, 212, 170, 0.15); border-left-color: var(--accent-teal); }
+.matchup-entry:hover:not(.empty) { background: var(--color-brand-soft); }
+.matchup-entry.selected { background: var(--color-brand-soft); border-left-color: var(--accent-teal); }
 .matchup-entry.empty { opacity: 0.4; cursor: not-allowed; }
 
 .entry-seed-small {
   width: 28px;
   height: 28px;
-  background: rgba(255, 107, 53, 0.2);
+  background: var(--color-brand-soft);
   color: var(--accent-orange);
   border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1rem;
   flex-shrink: 0;
 }
@@ -269,20 +269,20 @@
 
 .submit-btn {
   background: linear-gradient(135deg, var(--accent-teal), #00b894);
-  color: var(--bg-dark);
+  color: var(--color-on-brand);
   border: none;
   padding: 1rem 3rem;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-weight: 700;
   font-size: 1.1rem;
   letter-spacing: 1px;
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 30px var(--accent-teal-glow);
+  box-shadow: var(--shadow-card);
 }
 
-.submit-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 40px var(--accent-teal-glow); }
+.submit-btn:hover:not(:disabled) { transform: none; box-shadow: var(--shadow-card); }
 .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .champion-display {
@@ -290,15 +290,15 @@
   margin: 2rem auto;
   max-width: 400px;
   padding: 2rem;
-  background: linear-gradient(135deg, rgba(0, 212, 170, 0.1), rgba(255, 107, 53, 0.1));
+  background: linear-gradient(135deg, var(--color-brand-soft), var(--color-brand-soft));
   border-radius: 16px;
   border: 1px solid var(--border-subtle);
 }
 
-.champion-label { font-family: 'Bebas Neue', sans-serif; font-size: 1.2rem; letter-spacing: 2px; color: var(--text-muted); margin-bottom: 0.5rem; }
+.champion-label { font-family: var(--font-display); font-size: 1.2rem; letter-spacing: 2px; color: var(--text-muted); margin-bottom: 0.5rem; }
 
 .champion-name {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 3rem;
   letter-spacing: 2px;
   background: linear-gradient(135deg, var(--accent-teal), var(--accent-orange));

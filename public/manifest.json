@@ -4,8 +4,8 @@
   "description": "Create custom tournament brackets for movies, TV shows, sports, and more. Share with friends and settle the debate!",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0a0a0f",
-  "theme_color": "#ff6b35",
+  "background_color": "#F8FAFC",
+  "theme_color": "#1463FF",
   "icons": [
     {
       "src": "/icons/icon-192x192.png",

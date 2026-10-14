@@ -1,0 +1,48 @@
+/* Stadium Blue. Semantic values are the source of truth for migrated screens. */
+:root {
+  --color-canvas: #f8fafc;
+  --color-surface: #ffffff;
+  --color-subtle: #e8eef5;
+  --color-ink: #15253f;
+  --color-muted: #52627a;
+  --color-line: #d4ddea;
+  --color-control-line: #718198;
+  --color-brand: #1463ff;
+  --color-brand-hover: #084ed6;
+  --color-brand-active: #073b9e;
+  --color-brand-soft: #eaf1ff;
+  --color-on-brand: #ffffff;
+  --color-accent: #ff693b;
+  --color-accent-ink: #a72f0d;
+  --color-accent-soft: #fff0ea;
+  --color-success: #116b45;
+  --color-success-soft: #e7f6ef;
+  --color-warning: #885000;
+  --color-warning-soft: #fff4d8;
+  --color-danger: #b42332;
+  --color-danger-soft: #fff0f1;
+  --color-focus: #084ed6;
+  --color-disabled: #64748b;
+  --font-ui: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Barlow Condensed', 'Arial Narrow', system-ui, sans-serif;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-6: 24px; --space-8: 32px; --space-12: 48px;
+  --radius-control: 10px; --radius-card: 16px; --radius-pill: 999px;
+  --shadow-card: 0 2px 8px #15253f06;
+  --shadow-menu: 0 12px 36px #15253f1f;
+  --motion-fast: 160ms;
+  --page-width: 1280px;
+  --feed-width: max(1160px, 75vw); /* Expand bracket previews across wide screens. */
+  color-scheme: light;
+}
+/* Adapter for screens migrated from the existing token names. */
+:root, .stadium-surface {
+  --ui-base: var(--color-canvas); --ui-surface: var(--color-surface); --ui-raised: var(--color-subtle);
+  --ui-line: var(--color-line); --ui-text: var(--color-ink); --ui-muted: var(--color-muted);
+  --ui-action: var(--color-brand); --ui-selected: var(--color-brand); --ui-radius: var(--radius-card);
+  --bg-dark: var(--color-canvas); --bg-card: var(--color-surface); --bg-card-hover: var(--color-brand-soft);
+  --bg-secondary: var(--color-surface); --text-primary: var(--color-ink); --text-secondary: var(--color-muted); --text-muted: var(--color-muted);
+  --accent-orange: var(--color-brand); --accent-teal: var(--color-brand-hover); --accent-orange-glow: transparent; --accent-teal-glow: transparent;
+  --border-subtle: var(--color-line); --border-active: var(--color-brand);
+  --bg: var(--ui-base); --surface: var(--ui-surface); --surface2: var(--ui-raised); --line: var(--ui-line);
+  --text: var(--ui-text); --muted: var(--ui-muted); --orange: var(--ui-action); --teal: var(--ui-selected);
+}

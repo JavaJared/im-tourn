@@ -18,7 +18,7 @@
 
 .ranking-browse-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
   gap: 1rem;
 }
 
@@ -38,15 +38,15 @@
 
 .ranking-browse-card:hover {
   background: var(--bg-card-hover);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0, 212, 170, 0.1);
+  transform: none;
+  box-shadow: var(--shadow-card);
 }
 
 .ranking-card-closed-badge {
   position: absolute;
   top: 0.75rem;
   right: 0.75rem;
-  background: rgba(255, 107, 53, 0.15);
+  background: var(--color-brand-soft);
   color: var(--accent-orange);
   font-size: 0.7rem;
   font-weight: 600;
@@ -54,12 +54,12 @@
   border-radius: 12px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  border: 1px solid rgba(255, 107, 53, 0.3);
+  border: 1px solid var(--color-brand);
 }
 
 .ranking-card-category {
   display: inline-block;
-  background: rgba(0, 212, 170, 0.1);
+  background: var(--color-brand-soft);
   color: var(--accent-teal);
   font-size: 0.7rem;
   font-weight: 600;
@@ -71,7 +71,7 @@
 }
 
 .ranking-card-title {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.4rem;
   letter-spacing: 0.03em;
   color: var(--text-primary);
@@ -124,7 +124,7 @@
   color: var(--text-secondary);
   padding: 0.5rem 1rem;
   cursor: pointer;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.9rem;
   font-weight: 500;
   transition: all 0.15s ease;
@@ -136,7 +136,7 @@
 
 .ranking-sort-toggle button.active {
   background: var(--accent-teal);
-  color: var(--bg-dark);
+  color: var(--color-on-brand);
   font-weight: 600;
 }
 
@@ -165,7 +165,7 @@
 }
 
 .ranking-entry-number {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.2rem;
   color: var(--accent-teal);
   min-width: 1.5rem;
@@ -213,14 +213,14 @@
 }
 
 .ranking-entry-remove-img:hover {
-  background: #ff8658;
+  background: var(--color-brand-hover);
 }
 
 .ranking-entry-add-img {
   width: 48px;
   height: 48px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--color-subtle);
   border: 1px dashed var(--border-subtle);
   color: var(--text-muted);
   cursor: pointer;
@@ -233,7 +233,7 @@
 .ranking-entry-add-img:hover {
   border-color: var(--accent-teal);
   color: var(--accent-teal);
-  background: rgba(0, 212, 170, 0.05);
+  background: var(--color-brand-soft);
 }
 
 .ranking-entry-text {
@@ -241,7 +241,7 @@
   background: transparent;
   border: none;
   color: var(--text-primary);
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 1rem;
   padding: 0.3rem 0;
   outline: none;
@@ -269,7 +269,7 @@
 }
 
 .ranking-entry-delete:hover:not(:disabled) {
-  background: rgba(255, 107, 53, 0.1);
+  background: var(--color-brand-soft);
   color: var(--accent-orange);
 }
 
@@ -286,7 +286,7 @@
   padding: 0.75rem 1rem;
   border-radius: 10px;
   cursor: pointer;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.95rem;
   width: 100%;
   transition: all 0.15s ease;
@@ -295,7 +295,7 @@
 .ranking-add-entry-btn:hover {
   border-color: var(--accent-teal);
   color: var(--accent-teal);
-  background: rgba(0, 212, 170, 0.05);
+  background: var(--color-brand-soft);
 }
 
 /* ----- Detail page ----- */
@@ -354,7 +354,7 @@
   border-radius: 10px;
   padding: 0.75rem;
   color: var(--text-primary);
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 1rem;
   resize: vertical;
 }
@@ -379,7 +379,7 @@
   color: var(--text-secondary);
   padding: 0.75rem 1.25rem;
   cursor: pointer;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 1rem;
   font-weight: 500;
   border-bottom: 2px solid transparent;
@@ -455,7 +455,7 @@
 /* ----- Results display ----- */
 
 .ranking-results h2 {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.8rem;
   letter-spacing: 0.04em;
   margin-bottom: 0.3rem;
@@ -491,7 +491,7 @@
 }
 
 .ranking-result-rank {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.6rem;
   color: var(--accent-orange);
   min-width: 2.2rem;
@@ -522,9 +522,9 @@
 }
 
 /* Highlight top 3 in consensus/results */
-.ranking-result-item:nth-child(1) .ranking-result-rank { color: #ffd700; }
-.ranking-result-item:nth-child(2) .ranking-result-rank { color: #c0c0c0; }
-.ranking-result-item:nth-child(3) .ranking-result-rank { color: #cd7f32; }
+.ranking-result-item:nth-child(1) .ranking-result-rank { color: var(--color-warning); }
+.ranking-result-item:nth-child(2) .ranking-result-rank { color: var(--color-muted); }
+.ranking-result-item:nth-child(3) .ranking-result-rank { color: var(--color-accent-ink); }
 
 /* ----- Host controls ----- */
 
@@ -537,7 +537,7 @@
 }
 
 .ranking-host-controls h3 {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.3rem;
   letter-spacing: 0.04em;
   margin-bottom: 1rem;
@@ -552,19 +552,19 @@
 
 .btn-danger {
   background: transparent;
-  border: 1px solid rgba(255, 107, 53, 0.4);
+  border: 1px solid var(--color-brand);
   color: var(--accent-orange);
   padding: 0.6rem 1.2rem;
   border-radius: 8px;
   cursor: pointer;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.95rem;
   font-weight: 500;
   transition: all 0.15s ease;
 }
 
 .btn-danger:hover {
-  background: rgba(255, 107, 53, 0.1);
+  background: var(--color-brand-soft);
   border-color: var(--accent-orange);
 }
 
@@ -636,7 +636,7 @@
   gap: 1.25rem;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   color: var(--text-primary);
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   position: relative;
   overflow: hidden;
 }
@@ -654,7 +654,7 @@
 .ranking-card:hover:not(:disabled) {
   border-color: var(--accent-teal);
   transform: translateY(-3px);
-  box-shadow: 0 12px 30px rgba(0, 212, 170, 0.15);
+  box-shadow: var(--shadow-card);
 }
 
 .ranking-card:hover:not(:disabled)::before {
@@ -672,7 +672,7 @@
 .ranking-card-chosen {
   border-color: var(--accent-teal) !important;
   transform: scale(1.03) !important;
-  box-shadow: 0 0 40px var(--accent-teal-glow) !important;
+  box-shadow: var(--shadow-card);
 }
 
 .ranking-card-fading {
@@ -703,7 +703,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 2.5rem;
   color: var(--accent-orange);
   letter-spacing: 0.08em;
@@ -726,7 +726,7 @@
 .ranking-hint {
   color: var(--text-muted);
   font-size: 0.85rem;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
 }
 
 .ranking-submit-bar {
@@ -753,7 +753,7 @@
 }
 
 .ranking-resume-prompt h2 {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.8rem;
   letter-spacing: 0.04em;
   margin-bottom: 0.5rem;
@@ -797,7 +797,7 @@
   border-radius: 10px;
   padding: 0.75rem 1rem;
   color: var(--text-primary);
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 1rem;
   resize: vertical;
   transition: border-color 0.15s ease;
@@ -897,7 +897,7 @@
   width: 48px;
   height: 48px;
   border-radius: 8px;
-  background: rgba(0, 212, 170, 0.05);
+  background: var(--color-brand-soft);
   border: 1px dashed var(--accent-teal);
   display: flex;
   align-items: center;
@@ -911,8 +911,8 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.9rem 1rem;
-  background: rgba(0, 212, 170, 0.08);
-  border: 1px solid rgba(0, 212, 170, 0.2);
+  background: var(--color-brand-soft);
+  border: 1px solid var(--color-brand);
   border-radius: 10px;
   color: var(--accent-teal);
   font-size: 0.95rem;
@@ -930,15 +930,15 @@
   padding: 0.75rem 1.5rem;
   border-radius: 8px;
   cursor: pointer;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.95rem;
   font-weight: 500;
   transition: all 0.2s ease;
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: var(--color-subtle);
+  border-color: var(--color-line);
   color: var(--text-primary);
 }
 

@@ -25,7 +25,7 @@ export async function renderBracketImage(state, title = 'My bracket') {
     await document.fonts?.ready;
     const node=host.firstElementChild;
     const width=Math.ceil(node.getBoundingClientRect().width),height=Math.ceil(node.getBoundingClientRect().height);
-    const blob=await toBlob(node,{backgroundColor:'#0c0e13',width,height,pixelRatio:imagePixelRatio(width,height),preferredFontFormat:'woff2'});
+    const blob=await toBlob(node,{backgroundColor:getComputedStyle(node).backgroundColor,width,height,pixelRatio:imagePixelRatio(width,height),preferredFontFormat:'woff2'});
     if(!blob || blob.size===0) throw new Error('The image could not be created. Please retry.');
     return blob;
   } finally { root.unmount();host.remove(); }

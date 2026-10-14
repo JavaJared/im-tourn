@@ -13,7 +13,7 @@
 }
 
 .pool-header-info h1 {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 2.5rem;
   letter-spacing: 1px;
   margin: 0.5rem 0 0.25rem;
@@ -27,7 +27,7 @@
   background: none;
   border: none;
   color: var(--text-muted);
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.9rem;
   cursor: pointer;
   padding: 0;
@@ -61,7 +61,7 @@
 }
 
 .pool-code-display strong {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 1.4rem;
   letter-spacing: 2px;
   color: var(--accent-teal);
@@ -93,7 +93,7 @@
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
   padding: 0.6rem 1rem;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-weight: 500;
   font-size: 0.85rem;
   border-radius: 8px;
@@ -109,20 +109,20 @@
 .action-btn.complete {
   background: var(--accent-teal);
   border-color: var(--accent-teal);
-  color: var(--bg-dark);
+  color: var(--color-on-brand);
 }
 
 .action-btn.complete:hover {
-  background: #00f5c8;
+  background: var(--color-brand-hover);
 }
 
 .action-btn.delete {
-  border-color: #ff6b6b;
-  color: #ff6b6b;
+  border-color: var(--color-danger);
+  color: var(--color-danger);
 }
 
 .action-btn.delete:hover {
-  background: rgba(255, 107, 107, 0.1);
+  background: var(--color-danger-soft);
 }
 
 /* Pool Description Section */
@@ -160,7 +160,7 @@
   border: 1px solid var(--border-subtle);
   color: var(--text-muted);
   padding: 0.4rem 0.75rem;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.8rem;
   border-radius: 6px;
   cursor: pointer;
@@ -194,7 +194,7 @@
   border: 1px solid var(--border-subtle);
   color: var(--text-muted);
   padding: 0.5rem 1rem;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.85rem;
   border-radius: 6px;
   cursor: pointer;
@@ -211,7 +211,7 @@
   border: none;
   color: white;
   padding: 0.5rem 1rem;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.85rem;
   font-weight: 600;
   border-radius: 6px;
@@ -234,7 +234,7 @@
   border: 1px solid var(--border-subtle);
   color: var(--text-muted);
   padding: 0.75rem 1.5rem;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-weight: 500;
   border-radius: 8px;
   cursor: pointer;
@@ -284,22 +284,22 @@
   text-align: center;
   padding: 1rem;
   margin-bottom: 1.5rem;
-  background: rgba(255, 107, 53, 0.1);
+  background: var(--color-brand-soft);
   border-radius: 8px;
 }
 
 .prediction-submitted {
-  background: rgba(0, 212, 170, 0.1);
+  background: var(--color-brand-soft);
   color: var(--accent-teal);
 }
 
 .submit-predictions-btn {
   margin-top: 1rem;
-  background: linear-gradient(135deg, var(--accent-orange), #ff8c5a);
+  background: linear-gradient(135deg, var(--accent-orange), var(--color-brand-hover));
   color: white;
   border: none;
   padding: 0.875rem 2rem;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-weight: 700;
   font-size: 1rem;
   border-radius: 10px;
@@ -308,8 +308,8 @@
 }
 
 .submit-predictions-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 20px var(--accent-orange-glow);
+  transform: none;
+  box-shadow: var(--shadow-card);
 }
 
 .submit-predictions-btn:disabled {
@@ -334,7 +334,7 @@
 }
 
 .pool-round-title {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 0.85rem;
   color: var(--text-muted);
   text-align: center;
@@ -360,12 +360,12 @@
 
 .pool-matchup.correct {
   border-color: var(--accent-teal);
-  box-shadow: 0 0 8px rgba(0, 212, 170, 0.3);
+  box-shadow: var(--shadow-card);
 }
 
 .pool-matchup.incorrect {
-  border-color: #ff6b6b;
-  box-shadow: 0 0 8px rgba(255, 107, 107, 0.3);
+  border-color: var(--color-danger);
+  box-shadow: var(--shadow-card);
 }
 
 .pool-matchup.pending {
@@ -392,29 +392,29 @@
 }
 
 .pool-entry.selectable:hover {
-  background: rgba(255, 107, 53, 0.15);
+  background: var(--color-brand-soft);
 }
 
 .pool-entry.winner {
-  background: rgba(0, 212, 170, 0.2);
+  background: var(--color-brand-soft);
 }
 
 .pool-entry.winner .pool-seed {
   background: var(--accent-orange);
   color: white;
-  box-shadow: 0 0 8px var(--accent-orange-glow);
+  box-shadow: var(--shadow-card);
 }
 
 .pool-seed {
   width: 22px;
   height: 22px;
-  background: rgba(255, 107, 53, 0.25);
+  background: var(--color-brand-soft);
   color: var(--accent-orange);
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: var(--font-display);
   font-size: 0.8rem;
   flex-shrink: 0;
 }

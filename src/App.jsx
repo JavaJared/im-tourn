@@ -34,7 +34,7 @@ function AppContent() {
       <PageMetadata view={view} />
       <Header onNavigate={setView} currentView={view} />
 
-      <main id="main-content" className="main-content" tabIndex={-1}>
+      <main id="main-content" className="main-content stadium-surface" tabIndex={-1}>
         <AppRoutes
           view={view}
           handleFillOut={handleFillOut}
@@ -53,7 +53,7 @@ function AppContent() {
         currentView={view}
       />
 
-      <FeedbackModal isOpen={showFeedbackModal} onClose={() => setShowFeedbackModal(false)} />
+      <div className="stadium-dialog-surface"><FeedbackModal isOpen={showFeedbackModal} onClose={() => setShowFeedbackModal(false)} /></div>
 
       {showTour && <GuidedTour onComplete={handleTourComplete} />}
     </div></ProfileNavigationContext.Provider>
