@@ -34,6 +34,12 @@ run('Firestore and Storage trust boundaries', () => {
     await assertSucceeds(setDoc(doc(db('alice'), 'customBrackets/new'), value));
     await assertFails(setDoc(doc(db('bob'), 'customBrackets/forged'), value));
   });
+  test('128-entry brackets publish but over-cap brackets are rejected', async () => {
+    const value = { hostId: 'alice', status: 'published', type: 'standard', participantCount: 128, roundCount: 7 };
+    await assertSucceeds(setDoc(doc(db('alice'), 'customBrackets/full128'), value));
+    await assertFails(setDoc(doc(db('alice'), 'customBrackets/tooLarge'), { ...value, participantCount: 129 }));
+    await assertFails(setDoc(doc(db('bob'), 'customBrackets/forged128'), value));
+  });
   test('published bracket structure stays frozen but live results work', async () => {
     await assertFails(updateDoc(doc(db('host'), 'customBrackets/b'), { boxes: {} }));
     await assertSucceeds(updateDoc(doc(db('host'), 'customBrackets/b'), { status: 'locked', results: { m1: 'p1' }, updatedAt: serverTimestamp() }));

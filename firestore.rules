@@ -121,7 +121,7 @@ service cloud.firestore {
       allow create: if signedIn() && request.resource.data.hostId == request.auth.uid
         && (request.resource.data.status == 'draft' || (request.resource.data.status == 'published'
           && request.resource.data.type == 'standard' && request.resource.data.participantCount >= 2
-          && request.resource.data.participantCount <= 100 && request.resource.data.roundCount >= 1));
+          && request.resource.data.participantCount <= 128 && request.resource.data.roundCount >= 1));
       allow update: if owns('hostId') && unchanged(['hostId','createdAt']) && (
         (resource.data.status == 'draft' && request.resource.data.status in ['draft','published'])
         || (resource.data.status in ['published','locked','complete'] && request.resource.data.status in ['published','locked','complete'] && only(['title','description','category','status','results','scores','updatedAt']))

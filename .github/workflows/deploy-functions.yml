@@ -8,6 +8,7 @@ on:
       - 'src/lib/**'
       - 'src/services/interactiveSort.js'
       - 'firestore.indexes.json'
+      - 'firestore.rules'
       - 'package.json'
       - 'package-lock.json'
       - 'scripts/**'
@@ -49,8 +50,8 @@ jobs:
         run: node scripts/backfill-usernames.cjs --initialize-only
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json
-      - name: Deploy functions and indexes
-        run: npx firebase deploy --only functions,firestore:indexes --project "$FIREBASE_PROJECT_ID" --non-interactive
+      - name: Deploy functions, indexes and Firestore rules
+        run: npx firebase deploy --only functions,firestore:indexes,firestore:rules --project "$FIREBASE_PROJECT_ID" --non-interactive
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/gcp-sa.json
       - name: Wait for catalog query indexes

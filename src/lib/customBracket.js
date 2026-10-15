@@ -20,7 +20,7 @@
  */
 
 export const SLOT = Object.freeze({ OPEN: 'open', NAMED: 'named', BYE: 'bye', FEED: 'feed' });
-export const MAX_PARTICIPANTS = 100;
+export const MAX_PARTICIPANTS = 128;
 
 const clone = (s) => (typeof structuredClone === 'function' ? structuredClone(s) : JSON.parse(JSON.stringify(s)));
 const storedSlot = (box, slot) => (slot === 'A' ? box.slotA : box.slotB);

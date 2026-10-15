@@ -40,7 +40,7 @@ test('every supported size has the exact entry slots and byes and can play throu
   expect(getChampion(state)).toBeTruthy();
  }
 },15000);
-test.each([0,1,101,2.5,NaN,Infinity,'12'])('rejects invalid count %s',count=>{
+test.each([0,1,129,2.5,NaN,Infinity,'12'])('rejects invalid count %s',count=>{
  expect(()=>generateDefaultBracketLayout(count)).toThrow('Choose a whole number');
 });
 test('builder generates and autosaves an unnamed layout, then saves participant edits',async()=>{

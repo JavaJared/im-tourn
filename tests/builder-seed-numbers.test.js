@@ -4,7 +4,7 @@ import { generateDefaultBracketLayout } from '../src/lib/defaultBracketLayout';
 import { generateSeededBracket, getSeedOrder } from '../src/lib/standardBracket';
 
 test('all default sizes use tournament seed order and skip byes',()=>{
- for(let n=2;n<=100;n++){
+ for(let n=2;n<=128;n++){
   const state=generateDefaultBracketLayout(n), before=JSON.stringify(state);
   const seeds=builderSeedNumbers(state);
   const order=getSeedOrder(2**Math.ceil(Math.log2(n)));

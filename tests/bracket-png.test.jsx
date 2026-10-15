@@ -13,7 +13,7 @@ vi.mock('../src/lib/exportBracketPng',()=>({exportBracketPng:(...args)=>mocks.ex
 const make=n=>generateSeededBracket(Array.from({length:n},(_,i)=>`Team ${i+1}`));
 let tree;
 afterEach(()=>{if(tree)act(()=>tree.unmount());mocks.export.mockReset();});
-test.each([32,64,100])('large %i-entry images include every matchup once in a shorter two-sided layout',n=>{
+test.each([32,64,100,128])('large %i-entry images include every matchup once in a shorter two-sided layout',n=>{
  const state=make(n),original=structuredClone(state),layout=bracketImageLayout(state);
  expect(layout.twoSided).toBe(true);
  expect(layout.height).toBeLessThan(computeLayout(state).height);

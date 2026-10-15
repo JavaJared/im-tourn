@@ -57,7 +57,7 @@ module.exports = __toCommonJS(serverScoring_exports);
 
 // src/lib/customBracket.js
 var SLOT = Object.freeze({ OPEN: "open", NAMED: "named", BYE: "bye", FEED: "feed" });
-var MAX_PARTICIPANTS = 100;
+var MAX_PARTICIPANTS = 128;
 var clone = (s) => typeof structuredClone === "function" ? structuredClone(s) : JSON.parse(JSON.stringify(s));
 var storedSlot = (box, slot) => slot === "A" ? box.slotA : box.slotB;
 function newId(s) {

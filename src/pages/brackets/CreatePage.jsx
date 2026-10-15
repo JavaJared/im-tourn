@@ -47,7 +47,7 @@ export default function CreatePage({ onNavigate }) {
       {step===1&&<>
         <label className="form-group">Number of entries<input className="form-input" type="number" min="2" max={MAX_PARTICIPANTS} value={count} onChange={e=>changeCount(e.target.value)} aria-describedby="entry-count-help"/></label>
         <p id="entry-count-help">{validCount?`${2**Math.ceil(Math.log2(size))-size} automatic byes`:`Choose 2–${MAX_PARTICIPANTS} entries.`}</p>
-        <div className="size-options" aria-label="Common entry counts">{[4,8,16,32,64].map(n=><button type="button" className={`size-option ${size===n?'selected':''}`} aria-pressed={size===n} key={n} onClick={()=>changeCount(String(n))}>{n}</button>)}</div>
+        <div className="size-options" aria-label="Common entry counts">{[4,8,16,32,64,128].map(n=><button type="button" className={`size-option ${size===n?'selected':''}`} aria-pressed={size===n} key={n} onClick={()=>changeCount(String(n))}>{n}</button>)}</div>
         <label className="seed-toggle"><input type="checkbox" checked={showSeeds} onChange={e=>setShowSeeds(e.target.checked)}/>Show seed numbers in preview</label>
         <p className="field-help">Entry order determines seeds. Top seeds receive byes.</p>
         <details className="paste-entries"><summary>Paste an entry list</summary><label>One participant per line<textarea className="form-input" value={paste} onChange={e=>setPaste(e.target.value)}/></label><button className="back-btn" type="button" onClick={()=>{

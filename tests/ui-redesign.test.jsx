@@ -35,11 +35,23 @@ test('entry names survive resizing and invalid counts cannot advance',()=>{
  prepare(4);const count=()=>tree.root.findByProps({type:'number'});
  act(()=>count().props.onChange({target:{value:'2'}}));act(()=>count().props.onChange({target:{value:'4'}}));
  expect(tree.root.findByProps({'aria-label':'Entry 4'}).props.value).toBe('Entry 4');
- act(()=>count().props.onChange({target:{value:'101'}}));expect(button('Review matchups').props.disabled).toBe(true);
+ act(()=>count().props.onChange({target:{value:'129'}}));expect(button('Review matchups').props.disabled).toBe(true);
 });
 test('download dialog retains both formats and separates own picks from blank exports',()=>{
  const state=vi.fn(),blank=vi.fn();act(()=>{tree=create(<BracketDownloads title="Movies" getState={state} getBlankState={blank}/>);});
  expect(tree.root.findAllByType('button')).toHaveLength(1);act(()=>button('Download').props.onClick());
  for(const label of ['PNG','PDF'])expect(tree.root.findAllByType('button').filter(b=>b.children.includes(label))).toHaveLength(2);
  expect(state).not.toHaveBeenCalled();expect(blank).not.toHaveBeenCalled();
+});
+
+test('128-entry preset can be reviewed and published with seven rounds',async()=>{
+ prepare(128);
+ const preset=button('128');expect(preset).toBeTruthy();act(()=>preset.props.onClick());
+ expect(tree.root.findByProps({type:'number'}).props.value).toBe('128');
+ act(()=>button('Review matchups').props.onClick());
+ const state=tree.root.find(n=>n.type==='div'&&!!n.props['data-preview']).props['data-preview'];
+ expect(state.rounds.map(round=>round.length)).toEqual([64,32,16,8,4,2,1]);
+ expect(validateForPublish(state).valid).toBe(true);
+ mocks.standard.mockResolvedValueOnce('published128');await act(async()=>button('Publish bracket').props.onClick());
+ expect(mocks.standard.mock.calls[0][0].entries).toHaveLength(128);
 });

@@ -12,7 +12,7 @@ import { readView } from '../src/lib/useViewNavigation';
 const bracket = n => generateSeededBracket(Array.from({ length: n }, (_, i) => `Team ${i + 1}`));
 function finish(input) { let st = input; for (const rd of st.rounds) for (const id of rd) { const loc = locate(st), pid = resolveParticipant(st, loc, id, 'A') || resolveParticipant(st, loc, id, 'B'); if (pid) { try { st = setResult(st, id, pid); } catch {} } } return st; }
 describe('existing formats and scoring', () => {
-  test.each([2, 3, 8, 16, 32, 64, 100])('a %i-entry bracket can be completed', n => { const st = finish(bracket(n)); expect(isEntryComplete(st)).toBe(true); expect(getChampion(st)).toBeTruthy(); });
+  test.each([2, 3, 8, 16, 32, 64, 100, 128])('a %i-entry bracket can be completed', n => { const st = finish(bracket(n)); expect(isEntryComplete(st)).toBe(true); expect(getChampion(st)).toBeTruthy(); });
   test.each([32, 64])('standard %i brackets enter the weekly catalog', n => { const data = { ...serialize(bracket(n)), type: 'standard', status: 'published' }; const rounds = standardWeeklyMatchups(data); expect(rounds[0]).toHaveLength(n / 2); expect(rounds.at(-1)).toHaveLength(1); expect(rounds[0].every(m => m.entry1.name && m.entry2.name)).toBe(true); });
   test('byes do not create an invalid weekly candidate', () => { expect(standardWeeklyMatchups({ ...serialize(bracket(31)), type: 'standard', status: 'published' })).toBe(null); });
   test('zero round weights are honored and tied scores remain tied', () => { const st = finish(bracket(4)), picks = picksFromState(st); const board = buildLeaderboard(st, [{ userId: 'a', picks }, { userId: 'b', picks }], [0, 2]); expect(board.map(e => e.total)).toEqual([2, 2]); });
