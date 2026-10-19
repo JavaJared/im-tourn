@@ -76,6 +76,13 @@ exports.createPrivatePool = onCall(async req => {
     const reserved = await db.runTransaction(async tx => {
       const index = codeRef(type, joinCode);
       if ((await tx.get(index)).exists) return false;
+      if (type === 'bracket') {
+        // Read the source inside the transaction so a reset cannot race pool creation.
+        const modern=await tx.get(db.doc(`customBrackets/${id(pool.bracketId)}`));
+        const legacy=modern.exists?null:await tx.get(db.doc(`brackets/${pool.bracketId}`));
+        const source=modern.exists?modern.data():legacy?.data();
+        if (!source || source.resetting || (modern.exists && !['published','locked','complete'].includes(source.status)) || (input.structureVersion || 0) !== (source.structureVersion || 0)) throw new HttpsError('failed-precondition','The bracket changed. Reload it before creating a pool.');
+      }
       tx.create(ref, pool);
       tx.create(inviteRef(type, ref.id), { hostId: uid, poolId: ref.id, type, joinCode });
       tx.create(index, { poolId: ref.id, type });

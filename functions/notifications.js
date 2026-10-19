@@ -13,7 +13,7 @@ function parentRef(type, id) {
   return db.doc(`${type === 'legacy' ? 'brackets' : 'customBrackets'}/${id}`);
 }
 function available(type, data) {
-  if (!data || (type === 'custom' && data.status !== 'published')) throw new HttpsError('not-found', 'This bracket is no longer open for picks.');
+  if (!data || data.resetting || (type === 'custom' && data.status !== 'published')) throw new HttpsError('not-found', 'This bracket is no longer open for picks.');
 }
 exports.sendBracketNotification = onCall(async req => {
   const uid = user(req), {friendId, type, bracketId} = req.data || {};

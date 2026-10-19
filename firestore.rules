@@ -49,15 +49,21 @@ service cloud.firestore {
       let p = pool(collection, resource.data.poolId);
       return signedIn() && (p.hostId == request.auth.uid || (owns('userId') && openPool(p)));
     }
+    function currentBracket(c, id) {
+      let p = pool(c, id);
+      return !p.get('resetting', false) && request.resource.data.get('structureVersion', 0) == p.get('structureVersion', 0);
+    }
+    match /bracketRedirects/{id} { allow read: if true; allow write: if false; }
     match /brackets/{id} {
       allow read: if true;
-      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if owns('userId') && unchanged(['userId','createdAt']);
-      allow delete: if owns('userId');
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid && !exists(/databases/$(database)/documents/bracketRedirects/$(id));
+      allow update: if owns('userId') && !resource.data.get('resetting', false) && unchanged(['userId','createdAt','resetting','resetDraftId','structureVersion']);
+      allow delete: if owns('userId') && !resource.data.get('resetting', false);
     }
     match /submissions/{id} {
       allow read: if true;
       allow create: if signedIn() && request.resource.data.userId == request.auth.uid
+        && currentBracket('brackets', request.resource.data.bracketId)
         && request.resource.data.get('upvotes', 0) == 0 && request.resource.data.get('upvotedBy', []).size() == 0;
       // Likes go through an idempotent server transaction.
       allow update: if false;
@@ -117,21 +123,21 @@ service cloud.firestore {
     match /draftInvites/{id} { allow read, write: if false; }
     match /draftInviteCodes/{id} { allow read, write: if false; }
     match /customBrackets/{id} {
-      allow read: if owns('hostId') || resource.data.status != 'draft';
+      allow read: if owns('hostId') || resource.data.status in ['published','locked','complete'];
       allow create: if signedIn() && request.resource.data.hostId == request.auth.uid
         && (request.resource.data.status == 'draft' || (request.resource.data.status == 'published'
           && request.resource.data.type == 'standard' && request.resource.data.participantCount >= 2
           && request.resource.data.participantCount <= 128 && request.resource.data.roundCount >= 1));
-      allow update: if owns('hostId') && unchanged(['hostId','createdAt']) && (
-        (resource.data.status == 'draft' && request.resource.data.status in ['draft','published'])
+      allow update: if owns('hostId') && !resource.data.get('resetting', false) && unchanged(['hostId','createdAt','resetting','resetDraftId','structureVersion','replaceOriginal','revisionOf','revisionType']) && (
+        (resource.data.status == 'draft' && (request.resource.data.status == 'draft' || (request.resource.data.status == 'published' && !resource.data.get('replaceOriginal', false))))
         || (resource.data.status in ['published','locked','complete'] && request.resource.data.status in ['published','locked','complete'] && only(['title','description','category','status','results','scores','updatedAt']))
       );
-      allow delete: if owns('hostId');
+      allow delete: if owns('hostId') && !resource.data.get('resetting', false);
       match /submissions/{submissionId} {
         allow read: if true;
         allow create, update: if signedIn() && submissionId == request.auth.uid && request.resource.data.userId == request.auth.uid
-          && pool('customBrackets', id).status == 'published'
-          && request.resource.data.keys().hasOnly(['userId','displayName','picks','champion','createdAt']);
+          && pool('customBrackets', id).status == 'published' && currentBracket('customBrackets', id)
+          && request.resource.data.keys().hasOnly(['userId','displayName','picks','champion','createdAt','structureVersion']);
         allow delete: if owns('userId') || (signedIn() && pool('customBrackets', id).hostId == request.auth.uid);
       }
     }

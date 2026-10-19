@@ -45,6 +45,50 @@ run('server transactions against the Firestore emulator', () => {
     expect((await db.doc('customBrackets/'+result.bracketId).get()).data()).toMatchObject({status:'draft',hostId:'alice',participantCount:2,results:{}});
     expect((await db.doc('brackets/edit-legacy').get()).data()).toEqual(source);
   });
+  test('reset confirmation, ownership, batched cleanup and resume preserve only the new structure', async () => {
+    for (const name of ['_bracketResets','customBrackets','bracketPosts']) await db.recursiveDelete(db.collection(name));
+    const source={...serialize(generateSeededBracket(['A','B','C','D'])),title:'Original',hostId:'alice',status:'published'};
+    await db.doc('customBrackets/reset-source').set(source);
+    const draft={...serialize(generateSeededBracket(['New A','New B'])),hostId:'alice',status:'draft',title:'Updated',replaceOriginal:true,revisionOf:'reset-source',revisionType:'custom'};
+    await db.doc('customBrackets/reset-draft').set(draft);
+    const batch=db.batch();
+    for(let i=0;i<170;i++)batch.set(db.doc(`customBrackets/reset-source/submissions/u${i}`),{userId:`u${i}`,picks:{}});
+    batch.set(db.doc('bracketPools/reset-pool'),{bracketId:'reset-source',hostId:'bob',status:'open'});
+    for(let i=0;i<170;i++)batch.set(db.doc(`poolEntries/reset-pool_u${i}`),{poolId:'reset-pool',userId:`u${i}`});
+    batch.set(db.doc('poolInvites/bracket_reset-pool'),{joinCode:'RESET123'});
+    batch.set(db.doc('bracketPosts/reset-post'),{bracketId:'reset-source',status:'published'});
+    batch.set(db.doc('bracketPosts/reset-post/comments/one'),{body:'Old comment'});
+    batch.set(db.doc('bracketPosts/reset-post/likes/one'),{userId:'bob'});
+    batch.set(db.doc('bracketPools/unrelated'),{bracketId:'other',status:'open'});await batch.commit();
+    const call=(uid,data)=>api.resetPublishedBracket.run(req(uid,{draftId:'reset-draft',...data}));
+    await expect(call('bob',{action:'preview'})).rejects.toMatchObject({code:'permission-denied'});
+    const preview=await call('alice',{action:'preview'});expect(preview).toMatchObject({picks:170,pools:1,posts:1});
+    await expect(call('alice',{action:'begin',expectedVersion:preview.version,confirmation:'Wrong'})).rejects.toMatchObject({code:'invalid-argument'});
+    expect((await db.doc('customBrackets/reset-source').get()).data().resetting).toBeUndefined();
+    await call('alice',{action:'begin',expectedVersion:preview.version,confirmation:'Original'});
+    expect((await db.doc('customBrackets/reset-source').get()).data().resetting).toBe(true);
+    expect(await call('alice',{action:'preview'})).toMatchObject({started:true});
+    let result;for(let i=0;i<20;i++){result=await call('alice',{action:'continue'});if(result.done)break;}
+    expect(result).toEqual({done:true,view:'custom-bracket-reset-source'});
+    expect(await call('alice',{action:'continue'})).toEqual(result);
+    const updated=(await db.doc('customBrackets/reset-source').get()).data();
+    expect(updated).toMatchObject({title:'Updated',participantCount:2,structureVersion:1,resetting:false,status:'published'});
+    expect((await db.collection('customBrackets/reset-source/submissions').get()).empty).toBe(true);
+    expect((await db.collection('poolEntries').where('poolId','==','reset-pool').get()).empty).toBe(true);
+    for(const path of ['bracketPools/reset-pool','bracketPosts/reset-post','bracketPosts/reset-post/comments/one','bracketPosts/reset-post/likes/one','poolInvites/bracket_reset-pool'])expect((await db.doc(path).get()).exists).toBe(false);
+    expect((await db.doc('bracketPools/unrelated').get()).exists).toBe(true);
+  });
+  test('legacy reset preserves old URLs through a modern bracket alias', async () => {
+    await db.doc('brackets/reset-old').set({userId:'alice',title:'Old',matchups:'[]'});
+    await db.doc('customBrackets/reset-old-draft').set({...serialize(generateSeededBracket(['A','B','C'])),hostId:'alice',title:'New',status:'draft',replaceOriginal:true,revisionOf:'reset-old',revisionType:'legacy'});
+    const call=data=>api.resetPublishedBracket.run(req('alice',{draftId:'reset-old-draft',...data}));
+    const p=await call({action:'preview'});await call({action:'begin',confirmation:'Old',expectedVersion:p.version});
+    let result;for(let i=0;i<10;i++){result=await call({action:'continue'});if(result.done)break;}
+    expect(result).toEqual({done:true,view:'fill-bracket-reset-old'});
+    expect((await db.doc('brackets/reset-old').get()).exists).toBe(false);
+    expect((await db.doc('bracketRedirects/reset-old').get()).data()).toEqual({customId:'reset-old-draft'});
+    expect((await db.doc('customBrackets/reset-old-draft').get()).data()).toMatchObject({status:'published',participantCount:3,replaceOriginal:false});
+  });
   test('unauthenticated calls and nonhost pool mutations are rejected', async () => {
     await expect(api.castRankingVote.run(req(null, {}))).rejects.toMatchObject({ code: 'unauthenticated' });
     await db.doc('bracketPools/p').set({ hostId: 'host', status: 'in_progress' });

@@ -160,12 +160,12 @@ export const reopenBracket = (id) => setBracketStatus(id, 'locked');
 const fillsCol = (bracketId) => collection(db, COLLECTION, bracketId, 'submissions');
 
 /** Save a filled-out bracket (anyone signed in can fill a published bracket for fun). */
-export async function submitCustomFill(bracketId, { userId, displayName, picks, champion }) {
+export async function submitCustomFill(bracketId, { userId, displayName, picks, champion, structureVersion = 0 }) {
   if (!userId) throw new Error('Sign in to save your bracket');
   const newRef = doc(fillsCol(bracketId), userId);
   await setDoc(newRef, {
     userId, displayName: displayName || 'Anonymous',
-    picks: picks || {}, champion: champion || null,
+    picks: picks || {}, champion: champion || null, structureVersion,
     createdAt: serverTimestamp(),
   });
   return newRef.id;
@@ -191,7 +191,9 @@ const POOL_ENTRIES = 'poolEntries';
 
 /** Snapshot a published custom bracket's structure for storage on a pool. */
 export async function getCustomStructureForPool(bracketId) {
-  const state = await getBracketOnce(bracketId);
+  const snapshot = await getDoc(ref(bracketId));
+  const state = snapshot.exists() ? deserialize(snapshot.data()) : null;
+  if (snapshot.data()?.resetting) throw new Error('This bracket is being updated. Try again shortly.');
   if (!state) throw new Error('Bracket not found');
   const boxes = {};
   const nameMap = {};
@@ -200,7 +202,7 @@ export async function getCustomStructureForPool(bracketId) {
     boxes[id] = { slotA: b.slotA, slotB: b.slotB };
     for (const k of ['slotA', 'slotB']) { const s = b[k]; if (s.type === 'named') nameMap[s.participantId] = s.name; }
   }
-  return { rounds: state.rounds.map((r) => [...r]), boxes, nameMap, roundCount: state.rounds.length };
+  return { rounds: state.rounds.map((r) => [...r]), boxes, nameMap, roundCount: state.rounds.length, structureVersion: snapshot.data().structureVersion || 0 };
 }
 
 /** Start a custom pool (host begins recording results). */

@@ -22,6 +22,7 @@ export default function CustomBracketPage({ bracketId, currentUserId, currentUse
     if (latest.current?.id === _id) onData(...latest.current.value);
     return () => listeners.current.delete(listener);
   }, [bracketId]);
+  const [resetDraft,setResetDraft] = useState(null);
   const [status, setStatus] = useState(undefined); // undefined = loading, null = missing
   const [hostId, setHostId] = useState(null);
 
@@ -30,7 +31,7 @@ export default function CustomBracketPage({ bracketId, currentUserId, currentUse
     if (!bracketId) return undefined;
     const unsub = subscribeToBracket(
       bracketId,
-      (state, meta) => { latest.current = {id:bracketId,value:[state,meta]}; listeners.current.forEach(listener => listener.onData(state,meta)); if (!meta.exists) { setStatus(null); return; } setStatus(meta.raw.status); setHostId(meta.raw.hostId); },
+      (state, meta) => { latest.current = {id:bracketId,value:[state,meta]}; listeners.current.forEach(listener => listener.onData(state,meta)); if (!meta.exists) { setStatus(null); return; } setResetDraft(meta.raw.resetting ? meta.raw.resetDraftId : null); setStatus(meta.raw.status); setHostId(meta.raw.hostId); },
       () => setStatus(null),
     );
     return unsub;
@@ -42,6 +43,8 @@ export default function CustomBracketPage({ bracketId, currentUserId, currentUse
   if (status === null) return <div className="create-container"><div className="empty-state"><p>This bracket could not be found.</p></div></div>;
 
   const isHost = currentUserId && currentUserId === hostId;
+  if (resetDraft) return <div className="create-container"><p>This bracket is being updated.</p>{isHost&&<a className="ui-button" href={`?view=custom-bracket-${resetDraft}`}>Resume reset</a>}</div>;
+  if (status === 'replaced') return <div className="create-container"><p>This revision has replaced the original bracket.</p><button onClick={back}>Back</button></div>;
   if (status === 'draft' && isHost) {
     return <Suspense fallback={<BracketLoader label="Loading editor…"/>}><CustomBracketBuilder bracketId={bracketId} onExit={(reason) => { if (reason !== 'published') back(); }} /></Suspense>;
   }

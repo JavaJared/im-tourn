@@ -76,6 +76,7 @@ const CreatePoolPage = ({ onNavigate }) => {
         bracketTitle: selectedBracket.title,
         bracketCategory: selectedBracket.category || 'Custom',
         bracketType: 'custom', // engine-shaped structure -> unified pool UI
+        structureVersion: structure.structureVersion || selectedBracket.structureVersion || 0,
         bracketMatchups: structure, // {rounds, boxes, nameMap, seedMap?, roundCount}
         lockDate: lockDate ? new Date(lockDate) : null,
         roundPoints: roundPoints.slice(0, structure.roundCount),

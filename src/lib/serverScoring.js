@@ -12,3 +12,4 @@ export { generateSeededBracket } from './standardBracket';
 export { serialize } from './customBracketCodec';
 
 export { applyPoolScores } from './poolScoreResults';
+export { validateForPublish } from './customBracket';

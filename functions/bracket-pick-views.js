@@ -13,14 +13,14 @@ exports.getBracketPickView=onCall(async req=>{
   const uid=mode==='friend'?friendId:req.auth?.uid;
   if(mode==='friend'){if(!valid(uid)) throw new HttpsError('invalid-argument','Choose a friend.');await canView(req.auth.uid,uid);}
   const parent=await db.doc(`${type==='legacy'?'brackets':'customBrackets'}/${bracketId}`).get(),source=parent.data();
-  if(!source||(type==='custom'&&!['published','locked','complete'].includes(source.status))) throw new HttpsError('not-found','This bracket is unavailable.');
+  if(!source||source.resetting||(type==='custom'&&!['published','locked','complete'].includes(source.status))) throw new HttpsError('not-found','This bracket is unavailable.');
   let base;try{base=S.pickSource(type,source);}catch{throw new HttpsError('failed-precondition','This bracket has invalid structure.');}
   const collection=type==='legacy'?db.collection('submissions'):parent.ref.collection('submissions');
   let query=type==='legacy'?collection.where('bracketId','==',bracketId):collection;
   if(mode!=='community') query=query.where('userId','==',uid);
   const dateField=type==='legacy'?'submittedAt':'createdAt';
   query=query.orderBy(dateField,'desc').select('userId',dateField,type==='legacy'?'matchups':'picks');
-  const fingerprint=createHash('sha256').update(JSON.stringify(base)).digest('hex');
+  const fingerprint=createHash('sha256').update(JSON.stringify([source.structureVersion || 0,base])).digest('hex');
   const cache=db.doc(`_bracketConsensus/${type}-${bracketId}`);
   if(mode==='community') {
     const cached=(await cache.get()).data();

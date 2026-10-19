@@ -1,3 +1,5 @@
+import {lazy,Suspense} from 'react';
+const CustomBracketPage = lazy(()=>import('../../components/CustomBracketPage'));
 import BracketLoader from '../../components/BracketLoader';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -26,6 +28,8 @@ export default function BracketUrlPage({ id, mode, onSubmit, onBack, fallback })
           if (!data && fallback?.localId === id) data = fallback;
         }
         if (!data) throw new Error(mode === 'local' ? 'This unsaved result is not available in this browser. Saved account brackets can be opened from My Activities.' : 'This bracket is no longer available.');
+        if (mode === 'fill' && data.replacementCustomId) { if(active) setBracket(data); return; }
+        if (data.resetting) {if(active)setBracket(data);return;}
         const matchups = validateLegacyMatchups(typeof data.matchups === 'string' ? JSON.parse(data.matchups) : data.matchups);
         if (active) setBracket({ ...data, ...(mode==='saved'?{submissionId:id}:{}), id: data.id || id, matchups, title: typeof data.title === 'string' ? data.title : 'Saved bracket', category: typeof data.category === 'string' ? data.category : 'Other', size: Number.isFinite(data.size) ? data.size : matchups[0].length * 2, champion: typeof data.champion?.name === 'string' ? { name: data.champion.name } : null });
       } catch (e) { if (active) setError(e.message || 'Could not load this bracket. Please retry.'); }
@@ -35,5 +39,7 @@ export default function BracketUrlPage({ id, mode, onSubmit, onBack, fallback })
   if (mode === 'saved' && !currentUser) return <div className="home-container"><p>Log in using the account menu to open your saved bracket.</p><button onClick={onBack}>Back to browse</button></div>;
   if (error) return <div className="home-container"><p role="alert">{error}</p><button onClick={() => setRetry(value => value + 1)}>Retry</button><button onClick={onBack}>Back to browse</button></div>;
   if (!bracket) return <BracketLoader label="Loading bracket…"/>;
+  if(bracket.resetting) return <div className="home-container"><p>This bracket is being updated.</p>{currentUser?.uid===bracket.userId&&<a className="ui-button" href={`?view=custom-bracket-${bracket.resetDraftId}`}>Resume reset</a>}</div>;
+  if(bracket.replacementCustomId) return <Suspense fallback={<BracketLoader label="Loading bracket…"/>}><CustomBracketPage bracketId={bracket.replacementCustomId} currentUserId={currentUser?.uid} currentUserName={currentUser?.displayName} onNavigate={view=>{window.location.href='?view='+encodeURIComponent(view);}}/></Suspense>;
   return mode === 'fill' ? <FillPage bracket={bracket} onSubmit={onSubmit} onBack={onBack} /> : <PDFPage bracket={bracket} onBack={onBack} />;
 }
