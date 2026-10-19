@@ -1,3 +1,4 @@
+import EditPublishedBracket from './EditPublishedBracket';
 import BracketDownloads from './BracketDownloads';
 import ShareBracketButton from './ShareBracketButton';
 import GuestBracketSave from './GuestBracketSave';
@@ -26,6 +27,7 @@ function nameMapOf(state) { const m = {}; for (const id of Object.keys(state.box
  * ==================================================================== */
 export default function CustomBracketFill({ bracketId, currentUserId, currentUserName, onExit, openSaved = false, watchBracket = subscribeToBracket }) {
   const [bracket, setBracket] = useState(null);
+  const [ownerId, setOwnerId] = useState(null);
   const [status, setStatus] = useState(null);
   const [pred, setPred] = useState(null);      // local prediction engine state
   const [editingSaved,setEditingSaved]=useState(false);
@@ -58,7 +60,7 @@ export default function CustomBracketFill({ bracketId, currentUserId, currentUse
     const unsub = watchBracket(bracketId, async (state, meta) => {
       if (!active) return;
       if (!meta.exists || !state) { setError('This bracket could not be found.'); setLoading(false); return; }
-      setBracket(state); setTitle(meta.raw.title || 'My bracket'); setStatus(meta.raw.status);
+      setOwnerId(meta.raw.hostId); setBracket(state); setTitle(meta.raw.title || 'My bracket'); setStatus(meta.raw.status);
       if (initialized) return;
       initialized = true;
       try {
@@ -127,6 +129,7 @@ export default function CustomBracketFill({ bracketId, currentUserId, currentUse
           {readOnly && <span style={S.sub}>Read only</span>}
         </div>
         <div style={S.topRight}>
+          {currentUserId && ownerId === currentUserId && <EditPublishedBracket type="custom" bracketId={bracketId} onSaved={data=>setTitle(data.title)}/>}
           {status==='published' && <ShareBracketButton type="custom" bracketId={bracketId} title={title}/>}
           {view==='mine' && <BracketDownloads title={title} getState={()=>pred} getBlankState={()=>blankPrediction(bracket)}/>}
           {readOnly && view==='mine' && status==='published' && <button style={S.ghost} onClick={()=>setEditingSaved(true)}>Edit my picks</button>}

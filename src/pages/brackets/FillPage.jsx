@@ -1,3 +1,4 @@
+import EditPublishedBracket from '../../components/EditPublishedBracket';
 import BracketDownloads from '../../components/BracketDownloads';
 import ShareBracketButton from '../../components/ShareBracketButton';
 import GuestBracketSave from '../../components/GuestBracketSave';
@@ -35,7 +36,9 @@ const FillPage = (props) => {
   );
 };
 
-const FillEditor = ({ bracket, onSubmit, onBack, currentUser, draftKey }) => {
+const FillEditor = ({ bracket: sourceBracket, onSubmit, onBack, currentUser, draftKey }) => {
+  const [editedDetails,setEditedDetails] = useState(null);
+  const bracket = editedDetails ? {...sourceBracket,...editedDetails} : sourceBracket;
   const [draft] = useState(() => readFillDraft(draftKey, bracket.matchups));
   const [matchups, setMatchups] = useState(draft.matchups);
   const [view,setView]=useState('mine'),[loadingSaved,setLoadingSaved]=useState(!!currentUser),[loadError,setLoadError]=useState(''),[loadAttempt,setLoadAttempt]=useState(0);
@@ -130,6 +133,7 @@ const FillEditor = ({ bracket, onSubmit, onBack, currentUser, draftKey }) => {
           <span style={S.sub}>Created by <UserLink userId={bracket.userId} /></span>
         </div>
         <div style={S.topRight}>
+          {currentUser && bracket.userId === currentUser.uid && <EditPublishedBracket type="legacy" bracketId={bracket.id} onSaved={setEditedDetails}/>}
           <ShareBracketButton type="legacy" bracketId={bracket.id} title={bracket.title}/>
           <BracketDownloads title={bracket.title} getState={view==='mine'?()=>convertLegacyMatchups(matchups,{positionalIds:true}).state:undefined} getBlankState={()=>blankPrediction(convertLegacyMatchups(bracket.matchups,{positionalIds:true}).state)}/>
           {view==='mine' && <button className="legacy-submit" style={{ ...S.primary, ...(!isComplete() || submitting ? S.primaryOff : {}) }}

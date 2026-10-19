@@ -14,6 +14,37 @@ run('server transactions against the Firestore emulator', () => {
   beforeEach(async () => {
     for (const name of ['bracketPools', 'poolEntries', 'weeklyBracket', 'weeklyVotes', 'rankings', 'rankingVotes', 'rankingEntries', 'submissions']) await db.recursiveDelete(db.collection(name));
   });
+  test('published bracket edits enforce ownership, concurrency and preserve original picks', async () => {
+    const original = { ...serialize(generateSeededBracket(['A','B','C','D'])), hostId:'alice', status:'published', title:'Original', description:'', category:'Movies' };
+    await db.doc('customBrackets/edit-source').set(original);
+    await db.doc('customBrackets/edit-source/submissions/bob').set({userId:'bob',picks:{m1:'p1'}});
+    const args = {type:'custom',bracketId:'edit-source',action:'load'};
+    await expect(api.managePublishedBracket.run(req(null,args))).rejects.toMatchObject({code:'unauthenticated'});
+    await expect(api.managePublishedBracket.run(req('bob',args))).rejects.toMatchObject({code:'permission-denied'});
+    const loaded = await api.managePublishedBracket.run(req('alice',args));
+    const details = {...loaded.details,title:'Updated'};
+    await api.managePublishedBracket.run(req('alice',{...args,action:'save',details,expectedVersion:loaded.version}));
+    await expect(api.managePublishedBracket.run(req('alice',{...args,action:'save',details,expectedVersion:loaded.version}))).rejects.toMatchObject({code:'aborted'});
+    const current = await api.managePublishedBracket.run(req('alice',args));
+    const revision = {...args,action:'revise',details,expectedVersion:current.version,requestId:'idempotent-revision-123'};
+    const [a,b] = await Promise.all([1,2].map(()=>api.managePublishedBracket.run(req('alice',revision))));
+    expect(a.bracketId).toBe(b.bracketId);
+    expect((await db.doc('customBrackets/'+a.bracketId).get()).data()).toMatchObject({status:'draft',hostId:'alice',title:'Updated',results:{},scores:{},boxes:original.boxes});
+    expect((await db.doc('customBrackets/edit-source').get()).data()).toMatchObject({...original,title:'Updated'});
+    expect((await db.doc('customBrackets/edit-source/submissions/bob').get()).exists).toBe(true);
+  });
+  test('legacy owners can edit details and revise without modifying saved matchups', async () => {
+    const matchups = [[{entry1:{name:'A',seed:1},entry2:{name:'B',seed:2},winner:1}]];
+    const source = {userId:'alice',title:'Legacy',description:'',category:'Movies',matchups:JSON.stringify(matchups)};
+    await db.doc('brackets/edit-legacy').set(source);
+    const args = {type:'legacy',bracketId:'edit-legacy',action:'load'};
+    await expect(api.managePublishedBracket.run(req('bob',args))).rejects.toMatchObject({code:'permission-denied'});
+    const loaded = await api.managePublishedBracket.run(req('alice',args));
+    await expect(api.managePublishedBracket.run(req('alice',{...args,action:'save',expectedVersion:loaded.version,details:{...loaded.details,title:''}}))).rejects.toMatchObject({code:'invalid-argument'});
+    const result=await api.managePublishedBracket.run(req('alice',{...args,action:'revise',expectedVersion:loaded.version,details:loaded.details,requestId:'legacy-revision-123'}));
+    expect((await db.doc('customBrackets/'+result.bracketId).get()).data()).toMatchObject({status:'draft',hostId:'alice',participantCount:2,results:{}});
+    expect((await db.doc('brackets/edit-legacy').get()).data()).toEqual(source);
+  });
   test('unauthenticated calls and nonhost pool mutations are rejected', async () => {
     await expect(api.castRankingVote.run(req(null, {}))).rejects.toMatchObject({ code: 'unauthenticated' });
     await db.doc('bracketPools/p').set({ hostId: 'host', status: 'in_progress' });
