@@ -97,7 +97,8 @@ export async function getBracketById(bracketId) {
       createdAt: data.createdAt?.toDate?.()?.toLocaleDateString() || 'Recently'
     };
   }
-  return null;
+  const redirect = await getDoc(doc(db, 'bracketRedirects', bracketId));
+  return redirect.exists() ? {id:bracketId, replacementCustomId:redirect.data().customId} : null;
 }
 
 // Delete a bracket (only by owner)

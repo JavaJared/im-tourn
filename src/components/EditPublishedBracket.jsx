@@ -12,13 +12,13 @@ export default function EditPublishedBracket({ type, bracketId, onSaved }) {
   const close = () => { if (!busy) setOpen(false); };
   async function load() {
     setOpen(true);setDetails(null);setError('');setRevision(null);setNotice('');setBusy(true);setRequestId(crypto.randomUUID());
-    try { const result=await callServer('managePublishedBracket',{type,bracketId,action:'load'});setDetails(result.details);setVersion(result.version); }
+    try { const result=await callServer('managePublishedBracket',{type,bracketId,action:'load'});setDetails(result.details);setVersion(result.version);if(result.resetDraftId)setRevision(result.resetDraftId); }
     catch(e){setError(e.message || 'Could not load the editor.');}finally{setBusy(false);}
   }
-  async function save(action) {
+  async function save(action, replaceOriginal = false) {
     setBusy(true);setError('');
     try {
-      const result=await callServer('managePublishedBracket',{type,bracketId,action,details,expectedVersion:version,requestId});
+      const result=await callServer('managePublishedBracket',{type,bracketId,action,details,expectedVersion:version,requestId,replaceOriginal});
       if(action==='revise')setRevision(result.bracketId);
       else {onSaved?.(details);setOpen(false);setNotice('Bracket updated.');}
     } catch(e){setError(e.message || 'Changes were not saved. Please retry.');}finally{setBusy(false);}
@@ -36,7 +36,9 @@ export default function EditPublishedBracket({ type, bracketId, onSaved }) {
         <label>Category<input maxLength={100} value={details.category} disabled={busy} onChange={e=>setDetails({...details,category:e.target.value})}/></label>
         <div className="published-bracket-editor-actions"><Button type="submit" variant="primary" disabled={busy||!details.title.trim()}>{busy?'Saving…':'Save changes'}</Button><Button type="button" onClick={close} disabled={busy}>Cancel</Button></div>
         <hr/><Button type="button" disabled={busy||!details.title.trim()} onClick={()=>save('revise')}>Edit entries or matchups</Button>
-        <p>This creates a draft copy with a new link. Existing picks, posts, and pools stay with the original bracket.</p>
+        <Button type="button" disabled={busy||!details.title.trim()} onClick={()=>save('revise',true)}>Edit original and reset activity</Button>
+        <p>The reset option keeps the original link and deletes activity only after you finish editing and confirm replacement.</p>
+        <p>“Edit entries or matchups” creates a draft copy with a new link. Existing picks, posts, and pools stay with the original bracket.</p>
       </form>}
       {revision&&<div className="published-bracket-editor"><p>Your draft copy is ready. Edit its entries and matchups, then publish when ready.</p><a className="ui-button ui-button--primary" href={`?view=custom-bracket-${encodeURIComponent(revision)}`}>Open draft editor</a></div>}
     </ActionDialog>}

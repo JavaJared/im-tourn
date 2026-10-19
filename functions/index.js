@@ -149,3 +149,4 @@ for (const [name, handler] of Object.entries(require('./arena'))) {
 Object.assign(exports, require('./arena-requests'));
 
 exports.managePublishedBracket = require('./published-brackets').managePublishedBracket;
+exports.resetPublishedBracket = require('./bracket-reset').resetPublishedBracket;

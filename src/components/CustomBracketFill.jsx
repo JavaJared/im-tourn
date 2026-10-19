@@ -27,6 +27,7 @@ function nameMapOf(state) { const m = {}; for (const id of Object.keys(state.box
  * ==================================================================== */
 export default function CustomBracketFill({ bracketId, currentUserId, currentUserName, onExit, openSaved = false, watchBracket = subscribeToBracket }) {
   const [bracket, setBracket] = useState(null);
+  const revisionRef = useRef(null);
   const [ownerId, setOwnerId] = useState(null);
   const [status, setStatus] = useState(null);
   const [pred, setPred] = useState(null);      // local prediction engine state
@@ -51,7 +52,7 @@ export default function CustomBracketFill({ bracketId, currentUserId, currentUse
   useEffect(() => {
     setLoading(true); setError(null); setPred(null); setSaved(false); setEditingSaved(false); setView('mine');
     if (!bracketId) { setError('No bracket specified.'); setLoading(false); return undefined; }
-    let initialized = false, active = true;
+    let initialized = false, active = true; revisionRef.current = null;
     // Begin independent saved-pick work immediately; consume errors in the handler.
     const ownRequest = (openSaved && currentUserId
       ? getCustomFill(bracketId,currentUserId).then(saved => ({found:!!saved,picks:saved?.picks}))
@@ -60,18 +61,23 @@ export default function CustomBracketFill({ bracketId, currentUserId, currentUse
     const unsub = watchBracket(bracketId, async (state, meta) => {
       if (!active) return;
       if (!meta.exists || !state) { setError('This bracket could not be found.'); setLoading(false); return; }
+      const revision = meta.raw.structureVersion || 0;
+      if (meta.raw.resetting || (revisionRef.current !== null && revisionRef.current !== revision)) { setError('This bracket has been updated. Reload it before making new picks.'); setLoading(false); return; }
+      revisionRef.current = revision;
       setOwnerId(meta.raw.hostId); setBracket(state); setTitle(meta.raw.title || 'My bracket'); setStatus(meta.raw.status);
       if (initialized) return;
       initialized = true;
       try {
         let resume=null;
         if(!openSaved) { try { resume=JSON.parse(localStorage.getItem(lsKey)); } catch { /* Start from account picks. */ } }
+        if (resume && (resume.structureVersion || 0) !== revision) resume = null;
         const result = await ownRequest;
         if (result.error) throw result.error;
         const own = result.value;
         if(!openSaved && currentUserId && adoptGuestBracketDraft(`cbp:pred:${bracketId}:anon`,lsKey,own.found)) {
           try { resume=JSON.parse(localStorage.getItem(lsKey)); } catch {}
         }
+        if (resume && (resume.structureVersion || 0) !== revision) resume = null;
         if(!active)return;
         if(openSaved&&!own.found)throw new Error('Your saved bracket could not be found.');
         const useDraft=resume&&!openSaved&&(!own.found||!resume.updatedAt||resume.updatedAt>own.savedAt);
@@ -98,7 +104,7 @@ export default function CustomBracketFill({ bracketId, currentUserId, currentUse
 
   const saveDraft = (next = draftRef.current) => {
     if (!next) return;
-    try { localStorage.setItem(lsKey, JSON.stringify({picks:picksFromState(next),updatedAt:Date.now()})); setDraftSave({ state: 'saved', message: 'Saved on this device.' }); }
+    try { localStorage.setItem(lsKey, JSON.stringify({picks:picksFromState(next),updatedAt:Date.now(),structureVersion:revisionRef.current || 0})); setDraftSave({ state: 'saved', message: 'Saved on this device.' }); }
     catch { setDraftSave({ state: 'error', message: 'This browser could not save your draft. Keep this page open; your picks are still here.' }); }
   };
   const save = async () => {
@@ -107,7 +113,7 @@ export default function CustomBracketFill({ bracketId, currentUserId, currentUse
     if (!cur || !isEntryComplete(cur)) return;
     if (!currentUserId) { setSaveError('Sign in to save your bracket to your account. Your picks are still here.'); return; }
     sendingRef.current = true; setSending(true); setSaveError('');
-    try { await submitCustomFill(bracketId, { userId: currentUserId, displayName: currentUserName || 'Anonymous', picks: picksFromState(cur), champion: getChampion(cur) }); }
+    try { await submitCustomFill(bracketId, { userId: currentUserId, displayName: currentUserName || 'Anonymous', picks: picksFromState(cur), champion: getChampion(cur), structureVersion: revisionRef.current || 0 }); }
     catch (e) { setSaveError(`Your bracket was not saved. Your picks are still here. ${e?.message || 'Please retry.'}`); sendingRef.current = false; setSending(false); return; }
     setSaved(true); sendingRef.current = false; setSending(false);
     try { localStorage.removeItem(lsKey); } catch { /* Account save succeeded; keep the visible save state. */ }

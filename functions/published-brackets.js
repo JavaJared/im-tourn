@@ -24,13 +24,14 @@ exports.managePublishedBracket = onCall(async req => {
     const data = snap.data();
     if (data[type === 'custom' ? 'hostId' : 'userId'] !== req.auth.uid) throw new HttpsError('permission-denied','Only the creator can edit this bracket.');
     if (type === 'custom' && !['published','locked','complete'].includes(data.status)) throw new HttpsError('failed-precondition','Open the draft editor to edit this bracket.');
-    if (action === 'load') return { details: details(data), version: version(snap) };
+    if (action === 'load') return { resetDraftId: data.resetDraftId || null, details: details(data), version: version(snap) };
+    if (data.resetting) throw new HttpsError('failed-precondition','Resume the reset already in progress.');
     // A retry returns the same draft, even if the original was edited meanwhile.
     const target = action === 'revise' ? db.doc(`customBrackets/revision_${req.auth.uid}_${requestId}`) : null;
     if (target) {
       const existing = await tx.get(target);
       if (existing.exists) {
-        if (existing.data().hostId !== req.auth.uid || existing.data().revisionOf !== bracketId || existing.data().revisionType !== type) throw new HttpsError('already-exists','Start a new revision request.');
+        if (existing.data().hostId !== req.auth.uid || existing.data().revisionOf !== bracketId || existing.data().revisionType !== type || !!existing.data().replaceOriginal !== (req.data.replaceOriginal === true)) throw new HttpsError('already-exists','Start a new revision request.');
         return { bracketId: target.id };
       }
     }
@@ -42,7 +43,7 @@ exports.managePublishedBracket = onCall(async req => {
     let state;
     try { state = S.pickSource(type, data); } catch { throw new HttpsError('failed-precondition','This bracket cannot be copied because its structure is damaged.'); }
     tx.create(target, { ...S.serialize(state), ...values, hostId:req.auth.uid, hostName:data.hostName || data.userDisplayName || null,
-      status:'draft', type:'custom', scoring:{byTier:{}}, revisionOf:bracketId, revisionType:type,
+      status:'draft', type:'custom', replaceOriginal:req.data.replaceOriginal === true, scoring:{byTier:{}}, revisionOf:bracketId, revisionType:type,
       createdAt:FieldValue.serverTimestamp(), updatedAt:FieldValue.serverTimestamp() });
     return { bracketId: target.id };
   });

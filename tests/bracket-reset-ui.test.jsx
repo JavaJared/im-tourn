@@ -1,0 +1,23 @@
+import React from 'react';
+import {act,create} from 'react-test-renderer';
+import {test,expect,vi,afterEach} from 'vitest';
+import ResetBracketDialog from '../src/components/ResetBracketDialog';
+const call=vi.hoisted(()=>vi.fn());
+vi.mock('../src/services/server',()=>({callServer:(...args)=>call(...args)}));
+vi.mock('../src/components/ActionDialog',()=>({default:({children})=><section>{children}</section>}));
+let tree;afterEach(()=>{if(tree)act(()=>tree.unmount());vi.clearAllMocks();vi.unstubAllGlobals();});
+const button=label=>tree.root.findAllByType('button').find(b=>b.children.includes(label));
+test('reset requires typed confirmation and resumes after interrupted cleanup',async()=>{
+ const assign=vi.fn();vi.stubGlobal('window',{location:{assign}});
+ call.mockResolvedValueOnce({title:'Original',picks:5,pools:2,posts:3,version:'1:0'});
+ await act(async()=>{tree=create(<ResetBracketDialog draftId="draft" onClose={()=>{}}/>);});
+ expect(button('Replace original and delete activity').props.disabled).toBe(true);
+ act(()=>tree.root.findByType('input').props.onChange({target:{value:'Original'}}));
+ call.mockResolvedValueOnce({done:false}).mockRejectedValueOnce(Error('Connection lost'));
+ await act(async()=>button('Replace original and delete activity').props.onClick());
+ expect(tree.root.findByProps({role:'alert'}).children).toContain('Connection lost');
+ call.mockResolvedValueOnce({done:true,view:'custom-bracket-original'});
+ await act(async()=>button('Resume reset').props.onClick());
+ expect(call.mock.calls.filter(([,data])=>data.action==='begin')).toHaveLength(1);
+ expect(assign).toHaveBeenCalledWith('?view=custom-bracket-original');
+});

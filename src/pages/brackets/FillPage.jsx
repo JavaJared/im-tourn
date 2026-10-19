@@ -106,7 +106,7 @@ const FillEditor = ({ bracket: sourceBracket, onSubmit, onBack, currentUser, dra
     try {
       if (currentUser) {
         filledBracket.submissionId = await submitFilledBracket(
-          { matchups, champion: filledBracket.champion, title: bracket.title || 'Saved bracket', category: bracket.category || 'Other', size: bracket.size || matchups[0].length * 2 },
+          { matchups, structureVersion: bracket.structureVersion || 0, champion: filledBracket.champion, title: bracket.title || 'Saved bracket', category: bracket.category || 'Other', size: bracket.size || matchups[0].length * 2 },
           bracket.id,
           currentUser.uid,
           currentUser.displayName,

@@ -1,3 +1,4 @@
+import ResetBracketDialog from './ResetBracketDialog';
 import { competitionTheme } from './brackets/competitionTheme';
 import BracketLoader from './BracketLoader';
 import SaveNotice from './SaveNotice';
@@ -51,6 +52,8 @@ const newPid = () => `p_${Math.random().toString(36).slice(2, 9)}`;
  * skips our own pending writes so it never clobbers in-progress typing.
  * ==================================================================== */
 export default function CustomBracketBuilder({ bracketId, onExit }) {
+  const [metadata,setMetadata] = useState({});
+  const [resetOpen,setResetOpen] = useState(false);
   const [state, setState] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -75,7 +78,7 @@ export default function CustomBracketBuilder({ bracketId, onExit }) {
       bracketId,
       (remote, meta) => {
         if (!meta.exists || !remote) { setError('This bracket could not be found.'); setLoading(false); return; }
-        setError(null); setLoading(false); if (!writer.hasPending()) { stateRef.current = remote; setState(remote); }
+        setMetadata(meta.raw || {}); setError(null); setLoading(false); if (!writer.hasPending()) { stateRef.current = remote; setState(remote); }
       },
       (err) => { setError(err?.message || 'Lost connection to the bracket.'); setLoading(false); },
     );
@@ -89,7 +92,7 @@ export default function CustomBracketBuilder({ bracketId, onExit }) {
   const named = useMemo(() => (state ? countNamed(state) : 0), [state]);
 
   const apply = (producer, selectAfter) => {
-    if (publishingRef.current) return;
+    if (publishingRef.current || metadata.resetting || resetOpen) return;
     const cur = stateRef.current; if (!cur) return;
     let next; try { next = producer(cur); } catch (e) { flash(e.message); return; }
     stateRef.current = next; setState(next);
@@ -119,6 +122,7 @@ export default function CustomBracketBuilder({ bracketId, onExit }) {
     publishingRef.current = true; setPublishing(true); setPublishError('');
     try {
       if (!await writer.retry()) return;
+      if (metadata.replaceOriginal) { setResetOpen(true); return; }
       await publishBracket(bracketId, cur); onExit?.('published');
     } catch (e) { setPublishError(e?.message || 'Publishing failed. Your bracket is still here.'); if (e?.errors) setShowErrors(true); }
     finally { publishingRef.current = false; setPublishing(false); }
@@ -138,6 +142,7 @@ export default function CustomBracketBuilder({ bracketId, onExit }) {
   return (
     <div style={S.root} className="cbb" onMouseDown={() => setSelectedId(null)}>
       <style>{CSS}</style>
+      {resetOpen && <ResetBracketDialog draftId={bracketId} onClose={()=>setResetOpen(false)}/>}
 
       <header style={S.top} onMouseDown={(e) => e.stopPropagation()}>
         <div style={S.brand}>
@@ -150,7 +155,7 @@ export default function CustomBracketBuilder({ bracketId, onExit }) {
           <span style={{ ...S.savePill, opacity: save === 'idle' ? 0 : 1, color: save === 'error' ? 'var(--orange)' : 'var(--teal)' }}>
             {save === 'saving' ? 'Saving…' : save === 'error' ? 'Save failed' : (<><Check size={12} strokeWidth={3} /> Saved</>)}
           </span>
-          <button style={{ ...S.publish, ...(validation.valid ? S.publishOn : {}) }} disabled={publishing} onClick={onPublish}><Trophy size={14} strokeWidth={2.5} /> Publish</button>
+          <button style={{ ...S.publish, ...(validation.valid ? S.publishOn : {}) }} disabled={publishing} onClick={metadata.resetting ? ()=>setResetOpen(true) : onPublish}><Trophy size={14} strokeWidth={2.5} /> {metadata.replaceOriginal ? (metadata.resetting ? 'Resume reset' : 'Review replacement') : 'Publish'}</button>
         </div>
       </header>
 

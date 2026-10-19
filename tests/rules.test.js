@@ -40,6 +40,20 @@ run('Firestore and Storage trust boundaries', () => {
     await assertFails(setDoc(doc(db('alice'), 'customBrackets/tooLarge'), { ...value, participantCount: 129 }));
     await assertFails(setDoc(doc(db('bob'), 'customBrackets/forged128'), value));
   });
+  test('resets freeze edits and reject stale submissions after replacement', async () => {
+    const value={userId:'alice',displayName:'Alice',picks:{},champion:null,createdAt:serverTimestamp()};
+    await env.withSecurityRulesDisabled(async c=>{
+      await setDoc(doc(c.firestore(),'customBrackets/reset'),{hostId:'alice',status:'published',resetting:true,structureVersion:0});
+      await setDoc(doc(c.firestore(),'customBrackets/reset-draft'),{hostId:'alice',status:'draft',replaceOriginal:true,createdAt:Timestamp.now()});
+    });
+    await assertFails(setDoc(doc(db('alice'),'customBrackets/reset/submissions/alice'),value));
+    await assertFails(updateDoc(doc(db('alice'),'customBrackets/reset'),{resetting:false}));
+    await assertFails(updateDoc(doc(db('alice'),'customBrackets/reset-draft'),{status:'published'}));
+    await env.withSecurityRulesDisabled(c=>updateDoc(doc(c.firestore(),'customBrackets/reset'),{resetting:false,structureVersion:1}));
+    await assertFails(setDoc(doc(db('alice'),'customBrackets/reset/submissions/alice'),value));
+    await assertSucceeds(setDoc(doc(db('alice'),'customBrackets/reset/submissions/alice'),{...value,structureVersion:1}));
+    await assertFails(updateDoc(doc(db('alice'),'customBrackets/reset'),{structureVersion:0}));
+  });
   test('published bracket structure stays frozen but live results work', async () => {
     await assertFails(updateDoc(doc(db('host'), 'customBrackets/b'), { boxes: {} }));
     await assertSucceeds(updateDoc(doc(db('host'), 'customBrackets/b'), { status: 'locked', results: { m1: 'p1' }, updatedAt: serverTimestamp() }));

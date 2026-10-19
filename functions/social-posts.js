@@ -24,7 +24,7 @@ exports.publishBracketPost=onCall(async req=>{
   const savedRef=type==='legacy'?db.doc(`submissions/${submissionId}`):sourceRef.collection('submissions').doc(uid);
   return db.runTransaction(async tx=>{
     const [sourceDoc,savedDoc]=await tx.getAll(sourceRef,savedRef),source=sourceDoc.data(),saved=savedDoc.data();
-    if(!source||(type==='custom'&&!['published','locked','complete'].includes(source.status)))throw new HttpsError('not-found','This bracket is unavailable.');
+    if(!source||source.resetting||(type==='custom'&&!['published','locked','complete'].includes(source.status)))throw new HttpsError('not-found','This bracket is unavailable.');
     if(!saved||saved.userId!==uid||(type==='legacy'&&saved.bracketId!==bracketId))throw new HttpsError('permission-denied','You can only post your own saved bracket.');
     const state=S.compatiblePickState(type,source,saved);
     if(!state)throw new HttpsError('failed-precondition','Save a completed bracket for the current version before posting.');
