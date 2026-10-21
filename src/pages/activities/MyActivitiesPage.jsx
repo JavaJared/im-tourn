@@ -5,19 +5,39 @@ import { usePagedCatalog } from '../../lib/usePagedCatalog';
 import { validateLegacyMatchups } from '../../lib/recordValidation';
 import { getBracketById } from '../../services/bracketService';
 import { callServer } from '../../services/server';
+import ActionDialog from '../../components/ActionDialog';
+import { deleteBracketDraft } from '../../services/bracketDraftService';
 import AuthModal from '../../components/dialogs/AuthModal';
 import './activities.css';
 
 const sources = ['brackets','custom','submissions','customSubmissions','hostedPools','joinedPools','rankings','rankingVotes'];
-const filters = [['all','Everything'],['attention','Needs attention'],['brackets','My brackets'],['saved','Saved picks'],['pools','Pools'],['rankings','Rankings']];
+const filters = [['all','Everything'],['attention','Needs attention'],['drafts','Drafts'],['brackets','My brackets'],['saved','Saved picks'],['pools','Pools'],['rankings','Rankings']];
+const isBracketDraft = item => item.catalogType === 'custom' && item.needsAttention && item.label === 'Unpublished bracket';
 export default function MyActivitiesPage({ onNavigate, onFillOut, onViewSaved }) {
   const { currentUser } = useAuth();
   const catalog = usePagedCatalog(sources, { endpoint: 'listMyActivities', scope: currentUser?.uid || '', enabled: !!currentUser });
   const [filter, setFilter] = useState('all'), [search, setSearch] = useState('');
   const [opening, setOpening] = useState(''), [error, setError] = useState(''), [signIn, setSignIn] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null), [deleting, setDeleting] = useState(false), [deleteError, setDeleteError] = useState('');
+  const [removed, setRemoved] = useState([]);
+  const deleteBusy = useRef(false);
   const generation = useRef(0), openingRef = useRef(false);
-  useEffect(() => { generation.current++; setError(''); setOpening(''); openingRef.current = false; return () => { generation.current++; }; }, [currentUser?.uid]);
-  const visible = catalog.items.filter(item => (filter === 'all' || (filter === 'attention' ? item.needsAttention : item.category === filter)) && item.title.toLowerCase().includes(search.toLowerCase())).sort((a,b) => Number(!!b.needsAttention)-Number(!!a.needsAttention) || b.createdAtMs - a.createdAtMs);
+  useEffect(() => { generation.current++; setDeleteTarget(null); setRemoved([]); setDeleteError(''); setError(''); setOpening(''); openingRef.current = false; return () => { generation.current++; }; }, [currentUser?.uid]);
+  const visible = catalog.items.filter(item => !removed.includes(`${item.catalogType}:${item.id}`) && (filter === 'all' || (filter === 'drafts' ? isBracketDraft(item) : filter === 'attention' ? item.needsAttention : item.category === filter)) && item.title.toLowerCase().includes(search.toLowerCase())).sort((a,b) => Number(!!b.needsAttention)-Number(!!a.needsAttention) || b.createdAtMs - a.createdAtMs);
+  const removeDraft = async () => {
+    if (!deleteTarget || deleteBusy.current) return;
+    const target = deleteTarget, version = generation.current;
+    deleteBusy.current = true; setDeleting(true); setDeleteError('');
+    try {
+      await deleteBracketDraft(target.id, currentUser.uid);
+      if (version === generation.current) {
+        setRemoved(previous => [...previous, `${target.catalogType}:${target.id}`]);
+        setDeleteTarget(null);
+      }
+    } catch (error) {
+      if (version === generation.current) setDeleteError(error.message || 'Could not delete the draft. Please retry.');
+    } finally { deleteBusy.current = false; setDeleting(false); }
+  };
   const open = async item => {
     if (openingRef.current) return;
     if (item.destination) { onNavigate(item.destination); return; }
@@ -46,8 +66,16 @@ export default function MyActivitiesPage({ onNavigate, onFillOut, onViewSaved })
     {catalog.loading && !catalog.items.length ? <BracketLoader compact label="Loading your activities…" /> : <>
       <p className="activities-count" role="status">{visible.length} loaded {visible.length === 1 ? 'activity' : 'activities'}{catalog.hasMore ? ' · More available below' : ''}</p>
       {!visible.length && <div className="activities-empty"><h2>{catalog.error ? 'Some activities could not load' : catalog.items.length ? 'No matching activities' : 'Your next bracket starts here'}</h2><p>{catalog.error ? 'Retry below. Activities that loaded successfully remain available.' : catalog.items.length ? 'Try another filter or load more activities.' : 'Brackets you create, predictions you submit, and pools you join will appear here.'}</p>{!catalog.items.length && !catalog.error && <button className="nav-btn" onClick={() => onNavigate('browse')}>Explore brackets</button>}</div>}
-      <div className="activities-grid">{visible.map(item => <article className="activity-card" key={`${item.catalogType}:${item.id}`}><div className="activity-card-meta"><span>{item.label}</span>{item.needsAttention && <span className="activity-attention">Needs attention</span>}</div><h2>{item.title}</h2><p>{item.status?.replaceAll('_',' ') || 'Saved in your account'}</p>{item.createdAtMs > 0 && <time dateTime={new Date(item.createdAtMs).toISOString()}>{new Date(item.createdAtMs).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}</time>}<button className="back-btn" disabled={!!opening} onClick={() => open(item)}>{opening === `${item.catalogType}:${item.id}` ? 'Opening…' : item.action} <span aria-hidden="true">→</span></button></article>)}</div>
+      <div className="activities-grid">{visible.map(item => <article className="activity-card" key={`${item.catalogType}:${item.id}`}><div className="activity-card-meta"><span>{item.label}</span>{item.needsAttention && <span className="activity-attention">Needs attention</span>}</div><h2>{item.title}</h2><p>{item.status?.replaceAll('_',' ') || 'Saved in your account'}</p>{item.createdAtMs > 0 && <time dateTime={new Date(item.createdAtMs).toISOString()}>{new Date(item.createdAtMs).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}</time>}<div className="activity-card-actions"><button className="back-btn" disabled={!!opening} onClick={() => open(item)}>{opening === `${item.catalogType}:${item.id}` ? 'Opening…' : item.action} <span aria-hidden="true">→</span></button>{isBracketDraft(item) && <button className="back-btn activity-delete" onClick={() => { setDeleteError(''); setDeleteTarget(item); }}>Delete draft</button>}</div></article>)}</div>
     </>}
+    {deleteTarget && <ActionDialog title="Delete this draft?" onClose={() => { if (!deleteBusy.current) setDeleteTarget(null); }}>
+      <p>“{deleteTarget.title}” will be permanently deleted. Published brackets, saved picks, and pools will not be removed.</p>
+      {deleteError && <p role="alert" className="activities-error">{deleteError}</p>}
+      <div className="activity-card-actions">
+        <button className="back-btn" disabled={deleting} onClick={() => setDeleteTarget(null)}>Cancel</button>
+        <button className="back-btn activity-delete" disabled={deleting} onClick={removeDraft}>{deleting ? 'Deleting…' : deleteError ? 'Retry deletion' : 'Delete draft'}</button>
+      </div>
+    </ActionDialog>}
     {catalog.hasMore && <div className="activities-more"><p>Filters and search apply to activities loaded so far.</p><button className="nav-btn" disabled={catalog.loading} onClick={catalog.loadMore}>{catalog.loading ? <BracketLoader inline label="Loading…" /> : catalog.error ? 'Retry loading activities' : 'Load more activities'}</button></div>}
   </section>;
 }

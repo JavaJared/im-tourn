@@ -2,14 +2,16 @@ import { createElement } from 'react';
 import { act, create } from 'react-test-renderer';
 import { beforeEach, afterEach, expect, test, vi } from 'vitest';
 import MyActivitiesPage from '../src/pages/activities/MyActivitiesPage';
-const mocks = vi.hoisted(() => ({ user:{uid:'alice'}, catalog:{}, callServer:vi.fn() }));
+const mocks = vi.hoisted(() => ({ user:{uid:'alice'}, catalog:{}, callServer:vi.fn(), deleteDraft:vi.fn() }));
+vi.mock('../src/services/bracketDraftService',()=>({deleteBracketDraft:(...args)=>mocks.deleteDraft(...args)}));
+vi.mock('../src/components/ActionDialog',()=>({default:({children,...props})=>createElement('dialog',props,children)}));
 vi.mock('../src/contexts/AuthContext',()=>({useAuth:()=>({currentUser:mocks.user})}));
 vi.mock('../src/lib/usePagedCatalog',()=>({usePagedCatalog:()=>mocks.catalog}));
 vi.mock('../src/services/bracketService',()=>({getBracketById:vi.fn()}));
 vi.mock('../src/services/server',()=>({callServer:(...args)=>mocks.callServer(...args)}));
 vi.mock('../src/components/dialogs/AuthModal',()=>({default:()=>null}));
 let tree;
-beforeEach(()=>{mocks.user={uid:'alice'};mocks.catalog={items:[],loading:false,error:'',hasMore:false,refresh:vi.fn(),loadMore:vi.fn()};mocks.callServer.mockReset();});
+beforeEach(()=>{mocks.user={uid:'alice'};mocks.catalog={items:[],loading:false,error:'',hasMore:false,refresh:vi.fn(),loadMore:vi.fn()};mocks.callServer.mockReset();mocks.deleteDraft.mockReset();});
 afterEach(()=>{if(tree)act(()=>tree.unmount());});
 const mount = props => { act(()=>{tree=create(createElement(MyActivitiesPage,props));}); return tree; };
 test('signed-out visitors get a login prompt instead of an account list',()=>{
@@ -27,4 +29,24 @@ test('reopens a saved submission without resubmitting or modifying it',async()=>
  await act(async()=>tree.root.findAllByType('button').find(b=>b.children.includes('View saved bracket')).props.onClick());
  expect(show).toHaveBeenCalledWith(expect.objectContaining({id:'s',title:'Saved',matchups:expect.any(Array)}));
  expect(mocks.callServer).toHaveBeenCalledWith('getMySavedActivity',{type:'standard',id:'s'});
+});
+
+const draft = {id:'draft1',catalogType:'custom',title:'Unfinished',category:'brackets',label:'Unpublished bracket',needsAttention:true,action:'Continue editing',destination:'custom-bracket-draft1'};
+const button = text => tree.root.findAllByType('button').find(b=>b.children.includes(text));
+test('draft deletion requires confirmation, removes the card, and leaves published cards alone',async()=>{
+ mocks.catalog.items=[draft,{...draft,id:'published',label:'Created bracket',needsAttention:false}];mount({});
+ expect(tree.root.findAllByType('button').filter(b=>b.children.includes('Delete draft'))).toHaveLength(1);
+ act(()=>button('Delete draft').props.onClick());expect(mocks.deleteDraft).not.toHaveBeenCalled();
+ act(()=>button('Cancel').props.onClick());expect(mocks.deleteDraft).not.toHaveBeenCalled();
+ act(()=>button('Delete draft').props.onClick());
+ await act(async()=>tree.root.findByType('dialog').findAllByType('button').find(b=>b.children.includes('Delete draft')).props.onClick());
+ expect(mocks.deleteDraft).toHaveBeenCalledWith('draft1','alice');expect(tree.root.findAllByType('article')).toHaveLength(1);
+});
+test('failed deletion keeps the draft and offers retry; drafts filter excludes published items',async()=>{
+ mocks.catalog.items=[draft,{...draft,id:'published',label:'Created bracket',needsAttention:false}];mount({});
+ act(()=>button('Drafts').props.onClick());expect(tree.root.findAllByType('article')).toHaveLength(1);
+ mocks.deleteDraft.mockRejectedValueOnce(Error('Could not delete'));
+ act(()=>button('Delete draft').props.onClick());
+ await act(async()=>tree.root.findByType('dialog').findAllByType('button').find(b=>b.children.includes('Delete draft')).props.onClick());
+ expect(tree.root.findAllByType('article')).toHaveLength(1);expect(button('Retry deletion')).toBeTruthy();
 });

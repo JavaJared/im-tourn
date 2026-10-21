@@ -26,3 +26,7 @@
 .activities-controls input { background: var(--bg-card, #12121a); color: var(--text-primary, #fff); }
 
 .activities-page { font-family:var(--font-ui); }.activities-page button { font:inherit; }.activity-card { border-radius:var(--radius-card); padding:24px; }.activity-attention { background:var(--color-warning-soft); padding:2px 6px; border-radius:4px; }.activities-count,.activity-card p,.activity-card time { color:var(--color-muted); opacity:1; }
+
+.activity-card-actions { display:flex; flex-wrap:wrap; gap:.75rem; margin-top:auto; }
+.activity-card-actions button { margin-top:0; }
+.activity-card-actions .activity-delete { color:var(--color-danger); }
