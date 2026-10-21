@@ -39,6 +39,7 @@ export default function BracketUrlPage({ id, mode, onSubmit, onBack, fallback })
   if (mode === 'saved' && !currentUser) return <div className="home-container"><p>Log in using the account menu to open your saved bracket.</p><button onClick={onBack}>Back to browse</button></div>;
   if (error) return <div className="home-container"><p role="alert">{error}</p><button onClick={() => setRetry(value => value + 1)}>Retry</button><button onClick={onBack}>Back to browse</button></div>;
   if (!bracket) return <BracketLoader label="Loading bracket…"/>;
+  if(bracket.deleting) return <div className="home-container"><p>This bracket is being deleted.</p>{currentUser?.uid===bracket.userId && <a className="ui-button" href="?view=my-activities">Go to My Stuff to resume deletion</a>}</div>;
   if(bracket.resetting) return <div className="home-container"><p>This bracket is being updated.</p>{currentUser?.uid===bracket.userId&&<a className="ui-button" href={`?view=custom-bracket-${bracket.resetDraftId}`}>Resume reset</a>}</div>;
   if(bracket.replacementCustomId) return <Suspense fallback={<BracketLoader label="Loading bracket…"/>}><CustomBracketPage bracketId={bracket.replacementCustomId} currentUserId={currentUser?.uid} currentUserName={currentUser?.displayName} onNavigate={view=>{window.location.href='?view='+encodeURIComponent(view);}}/></Suspense>;
   return mode === 'fill' ? <FillPage bracket={bracket} onSubmit={onSubmit} onBack={onBack} /> : <PDFPage bracket={bracket} onBack={onBack} />;

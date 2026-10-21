@@ -52,7 +52,8 @@ exports.listMyActivities = onCall(async req => {
     if (parentType && !parent) return []; // Deleted or unrelated parents cannot produce broken links.
     const common = { id: type === 'customSubmissions' ? doc.ref.path : doc.id, createdAtMs: millis(data[dateField]), needsAttention: false };
     if (type === 'brackets') return [{ ...common, title: title(data.title,'Untitled bracket'), category: 'brackets', label: 'Created bracket', action: 'Fill bracket', bracketId: doc.id }];
-    if (type === 'custom') return [{ ...common, title: title(data.title,'Untitled bracket'), category: 'brackets', label: data.status === 'draft' ? 'Unpublished bracket' : 'Created bracket', needsAttention: data.status === 'draft', action: data.status === 'draft' ? 'Continue editing' : 'Open bracket', destination: `custom-bracket-${doc.id}` }];
+    if (type === 'custom' && data.status === 'replaced') return [];
+    if (type === 'custom') return [{ ...common, status: data.status, title: title(data.title,'Untitled bracket'), category: 'brackets', label: data.status === 'draft' ? 'Unpublished bracket' : 'Created bracket', needsAttention: data.status === 'draft', action: data.status === 'draft' ? 'Continue editing' : 'Open bracket', destination: `custom-bracket-${doc.id}` }];
     if (type === 'submissions') return [{ ...common, title: title(data.title,'Saved bracket'), category: 'saved', label: 'Submitted bracket', action: 'View saved bracket', submissionId: doc.id }];
     if (type === 'customSubmissions') return [{ ...common, title: title(parent.title,'Saved bracket'), category: 'saved', label: 'Saved bracket', action: 'Open saved picks', destination: `saved-custom-bracket-${parentId(doc)}` }];
     if (type === 'hostedPools' || type === 'joinedPools') {

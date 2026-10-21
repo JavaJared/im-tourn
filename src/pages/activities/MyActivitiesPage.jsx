@@ -5,6 +5,7 @@ import { usePagedCatalog } from '../../lib/usePagedCatalog';
 import { validateLegacyMatchups } from '../../lib/recordValidation';
 import { getBracketById } from '../../services/bracketService';
 import { callServer } from '../../services/server';
+import DeletePublishedBracketDialog from '../../components/DeletePublishedBracketDialog';
 import ActionDialog from '../../components/ActionDialog';
 import { deleteBracketDraft } from '../../services/bracketDraftService';
 import AuthModal from '../../components/dialogs/AuthModal';
@@ -12,6 +13,7 @@ import './activities.css';
 
 const sources = ['brackets','custom','submissions','customSubmissions','hostedPools','joinedPools','rankings','rankingVotes'];
 const filters = [['all','Everything'],['attention','Needs attention'],['drafts','Drafts'],['brackets','My brackets'],['saved','Saved picks'],['pools','Pools'],['rankings','Rankings']];
+const isPublishedBracket = item => item.catalogType === 'brackets' || (item.catalogType === 'custom' && item.label === 'Created bracket' && (!item.status || ['published','locked','complete'].includes(item.status)));
 const isBracketDraft = item => item.catalogType === 'custom' && item.needsAttention && item.label === 'Unpublished bracket';
 export default function MyActivitiesPage({ onNavigate, onFillOut, onViewSaved }) {
   const { currentUser } = useAuth();
@@ -66,9 +68,9 @@ export default function MyActivitiesPage({ onNavigate, onFillOut, onViewSaved })
     {catalog.loading && !catalog.items.length ? <BracketLoader compact label="Loading your activities…" /> : <>
       <p className="activities-count" role="status">{visible.length} loaded {visible.length === 1 ? 'activity' : 'activities'}{catalog.hasMore ? ' · More available below' : ''}</p>
       {!visible.length && <div className="activities-empty"><h2>{catalog.error ? 'Some activities could not load' : catalog.items.length ? 'No matching activities' : 'Your next bracket starts here'}</h2><p>{catalog.error ? 'Retry below. Activities that loaded successfully remain available.' : catalog.items.length ? 'Try another filter or load more activities.' : 'Brackets you create, predictions you submit, and pools you join will appear here.'}</p>{!catalog.items.length && !catalog.error && <button className="nav-btn" onClick={() => onNavigate('browse')}>Explore brackets</button>}</div>}
-      <div className="activities-grid">{visible.map(item => <article className="activity-card" key={`${item.catalogType}:${item.id}`}><div className="activity-card-meta"><span>{item.label}</span>{item.needsAttention && <span className="activity-attention">Needs attention</span>}</div><h2>{item.title}</h2><p>{item.status?.replaceAll('_',' ') || 'Saved in your account'}</p>{item.createdAtMs > 0 && <time dateTime={new Date(item.createdAtMs).toISOString()}>{new Date(item.createdAtMs).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}</time>}<div className="activity-card-actions"><button className="back-btn" disabled={!!opening} onClick={() => open(item)}>{opening === `${item.catalogType}:${item.id}` ? 'Opening…' : item.action} <span aria-hidden="true">→</span></button>{isBracketDraft(item) && <button className="back-btn activity-delete" onClick={() => { setDeleteError(''); setDeleteTarget(item); }}>Delete draft</button>}</div></article>)}</div>
+      <div className="activities-grid">{visible.map(item => <article className="activity-card" key={`${item.catalogType}:${item.id}`}><div className="activity-card-meta"><span>{item.label}</span>{item.needsAttention && <span className="activity-attention">Needs attention</span>}</div><h2>{item.title}</h2><p>{item.status?.replaceAll('_',' ') || 'Saved in your account'}</p>{item.createdAtMs > 0 && <time dateTime={new Date(item.createdAtMs).toISOString()}>{new Date(item.createdAtMs).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}</time>}<div className="activity-card-actions"><button className="back-btn" disabled={!!opening} onClick={() => open(item)}>{opening === `${item.catalogType}:${item.id}` ? 'Opening…' : item.action} <span aria-hidden="true">→</span></button>{isBracketDraft(item) && <button className="back-btn activity-delete" onClick={() => { setDeleteError(''); setDeleteTarget(item); }}>Delete draft</button>}{isPublishedBracket(item) && <button className="back-btn activity-delete" onClick={() => setDeleteTarget(item)}>Delete bracket</button>}</div></article>)}</div>
     </>}
-    {deleteTarget && <ActionDialog title="Delete this draft?" onClose={() => { if (!deleteBusy.current) setDeleteTarget(null); }}>
+    {deleteTarget && isBracketDraft(deleteTarget) && <ActionDialog title="Delete this draft?" onClose={() => { if (!deleteBusy.current) setDeleteTarget(null); }}>
       <p>“{deleteTarget.title}” will be permanently deleted. Published brackets, saved picks, and pools will not be removed.</p>
       {deleteError && <p role="alert" className="activities-error">{deleteError}</p>}
       <div className="activity-card-actions">
@@ -76,6 +78,7 @@ export default function MyActivitiesPage({ onNavigate, onFillOut, onViewSaved })
         <button className="back-btn activity-delete" disabled={deleting} onClick={removeDraft}>{deleting ? 'Deleting…' : deleteError ? 'Retry deletion' : 'Delete draft'}</button>
       </div>
     </ActionDialog>}
+    {deleteTarget && isPublishedBracket(deleteTarget) && <DeletePublishedBracketDialog bracketId={deleteTarget.id} type={deleteTarget.catalogType === 'brackets' ? 'legacy' : 'custom'} onClose={() => setDeleteTarget(null)} onDeleted={() => { setDeleteTarget(null); catalog.refresh(); }} />}
     {catalog.hasMore && <div className="activities-more"><p>Filters and search apply to activities loaded so far.</p><button className="nav-btn" disabled={catalog.loading} onClick={catalog.loadMore}>{catalog.loading ? <BracketLoader inline label="Loading…" /> : catalog.error ? 'Retry loading activities' : 'Load more activities'}</button></div>}
   </section>;
 }
