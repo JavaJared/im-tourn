@@ -150,3 +150,4 @@ Object.assign(exports, require('./arena-requests'));
 
 exports.managePublishedBracket = require('./published-brackets').managePublishedBracket;
 exports.resetPublishedBracket = require('./bracket-reset').resetPublishedBracket;
+exports.deletePublishedBracket = require('./bracket-delete').deletePublishedBracket;

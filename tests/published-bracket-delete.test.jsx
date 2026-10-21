@@ -1,0 +1,31 @@
+import { createElement } from 'react';
+import { act, create } from 'react-test-renderer';
+import { afterEach, expect, test, vi } from 'vitest';
+import DeletePublishedBracketDialog from '../src/components/DeletePublishedBracketDialog';
+const call = vi.hoisted(() => vi.fn());
+vi.mock('../src/services/server', () => ({callServer:(...args)=>call(...args)}));
+vi.mock('../src/components/ActionDialog', () => ({default:({children,...props})=>createElement('dialog',props,children)}));
+let tree;
+afterEach(()=>{if(tree)act(()=>tree.unmount());call.mockReset();});
+const button = text => tree.root.findAllByType('button').find(b=>b.children.includes(text));
+test('requires exact title, shows impact and retries interrupted cleanup',async()=>{
+ const deleted=vi.fn();
+ call.mockResolvedValueOnce({title:'Original',picks:8,pools:2,posts:3,version:'v1'});
+ await act(async()=>{tree=create(createElement(DeletePublishedBracketDialog,{bracketId:'b',type:'custom',onDeleted:deleted,onClose:vi.fn()}));});
+ expect(button('Delete bracket and activity').props.disabled).toBe(true);
+ expect(JSON.stringify(tree.toJSON())).toContain('other users');
+ act(()=>tree.root.findByType('input').props.onChange({target:{value:'Original'}}));
+ expect(button('Delete bracket and activity').props.disabled).toBe(false);
+ call.mockResolvedValueOnce({done:false}).mockRejectedValueOnce(Error('Offline'));
+ await act(async()=>button('Delete bracket and activity').props.onClick());
+ expect(deleted).not.toHaveBeenCalled();expect(button('Resume deletion')).toBeTruthy();
+ call.mockResolvedValueOnce({done:true});
+ await act(async()=>button('Resume deletion').props.onClick());
+ expect(deleted).toHaveBeenCalledTimes(1);
+ expect(call).toHaveBeenCalledWith('deletePublishedBracket',{bracketId:'b',type:'custom',action:'begin',confirmation:'Original',expectedVersion:'v1'});
+});
+test('reopening an interrupted deletion offers resume without another destructive confirmation',async()=>{
+ call.mockResolvedValueOnce({started:true,done:false});
+ await act(async()=>{tree=create(createElement(DeletePublishedBracketDialog,{bracketId:'old',type:'legacy',onDeleted:vi.fn(),onClose:vi.fn()}));});
+ expect(button('Resume deletion')).toBeTruthy();expect(tree.root.findAllByType('input')).toHaveLength(0);
+});

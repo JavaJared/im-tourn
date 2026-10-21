@@ -89,6 +89,46 @@ run('server transactions against the Firestore emulator', () => {
     expect((await db.doc('bracketRedirects/reset-old').get()).data()).toEqual({customId:'reset-old-draft'});
     expect((await db.doc('customBrackets/reset-old-draft').get()).data()).toMatchObject({status:'published',participantCount:3,replaceOriginal:false});
   });
+  test.each(['custom','legacy'])('published %s deletion confirms ownership and resumes complete cleanup', async type => {
+    const id = `delete-${type}`, path = `${type === 'custom' ? 'customBrackets' : 'brackets'}/${id}`;
+    await db.doc(path).set({title:'Delete me',hostId:'alice',userId:'alice',status:'published'});
+    const picksPath = type === 'custom' ? `${path}/submissions` : 'submissions';
+    const batch = db.batch();
+    for (let i=0;i<155;i++) batch.set(db.doc(`${picksPath}/${id}-${i}`), {bracketId:id,userId:'bob'});
+    batch.set(db.doc(`bracketPools/${id}`),{bracketId:id,hostId:'bob',status:'open'});
+    batch.set(db.doc(`poolEntries/${id}`),{poolId:id,userId:'bob'});
+    batch.set(db.doc(`bracketPosts/${id}`),{bracketId:id,status:'published'});
+    batch.set(db.doc(`bracketPosts/${id}/comments/c`),{body:'Comment'});
+    batch.set(db.doc(`bracketPosts/${id}/likes/bob`),{userId:'bob'});
+    batch.set(db.doc(`poolInvites/bracket_${id}`),{joinCode:'DELETE123'});
+    batch.set(db.doc('bracketPools/delete-unrelated'),{bracketId:'unrelated'});
+    await batch.commit();
+    const call = (uid, data) => api.deletePublishedBracket.run(req(uid,{type,bracketId:id,...data}));
+    await expect(call(null,{action:'preview'})).rejects.toMatchObject({code:'unauthenticated'});
+    await expect(call('bob',{action:'preview'})).rejects.toMatchObject({code:'permission-denied'});
+    const preview = await call('alice',{action:'preview'});
+    expect(preview).toMatchObject({title:'Delete me',picks:155,pools:1,posts:1});
+    await expect(call('alice',{action:'begin',expectedVersion:preview.version,confirmation:'Wrong'})).rejects.toMatchObject({code:'invalid-argument'});
+    await expect(call('alice',{action:'begin',expectedVersion:'stale',confirmation:'Delete me'})).rejects.toMatchObject({code:'aborted'});
+    expect((await db.doc(path).get()).data().resetting).toBeUndefined();
+    await call('alice',{action:'begin',expectedVersion:preview.version,confirmation:'Delete me'});
+    expect((await db.doc(path).get()).data()).toMatchObject({resetting:true,deleting:true});
+    expect(await call('alice',{action:'preview'})).toMatchObject({started:true});
+    await expect(call('bob',{action:'continue'})).rejects.toMatchObject({code:'permission-denied'});
+    let result; for(let i=0;i<20;i++) {result=await call('alice',{action:'continue'}); if(result.done) break;}
+    expect(result).toEqual({done:true});
+    expect(await call('alice',{action:'continue'})).toEqual({done:true});
+    for(const removed of [path,`bracketPools/${id}`,`poolEntries/${id}`,`poolInvites/bracket_${id}`,`bracketPosts/${id}`,`bracketPosts/${id}/comments/c`,`bracketPosts/${id}/likes/bob`]) expect((await db.doc(removed).get()).exists).toBe(false);
+    const remaining = type === 'custom' ? await db.collection(picksPath).get() : await db.collection('submissions').where('bracketId','==',id).get();
+    expect(remaining.empty).toBe(true);
+    expect((await db.doc('bracketPools/delete-unrelated').get()).exists).toBe(true);
+  });
+  test('published deletion refuses drafts and in-progress resets',async()=>{
+    for(const [id,changes] of [['draft',{status:'draft'}],['reset',{resetting:true}]]) {
+      await db.doc(`customBrackets/delete-blocked-${id}`).set({hostId:'alice',title:'Blocked',status:'published',...changes});
+      await expect(api.deletePublishedBracket.run(req('alice',{type:'custom',bracketId:`delete-blocked-${id}`,action:'preview'}))).rejects.toMatchObject({code:'failed-precondition'});
+    }
+  });
   test('unauthenticated calls and nonhost pool mutations are rejected', async () => {
     await expect(api.castRankingVote.run(req(null, {}))).rejects.toMatchObject({ code: 'unauthenticated' });
     await db.doc('bracketPools/p').set({ hostId: 'host', status: 'in_progress' });
