@@ -25,14 +25,17 @@ function mount(user = 'guest', status = 'in_progress') {
 }
 const select = key => act(() => tree.root.findByProps({ id: `pool-tab-${key}` }).props.onClick());
 const text = () => JSON.stringify(tree.toJSON());
-test('participants have all four sections and never see host controls or invite codes', () => {
+test('participants have all five sections and never see host controls or invite codes', () => {
   mount();
-  expect(tree.root.findAllByProps({ role: 'tab' }).map(t => t.children[0])).toEqual(['My Picks', 'Official Results', 'Standings', 'Rules']);
+  expect(tree.root.findAllByProps({ role: 'tab' }).map(t => t.children[0])).toEqual(['My Picks', 'Official Results', 'Standings', 'Entry Stats', 'Rules']);
   expect(tree.root.findAllByType('details')).toHaveLength(0);
   expect(text()).not.toContain('SECRET');
   select('results');
   expect(tree.root.findByType(Board).props.editable).toBe(false);
   expect(tree.root.findByType(Board).props.sc).toBe(null);
+  select('stats');
+  expect(text()).toContain('Predicted finishes');
+  expect(tree.root.findByProps({ role: 'tabpanel' }).props['aria-labelledby']).toBe('pool-tab-stats');
   select('rules');
   expect(text()).toContain('House rules');
   expect(text()).toContain('Points per correct pick');
@@ -63,11 +66,11 @@ test('unsaved picks survive switching tabs', () => {
   expect(before.boxes[id].result.winnerId).toBe(pid);
 });
 test('tab keyboard navigation wraps and supports Home and End', () => {
-  const change = vi.fn(), preventDefault = vi.fn(), focus = Array.from({ length: 4 }, () => vi.fn());
+  const change = vi.fn(), preventDefault = vi.fn(), focus = Array.from({ length: 5 }, () => vi.fn());
   act(() => { tree = create(<PoolTabs activeTab="bracket" onChange={change} />); });
   const event = key => ({ key, preventDefault, currentTarget: { parentElement: { querySelectorAll: () => focus.map(fn => ({ focus: fn })) } } });
   act(() => tree.root.findAllByType('button')[0].props.onKeyDown(event('ArrowLeft')));
-  expect(change).toHaveBeenLastCalledWith('rules'); expect(focus[3]).toHaveBeenCalled();
+  expect(change).toHaveBeenLastCalledWith('rules'); expect(focus[4]).toHaveBeenCalled();
   act(() => tree.root.findAllByType('button')[2].props.onKeyDown(event('Home')));
   expect(change).toHaveBeenLastCalledWith('bracket');
   act(() => tree.root.findAllByType('button')[0].props.onKeyDown(event('End')));

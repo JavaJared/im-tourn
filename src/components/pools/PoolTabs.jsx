@@ -1,6 +1,6 @@
 import { S } from './poolStyles';
 
-const TABS = [['bracket', 'My Picks'], ['results', 'Official Results'], ['leaderboard', 'Standings'], ['rules', 'Rules']];
+const TABS = [['bracket', 'My Picks'], ['results', 'Official Results'], ['leaderboard', 'Standings'], ['stats', 'Entry Stats'], ['rules', 'Rules']];
 
 export default function PoolTabs({ activeTab, onChange }) {
   const handleKey = (event, index) => {
