@@ -9,6 +9,7 @@ import Board from './pools/PoolBoard';
 import PoolTabs from './pools/PoolTabs';
 import PoolRules from './pools/PoolRules';
 import PoolStandings from './pools/PoolStandings';
+import PoolPredictionStats from './pools/PoolPredictionStats';
 import { explainEntry, remainingContext, analysisBlockReason, analysisMessage, compareStandings } from '../lib/poolStandings';
 import Shell from './pools/PoolShell';
 import { S } from './pools/poolStyles';
@@ -414,6 +415,8 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
           </>
         )}
         {tab === 'rules' && <PoolRules pool={pool} roundPoints={roundPoints} />}
+        {tab === 'stats' && <PoolPredictionStats structure={pool.bracketMatchups} entries={entries}
+          loaded={entriesLoaded} error={entriesError} predictionsOpen={predictionsOpen(pool, now)} onInspect={setInspectedEntry} />}
         {tab === 'leaderboard' && <PoolStandings entries={leaderboard} currentUserId={currentUserId}
           nameMap={nameMap} analysis={analysis} analysisNotice={analysisNotice}
           partial={!!entries.nextCursor} stale={!!entriesError} onView={setViewingEntry} />}

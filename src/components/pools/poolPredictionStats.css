@@ -1,0 +1,17 @@
+.cbpd .pool-prediction-stats { padding: 18px; line-height: 1.6; }
+.cbpd .pool-prediction-stats h2 { margin: 0 0 8px; }
+.cbpd .pool-prediction-stats p { margin: 0 0 14px; max-width: 80ch; color: var(--muted); }
+.cbpd .pool-prediction-stats .prediction-stats-sample { color: var(--text); }
+.cbpd .prediction-stats-notice { padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface2); }
+.cbpd .prediction-stats-table { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 14px; }
+.cbpd .prediction-stats-table table { border-collapse: collapse; width: 100%; min-width: 580px; font-size: 14px; }
+.cbpd .prediction-stats-table caption { text-align: left; padding: 12px; background: var(--surface2); font-weight: 600; }
+.cbpd .prediction-stats-table th, .cbpd .prediction-stats-table td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: right; font-variant-numeric: tabular-nums; }
+.cbpd .prediction-stats-table th:first-child, .cbpd .prediction-stats-table th:nth-child(2) { text-align: left; }
+.cbpd .prediction-stats-table tbody th { text-align: left; width: 35%; }
+.cbpd .prediction-stats-table tr:last-child > * { border-bottom: 0; }
+.cbpd .prediction-stats-table small { display: block; color: var(--muted); white-space: nowrap; }
+.cbpd .prediction-stats-average { font-weight: 700; color: var(--teal); }
+.cbpd .prediction-stats-entry { font: inherit; font-weight: 600; color: var(--teal); background: none; border: 0; text-align: left; text-decoration: underline; text-underline-offset: .18em; cursor: pointer; min-height: 44px; overflow-wrap: anywhere; max-width: 28ch; }
+.cbpd .prediction-stats-entry:focus-visible, .cbpd .prediction-stats-table:focus-visible { outline: 2px solid var(--teal); outline-offset: -2px; }
+@media (max-width: 600px) { .cbpd .pool-prediction-stats { padding: 12px; } }

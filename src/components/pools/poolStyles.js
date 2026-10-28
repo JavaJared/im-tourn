@@ -15,7 +15,7 @@ const CSS = `
 .cbpd .standings-sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 @media(max-width:700px){.cbpd .standings-breakdown{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
-.cbpd .pool-tabs{flex-shrink:0}
+.cbpd .pool-tabs{flex-shrink:0;overflow-x:auto;gap:0}
 .cbpd .pool-tabs button{min-height:48px;padding:10px 6px;line-height:1.3}
 .cbpd .pool-tabs button:focus-visible,.cbpd .pool-host-controls summary:focus-visible{outline:2px solid var(--teal);outline-offset:-3px}
 .cbpd .pool-host-controls{border-bottom:1px solid var(--line);padding:8px 18px}
@@ -52,7 +52,7 @@ const S = {
   primaryOff: { background: 'var(--surface2)', color: 'var(--muted)', border: '1px solid var(--line)', cursor: 'not-allowed' },
   ghost: { display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: 'var(--text)', background: 'var(--surface2)', border: '1px solid var(--line)', borderRadius: 9, padding: '8px 12px', cursor: 'pointer' },
   tabs: { display: 'flex', borderBottom: '1px solid var(--line)', background: 'var(--surface)' },
-  tab: (active) => ({ flex: 1, padding: '11px 0', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: active ? 'var(--teal)' : 'var(--muted)', background: 'transparent', border: 'none', borderBottom: active ? '2px solid var(--teal)' : '2px solid transparent' }),
+  tab: (active) => ({ flex: '1 0 76px', padding: '11px 0', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: active ? 'var(--teal)' : 'var(--muted)', background: 'transparent', border: 'none', borderBottom: active ? '2px solid var(--teal)' : '2px solid transparent' }),
   championBar: { display: 'flex', alignItems: 'center', gap: 8, padding: '11px 18px', fontSize: 15, color: 'var(--orange)', background: 'var(--color-brand-soft)', borderBottom: '1px solid var(--line)' },
   note: { padding: '10px 18px', fontSize: 13, color: 'var(--muted)' },
   joinWrap: { padding: '18px', display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'flex-start' },

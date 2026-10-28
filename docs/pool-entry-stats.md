@@ -1,0 +1,11 @@
+# Pool Entry Stats
+
+Each bracket pool has an **Entry Stats** tab ranking the bracket's participants by average predicted finish round across complete submitted prediction brackets. Standard, free-form, and legacy pools use the unified pool structure and legacy adapters.
+
+A loss in round r contributes r (rounds are numbered from 1); the champion contributes R + 1 for a bracket with R rounds. Higher averages rank first. Equal unrounded totals share a competition rank (1, 1, 3), with alphabetical display order within ties. Byes and later-round entrants follow the bracket's actual round numbers, so this measures predicted finish rather than number of matches won. Final picks include both finalists; champion picks include only winners. Both show a percentage and count using the same submitted-bracket denominator. These are participant predictions, not modeled outcome probabilities.
+
+Only complete, consistent submitted brackets contribute. Non-submissions are counted separately. Incomplete, damaged, unavailable, and stale/contradictory predictions are excluded from every participant's denominator and reported. Entries are identified by participant ID, so equal display names remain distinct. Official results and scoring weights have no effect on the calculation. Selecting a participant opens the existing member-by-member finish dialog.
+
+Statistics use the existing authenticated participant loader and its bounded refreshes. Nothing new is stored or sent to the backend. Picks stay private while predictions are open, and all analysis is withheld whenever the API still marks any picks private (including guests/nonmembers). Failed loads withhold stats until a successful retry. Paginated lists prominently label the analysis as partial and offer the existing Load more participants control; loading more recomputes rankings from all loaded submissions. No new Firebase rules, indexes, or Functions are needed.
+
+Validation: `tests/pool-prediction-stats.test.jsx` covers averages, tied ranks, final/champion counts, byes, later-round entrants, legacy adapters, excluded ballots, privacy, loading/error/empty states, partial samples, and participant inspection. `tests/pool-tabs.test.jsx` covers the fifth tab and keyboard navigation.
