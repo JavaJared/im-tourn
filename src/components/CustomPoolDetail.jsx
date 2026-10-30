@@ -10,6 +10,7 @@ import PoolTabs from './pools/PoolTabs';
 import PoolRules from './pools/PoolRules';
 import PoolStandings from './pools/PoolStandings';
 import PoolPredictionStats from './pools/PoolPredictionStats';
+import RemovePoolParticipantDialog from './pools/RemovePoolParticipantDialog';
 import { explainEntry, remainingContext, analysisBlockReason, analysisMessage, compareStandings } from '../lib/poolStandings';
 import Shell from './pools/PoolShell';
 import { S } from './pools/poolStyles';
@@ -20,7 +21,7 @@ import { SLOT, locate, slotDisplay, feederId, resolveParticipant, matchWinner, s
 import { hydrateState, picksFromState, isEntryComplete, buildLeaderboard, defaultRoundPoints } from '../lib/customScoring';
 import { usePoolAnalysis } from '../lib/usePoolAnalysis';
 import { summarizeWinningScenarios, shouldShowWinningPaths } from '../lib/customElimination';
-import { joinBracketPool, submitPoolPredictions, lockPool, completePool, updatePoolDescription, deletePool, getPoolById } from '../services/bracketService';
+import { joinBracketPool, submitPoolPredictions, lockPool, completePool, updatePoolDescription, deletePool, getPoolById, removePoolParticipant } from '../services/bracketService';
 import { startCustomPool, recordCustomPoolWinner, updateCustomPoolScores, recalculateCustomPoolScoresManual, subscribeToPool, subscribeToPoolEntries } from '../services/customBracketService';
 
 function StatusBadge({ status }) {
@@ -52,6 +53,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [removalTarget, setRemovalTarget] = useState(null);
   const busyRef = useRef(false), retryAction = useRef(null);
   const [operation, setOperation] = useState({ state: 'idle', message: '' });
   const [draftSave, setDraftSave] = useState({ state: 'idle', message: '' });
@@ -76,7 +78,7 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
   // entry (predictions + scores). All viewers see results and standings update
   // in real time without reloading.
   useEffect(() => {
-    setPool(null); setEntries([]); setEntriesLoaded(false); setEntriesError(''); setViewingEntry(null); setInspectedEntry(null); setLoading(true);
+    setPool(null); setEntries([]); setEntriesLoaded(false); setEntriesError(''); setViewingEntry(null); setInspectedEntry(null); setRemovalTarget(null); setLoading(true);
     const unsubPool = subscribeToPool(poolId, (p) => {
       if (!p) { setError('Pool not found.'); setLoading(false); return; }
       setPool(p); setError(null); setLoading(false); entryWatch.current?.refresh();
@@ -219,6 +221,19 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
   const removePool = () => {
     run(async () => { await deletePool(poolId, currentUserId); onNavigate('pools'); });
   };
+  const removeParticipant = () => {
+    if (!isHost || !removalTarget) return;
+    const userId = removalTarget.userId;
+    run(async () => {
+      await removePoolParticipant(poolId, userId);
+      // Drain any refresh already in flight; run() then requests a fresh page.
+      await entryWatch.current?.refresh();
+      setEntries(previous => Object.assign(previous.filter(entry => entry.userId !== userId), {
+        nextCursor: previous.nextCursor, predictionsHidden: previous.predictionsHidden,
+      }));
+      setViewingEntry(null); setInspectedEntry(null); setRemovalTarget(null);
+    }, 'Participant removed');
+  };
 
   // ---- per-matchup score entry (host) ----------------------------------
   const parseScoreInput = (raw) => {
@@ -338,10 +353,14 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
         </div>
       </details>}
 
-      <SaveNotice {...operation} onRetry={confirmDelete ? undefined : () => retryAction.current?.()} />
+      <SaveNotice {...operation} onRetry={confirmDelete || removalTarget ? undefined : () => retryAction.current?.()} />
       <SaveNotice {...scoreSave} onRetry={() => flushPendingScores()} retryLabel="Retry scores" />
       {isHost && <ConfirmDialog open={confirmDelete} busy={busy} error={operation.state === 'error' ? operation.message : ''}
         onCancel={() => { setConfirmDelete(false); retryAction.current = null; setOperation({ state: 'idle', message: '' }); }} onConfirm={removePool} />}
+      {isHost && <RemovePoolParticipantDialog participant={removalTarget} busy={busy}
+        error={operation.state === 'error' ? operation.message : ''}
+        onCancel={() => { if (busyRef.current) return; setRemovalTarget(null); retryAction.current = null; setOperation({ state: 'idle', message: '' }); }}
+        onConfirm={removeParticipant} />}
       <PoolTabs activeTab={tab} onChange={changeTab} />
 
       {status === 'completed' && pool.winnerName && <div style={S.championBar}><Trophy size={18} strokeWidth={2.5} /> <b>{pool.winnerName}</b> wins with {pool.winnerScore} pts</div>}
@@ -419,7 +438,10 @@ export default function CustomPoolDetail({ poolId, currentUserId, currentUserNam
           loaded={entriesLoaded} error={entriesError} predictionsOpen={predictionsOpen(pool, now)} onInspect={setInspectedEntry} />}
         {tab === 'leaderboard' && <PoolStandings entries={leaderboard} currentUserId={currentUserId}
           nameMap={nameMap} analysis={analysis} analysisNotice={analysisNotice}
-          partial={!!entries.nextCursor} stale={!!entriesError} onView={setViewingEntry} />}
+          partial={!!entries.nextCursor} stale={!!entriesError} onView={setViewingEntry} busy={busy}
+          onRemove={isHost && ['open', 'locked', 'in_progress', 'completed'].includes(status) ? entry => {
+            setOperation({ state: 'idle', message: '' }); setRemovalTarget(entry);
+          } : undefined} />}
 
           </>
         )}
