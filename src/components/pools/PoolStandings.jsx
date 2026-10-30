@@ -3,7 +3,7 @@ import UserLink from '../layout/UserLink';
 import { S } from './poolStyles';
 
 const statusText = { clinched: 'Clinched', eliminated: 'Eliminated', alive: 'Alive', unknown: 'Alive' };
-export default function PoolStandings({ entries, currentUserId, nameMap, analysis, partial, stale, onView }) {
+export default function PoolStandings({ entries, currentUserId, nameMap, analysis, partial, stale, onView, onRemove, busy }) {
   let rank = 0;
   const scoreCounts = new Map();
   for (const entry of entries) if (entry.total != null) scoreCounts.set(entry.total, (scoreCounts.get(entry.total) || 0) + 1);
@@ -17,6 +17,7 @@ export default function PoolStandings({ entries, currentUserId, nameMap, analysi
       const tied = e.total != null && scoreCounts.get(e.total) > 1;
       const status = analysis?.byUserId?.[e.userId];
       const canView = !!e.predictions && !e.predictionsHidden && !e.dataError;
+      const canRemove = !!onRemove && e.userId !== currentUserId;
       return <article className="standings-entry" key={e.id || e.userId} style={e.userId === currentUserId ? S.rowMe : undefined}>
         <div className="standings-entry-heading">
           <span className="standings-rank">{e.total == null ? 'Unranked' : `${partial ? 'Loaded rank ' : '#'}${rank}${tied ? ' (tie)' : ''}`}</span>
@@ -26,8 +27,9 @@ export default function PoolStandings({ entries, currentUserId, nameMap, analysi
         <div className="standings-remaining"><span>Remaining possible</span><strong>{e.breakdownUnavailable?'—':e.remainingPossible===0?'0':`Up to ${e.remainingPossible}`}</strong></div>
         <div className="standings-entry-footer">
           <span style={{...S.badge,...(status?.status==='eliminated'?S.badgeOut:status?.status==='clinched'?S.badgeClinch:S.badgeAlive)}}>{statusText[status?.status] || 'Alive'}</span>
-          {canView && <div className="standings-entry-actions">
-          <button style={S.ghost} onClick={() => onView(e)}>View picks<span className="standings-sr-only"> for <UsernameText userId={e.userId} /></span></button>
+          {(canView || canRemove) && <div className="standings-entry-actions">
+          {canView && <button style={S.ghost} onClick={() => onView(e)}>View picks<span className="standings-sr-only"> for <UsernameText userId={e.userId} /></span></button>}
+          {canRemove && <button style={S.danger} disabled={busy} onClick={() => onRemove(e)}>Remove participant<span className="standings-sr-only">: <UsernameText userId={e.userId} /></span></button>}
           </div>}
         </div>
         <details className="standings-details"><summary>Details<span className="sr-only"> for <UsernameText userId={e.userId}/></span></summary>

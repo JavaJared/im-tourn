@@ -13,7 +13,7 @@ vi.mock('../src/services/customBracketService', () => ({
   startCustomPool: vi.fn(), recordCustomPoolWinner: vi.fn(), updateCustomPoolScores: vi.fn(), recalculateCustomPoolScoresManual: vi.fn(),
 }));
 vi.mock('../src/services/bracketService', () => ({
-  joinBracketPool: vi.fn(), submitPoolPredictions: vi.fn(), lockPool: vi.fn(), completePool: vi.fn(), updatePoolDescription: vi.fn(), deletePool: vi.fn(), getPoolById: vi.fn(),
+  joinBracketPool: vi.fn(), submitPoolPredictions: vi.fn(), lockPool: vi.fn(), completePool: vi.fn(), updatePoolDescription: vi.fn(), deletePool: vi.fn(), getPoolById: vi.fn(), removePoolParticipant: vi.fn(),
 }));
 vi.mock('../src/lib/usePoolAnalysis', () => ({ usePoolAnalysis: () => ({ analysis: null }) }));
 let tree;

@@ -414,6 +414,10 @@ export async function submitPoolPredictions(poolId, userId, predictions, champio
   return true;
 }
 
+export function removePoolParticipant(poolId, userId) {
+  return callServer('removePoolParticipant', { poolId, userId });
+}
+
 // Lock the pool (no more entries/predictions allowed)
 export async function lockPool(poolId, hostId) {
   const pool = await getPoolById(poolId);

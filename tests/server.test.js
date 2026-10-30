@@ -54,6 +54,7 @@ run('server transactions against the Firestore emulator', () => {
     const batch=db.batch();
     for(let i=0;i<170;i++)batch.set(db.doc(`customBrackets/reset-source/submissions/u${i}`),{userId:`u${i}`,picks:{}});
     batch.set(db.doc('bracketPools/reset-pool'),{bracketId:'reset-source',hostId:'bob',status:'open'});
+    batch.set(db.doc('bracketPools/reset-pool/removedParticipants/removed'),{userId:'removed'});
     for(let i=0;i<170;i++)batch.set(db.doc(`poolEntries/reset-pool_u${i}`),{poolId:'reset-pool',userId:`u${i}`});
     batch.set(db.doc('poolInvites/bracket_reset-pool'),{joinCode:'RESET123'});
     batch.set(db.doc('bracketPosts/reset-post'),{bracketId:'reset-source',status:'published'});
@@ -75,7 +76,7 @@ run('server transactions against the Firestore emulator', () => {
     expect(updated).toMatchObject({title:'Updated',participantCount:2,structureVersion:1,resetting:false,status:'published'});
     expect((await db.collection('customBrackets/reset-source/submissions').get()).empty).toBe(true);
     expect((await db.collection('poolEntries').where('poolId','==','reset-pool').get()).empty).toBe(true);
-    for(const path of ['bracketPools/reset-pool','bracketPosts/reset-post','bracketPosts/reset-post/comments/one','bracketPosts/reset-post/likes/one','poolInvites/bracket_reset-pool'])expect((await db.doc(path).get()).exists).toBe(false);
+    for(const path of ['bracketPools/reset-pool','bracketPools/reset-pool/removedParticipants/removed','bracketPosts/reset-post','bracketPosts/reset-post/comments/one','bracketPosts/reset-post/likes/one','poolInvites/bracket_reset-pool'])expect((await db.doc(path).get()).exists).toBe(false);
     expect((await db.doc('bracketPools/unrelated').get()).exists).toBe(true);
   });
   test('legacy reset preserves old URLs through a modern bracket alias', async () => {
@@ -96,6 +97,7 @@ run('server transactions against the Firestore emulator', () => {
     const batch = db.batch();
     for (let i=0;i<155;i++) batch.set(db.doc(`${picksPath}/${id}-${i}`), {bracketId:id,userId:'bob'});
     batch.set(db.doc(`bracketPools/${id}`),{bracketId:id,hostId:'bob',status:'open'});
+    batch.set(db.doc(`bracketPools/${id}/removedParticipants/removed`),{userId:'removed'});
     batch.set(db.doc(`poolEntries/${id}`),{poolId:id,userId:'bob'});
     batch.set(db.doc(`bracketPosts/${id}`),{bracketId:id,status:'published'});
     batch.set(db.doc(`bracketPosts/${id}/comments/c`),{body:'Comment'});
@@ -118,7 +120,7 @@ run('server transactions against the Firestore emulator', () => {
     let result; for(let i=0;i<20;i++) {result=await call('alice',{action:'continue'}); if(result.done) break;}
     expect(result).toEqual({done:true});
     expect(await call('alice',{action:'continue'})).toEqual({done:true});
-    for(const removed of [path,`bracketPools/${id}`,`poolEntries/${id}`,`poolInvites/bracket_${id}`,`bracketPosts/${id}`,`bracketPosts/${id}/comments/c`,`bracketPosts/${id}/likes/bob`]) expect((await db.doc(removed).get()).exists).toBe(false);
+    for(const removed of [path,`bracketPools/${id}`,`bracketPools/${id}/removedParticipants/removed`,`poolEntries/${id}`,`poolInvites/bracket_${id}`,`bracketPosts/${id}`,`bracketPosts/${id}/comments/c`,`bracketPosts/${id}/likes/bob`]) expect((await db.doc(removed).get()).exists).toBe(false);
     const remaining = type === 'custom' ? await db.collection(picksPath).get() : await db.collection('submissions').where('bracketId','==',id).get();
     expect(remaining.empty).toBe(true);
     expect((await db.doc('bracketPools/delete-unrelated').get()).exists).toBe(true);
