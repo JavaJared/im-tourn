@@ -51,6 +51,8 @@ exports.resetPublishedBracket=onCall({timeoutSeconds:120},async req=>{
    if(pools.empty){tx.update(job,{phase:'posts'});return {done:false};}
    const p=pools.docs[0],entries=await tx.get(db.collection('poolEntries').where('poolId','==',p.id).limit(150));
    if(!entries.empty){tx.update(p.ref,{status:'deleting'});entries.docs.forEach(e=>tx.delete(e.ref));return {done:false};}
+   const removals=await tx.get(p.ref.collection('removedParticipants').limit(150));
+   if(!removals.empty){tx.update(p.ref,{status:'deleting'});removals.docs.forEach(record=>tx.delete(record.ref));return {done:false};}
    const invite=db.doc(`poolInvites/bracket_${p.id}`),inv=await tx.get(invite),code=inv.data()?.joinCode||p.data().joinCode;
    tx.delete(p.ref);tx.delete(invite);if(code)tx.delete(db.doc(`poolInviteCodes/${createHash('sha256').update(`bracket:${code}`).digest('hex')}`));
    return {done:false};

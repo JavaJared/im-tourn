@@ -57,6 +57,8 @@ exports.deletePublishedBracket = onCall({ timeoutSeconds: 120 }, async req => {
       const pool = pools.docs[0];
       const entries = await tx.get(db.collection('poolEntries').where('poolId','==',pool.id).limit(150));
       if (!entries.empty) { tx.update(pool.ref,{status:'deleting'}); entries.docs.forEach(entry => tx.delete(entry.ref)); return {done:false}; }
+      const removals = await tx.get(pool.ref.collection('removedParticipants').limit(150));
+      if (!removals.empty) { tx.update(pool.ref,{status:'deleting'}); removals.docs.forEach(record => tx.delete(record.ref)); return {done:false}; }
       const invite = db.doc(`poolInvites/bracket_${pool.id}`), invitation = await tx.get(invite);
       const code = invitation.data()?.joinCode || pool.data().joinCode;
       tx.delete(pool.ref); tx.delete(invite);

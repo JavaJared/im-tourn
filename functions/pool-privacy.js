@@ -99,8 +99,9 @@ exports.joinPrivatePool = onCall(async req => {
   const resolved = joinCode ? await resolve(type, joinCode) : null;
   return db.runTransaction(async tx => {
     const ref = db.doc(`${collection}/${poolId}`), entry = db.doc(`${entries}/${poolId}_${uid}`);
-    const [pool, existing] = await Promise.all([tx.get(ref), tx.get(entry)]);
+    const [pool, existing, removal] = await Promise.all([tx.get(ref), tx.get(entry), type === 'bracket' ? tx.get(ref.collection('removedParticipants').doc(uid)) : Promise.resolve(null)]);
     if (!pool.exists) throw new HttpsError('not-found', 'Pool not found.');
+    if (removal?.exists) throw new HttpsError('permission-denied', 'The host has removed you from this pool.');
     if (existing.exists) return { alreadyJoined: true };
     if (pool.data().hostId !== uid && resolved !== poolId) throw new HttpsError('permission-denied', 'Use the host’s invitation code to join this pool.');
     if (!open(pool.data())) throw new HttpsError('failed-precondition', 'This pool is closed to new entries.');
@@ -143,6 +144,7 @@ exports.deletePrivatePool = onCall(async req => {
   }
   const invite = await inviteRef(type, poolId).get();
   const joinCode = invite.data()?.joinCode || pool.data().joinCode;
+  if (type === 'bracket') await db.recursiveDelete(ref.collection('removedParticipants'));
   const batch = db.batch(); batch.delete(ref); batch.delete(inviteRef(type, poolId));
   if (joinCode) batch.delete(codeRef(type, joinCode));
   await batch.commit();

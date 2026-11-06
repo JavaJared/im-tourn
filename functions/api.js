@@ -83,6 +83,12 @@ exports.castRankingVote = onCall(async req => {
     return { voteCount: ballots.length };
   });
 });
+// Shared with participant removal so completed-pool winners use the same
+// canonical entries, legacy adapters and scoring as normal result recording.
+function poolLeaderboard(poolId, pool, state, docs) {
+  const normalized = docs.filter(d => d.id === `${poolId}_${d.data().userId}`).flatMap(d => { try { const predictions = parse(d.data().predictions); if (!predictions || typeof predictions !== 'object') return []; const entry = S.adaptLegacyEntry({ id: d.id, ...d.data(), predictions }); if (Object.values(entry.predictions).some(value => value !== null && typeof value !== 'string')) return []; return [entry]; } catch { return []; } }).filter(e => e.predictions);
+  return S.buildLeaderboard(state, normalized.map(e => ({ ...e, picks: e.predictions, displayName: e.userDisplayName })), pool.roundPoints || [], pool);
+}
 exports.managePoolResults = onCall(async req => {
   const uid = requireAuth(req), { poolId, action, boxId, winnerId } = req.data || {};
   if (!['pick', 'scores', 'recalculate', 'complete'].includes(action)) throw new HttpsError('invalid-argument', 'Unknown action.');
@@ -103,8 +109,7 @@ exports.managePoolResults = onCall(async req => {
     }
     if (action === 'complete' && (!S.isEntryComplete(state) || !S.getChampion(state))) throw new HttpsError('failed-precondition', 'Record every result, including the final, before completing the pool.');
     const entries = await tx.get(db.collection('poolEntries').where('poolId', '==', poolId));
-    const normalized = entries.docs.filter(d => d.id === `${poolId}_${d.data().userId}`).flatMap(d => { try { const predictions = parse(d.data().predictions); if (!predictions || typeof predictions !== 'object') return []; const entry = S.adaptLegacyEntry({ id: d.id, ...d.data(), predictions }); if (Object.values(entry.predictions).some(value => value !== null && typeof value !== 'string')) return []; return [entry]; } catch { return []; } }).filter(e => e.predictions);
-    const board = S.buildLeaderboard(state, normalized.map(e => ({ ...e, picks: e.predictions, displayName: e.userDisplayName })), pool.roundPoints || [], pool);
+    const board = poolLeaderboard(poolId, pool, state, entries.docs);
     for (const e of board) tx.update(db.doc(`poolEntries/${e.id}`), { score: e.total, sleeper1Hit: e.sleeper1Hit, sleeper2Hit: e.sleeper2Hit });
     const updates = { customResults: S.picksFromState(state), updatedAt: stamp(), ...(scoreUpdates ? {customScores: scoreUpdates} : {}) };
     if (action === 'complete' || raw.status === 'completed') {
@@ -115,7 +120,7 @@ exports.managePoolResults = onCall(async req => {
     return { completed: updates.status === 'completed', winner: board[0] || null };
   });
 });
-module.exports.internal = { parse, belongsToWeek, tallyRound, isBallot };
+module.exports.internal = { parse, belongsToWeek, tallyRound, isBallot, poolLeaderboard };
 // Prediction-pool scores are computed from all canonical entries, never from a
 // paginated browser leaderboard. Results and scores commit together.
 exports.managePredictionResults = onCall(async req => {
